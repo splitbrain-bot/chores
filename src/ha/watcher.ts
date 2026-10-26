@@ -106,8 +106,9 @@ export class Watcher {
     }
 
     /**
-     * Records the states since the last record and rebuilds the occupancy. For a gap longer than the history of
-     * Home Assistant, the current states are recorded at the current time.
+     * Records the states since the last record and rebuilds the occupancy. A state that repeats the last known state
+     * of its entity is skipped. For a gap longer than the history of Home Assistant, the current states are recorded
+     * at the current time.
      *
      * @param now the current time
      */
@@ -122,12 +123,17 @@ export class Watcher {
             records = states.filter((s) => entities.includes(s.entity_id))
                 .map((s) => ({ entityId: s.entity_id, state: s.state, at: now }));
         } else {
-            const known = new Set<string>();
+            const current = new Map<string, string>();
             for (const entity of entities) {
-                if (await latestState(this.db, entity)) known.add(entity);
+                const s = await latestState(this.db, entity);
+                if (s) current.set(entity, s.state);
             }
-            records = (await this.ha.fetchHistory(last, entities))
-                .filter((r) => r.at > last || (!known.has(r.entityId) && r.at >= last));
+            // the history starts with the state at the start of the period, which is often a known state
+            records = (await this.ha.fetchHistory(last, entities)).filter((r) => {
+                if (current.get(r.entityId) === r.state) return false;
+                current.set(r.entityId, r.state);
+                return true;
+            });
         }
 
         await this.db.transaction().execute(async (trx) => {

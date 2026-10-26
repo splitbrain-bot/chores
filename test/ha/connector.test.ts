@@ -124,13 +124,14 @@ describe('Home Assistant connector', () => {
         await ha.start();
         const watcher = new Watcher(db, ha);
         await watcher.setEntities({ persons: ['person.a'], others: [] });
-        await insertStates(db, [{ entityId: 'person.a', state: 'home', at: Date.now() - 3_600_000 }]);
+        const start = Date.now() - 3_600_000;
+        await insertStates(db, [{ entityId: 'person.a', state: 'home', at: start }]);
         const gapFilled = new Promise<void>((resolve) => ha.onReady(() => {
             watcher.gapFill().then(resolve, resolve);
         }));
         fake.history = [[
-            { entity_id: 'person.a', state: 'home', last_changed: new Date(Date.now() - 3_600_000).toISOString() },
-            { state: 'not_home', last_changed: new Date(Date.now() - 1_800_000).toISOString() },
+            { entity_id: 'person.a', state: 'home', last_changed: new Date(start + 5).toISOString() },
+            { state: 'not_home', last_changed: new Date(start + 1_800_000).toISOString() },
         ]];
 
         fake.dropConnections();
