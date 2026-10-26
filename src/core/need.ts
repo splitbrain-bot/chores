@@ -105,7 +105,7 @@ export function deadlines(chore: Chore, now: number, timeZone: string): number[]
 
 /**
  * Returns the need level that a deadline adds, or null when the deadline does not apply. A deadline before the
- * creation of the chore never applies.
+ * creation of the chore never applies. A done time counts for the lead period only when it is after the creation.
  *
  * @param chore the chore
  * @param deadline the deadline timestamp
@@ -115,8 +115,8 @@ function deadlineNeed(chore: Chore, deadline: number, now: number): number | nul
     const lead = chore.deadlineLeadDays * DAY;
     const leadStart = deadline - lead;
     if (deadline < chore.createdAt) return null;
-    // a done one-time task is deleted, so only recurring chores check the last done time
-    const doneInPeriod = chore.kind === 'recurring' && chore.lastDoneAt >= leadStart;
+    // a done one-time task is deleted, and a done time from the creation is no real done event
+    const doneInPeriod = chore.kind === 'recurring' && chore.lastDoneAt > chore.createdAt && chore.lastDoneAt >= leadStart;
     if (doneInPeriod || now < leadStart) return null;
     if (now <= deadline) return DEADLINE_LEVEL + (lead > 0 ? (now - leadStart) / lead : 1);
     return DEADLINE_LEVEL + 1 + (now - deadline) / DAY;

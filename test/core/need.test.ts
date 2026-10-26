@@ -85,6 +85,14 @@ describe('deadline', () => {
         expect(result.need).toBeLessThan(1);
     });
 
+    it('applies to a chore that was created in the lead period', () => {
+        const created = deadline - 5 * DAY;
+        const chore = makeChore({ ...base, createdAt: created, lastDoneAt: created });
+        expect(computeNeed(chore, ctx({ now: deadline - 3 * DAY })).urgent).toBe(true);
+        const imported = makeChore({ ...base, createdAt: created, lastDoneAt: created - 2 * DAY });
+        expect(computeNeed(imported, ctx({ now: deadline - 3 * DAY })).urgent).toBe(true);
+    });
+
     it('applies to a fixed deadline of a one-time task', () => {
         const chore = makeChore({ kind: 'one_time', interval: null, deadlineAt: deadline, createdAt: deadline - 10 * DAY,
             lastDoneAt: deadline - 10 * DAY });

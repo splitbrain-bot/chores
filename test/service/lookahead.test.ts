@@ -41,8 +41,7 @@ describe('look-ahead and overview', () => {
         await createPerson(deps, { name: 'Andi', haEntity: 'person.a' });
         await insertStates(deps.db, [{ entityId: 'person.a', state: 'home', at: clock.t - DAY }]);
         await createChore(deps, { name: 'Sprenger', kind: 'recurring', growth: 'time', interval: 365,
-            importance: 'critical', durationMin: 30, effort: 3, assignment: 'any', deadlineMd: '11-15',
-            lastDoneAt: clock.t - 200 * DAY });
+            importance: 'critical', durationMin: 30, effort: 3, assignment: 'any', deadlineMd: '11-15' });
         await createChore(deps, { name: 'Alt', kind: 'recurring', growth: 'time', interval: 2, importance: 'normal',
             durationMin: 10, effort: 1, assignment: 'any', lastDoneAt: clock.t - 10 * DAY });
         const o = await getOverview(deps);

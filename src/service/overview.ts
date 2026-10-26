@@ -44,7 +44,8 @@ export async function getOverview(deps: Deps): Promise<Overview> {
         const next = chore.deadlineMd !== null ? deadlines(chore, state.now + 365 * DAY, tz) : [];
         const candidates = [...deadlines(chore, state.now, tz), ...next];
         const coming = candidates.filter((d) => d > state.now && d <= state.now + DEADLINE_DAYS * DAY
-            && !(chore.kind === 'recurring' && chore.lastDoneAt >= d - chore.deadlineLeadDays * DAY));
+            && !(chore.kind === 'recurring' && chore.lastDoneAt > chore.createdAt
+                && chore.lastDoneAt >= d - chore.deadlineLeadDays * DAY));
         if (chore.reason.code === 'deadline') deadlineList.push({ chore, deadline: chore.reason.deadline });
         else if (coming.length > 0) deadlineList.push({ chore, deadline: Math.min(...coming) });
     }
