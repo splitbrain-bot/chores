@@ -73,7 +73,7 @@ describe('postpone', () => {
 
     it('lengthens the interval and snoozes until the new due time for not_yet', () => {
         const chore = makeChore({ interval: 10, lastDoneAt: now - 9 * DAY });
-        const result = postpone(chore, 'not_yet', pctx());
+        const result = postpone(chore, 'not_yet', pctx({ elapsed: 9 }));
         expect(result.update.interval).toBeCloseTo(11.5);
         expect(result.update.snoozedUntil).toBeCloseTo(now + 2.5 * DAY);
         expect(result.event.intervalAfter).toBeCloseTo(11.5);
@@ -81,7 +81,7 @@ describe('postpone', () => {
 
     it('snoozes at least one day for not_yet', () => {
         const chore = makeChore({ interval: 2, lastDoneAt: now - 10 * DAY });
-        expect(postpone(chore, 'not_yet', pctx()).update.snoozedUntil).toBe(now + DAY);
+        expect(postpone(chore, 'not_yet', pctx({ elapsed: 10 })).update.snoozedUntil).toBe(now + DAY);
     });
 
     it('doubles the snooze of a one-time task up to 56 days', () => {

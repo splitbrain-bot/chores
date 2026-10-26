@@ -1,5 +1,5 @@
 import { presenceBetween } from './clock.ts';
-import { addDays, localParts, startOfDay } from './time.ts';
+import { addDays, localParts, seasonParts, startOfDay } from './time.ts';
 import { DAY, type Chore, type OccupancyRow, type Reason, type Settings } from './types.ts';
 
 /** Data that the need level depends on, besides the chore. */
@@ -66,21 +66,21 @@ export function effectiveInterval(chore: Chore, settings: Settings): number {
 /**
  * Returns the elapsed value of a chore since the last done event.
  *
- * One-time tasks count wall-clock days since their creation.
+ * One-time tasks count wall-clock days since their creation. Time and usage chores with a season window count only
+ * the time inside the window.
  *
  * @param chore the chore
  * @param ctx the need context
  */
 export function elapsed(chore: Chore, ctx: NeedContext): { value: number; unit: 'days' | 'cycles' } {
-    if (chore.kind === 'one_time') return { value: (ctx.now - chore.createdAt) / DAY, unit: 'days' };
-    switch (chore.growth) {
-        case 'counter':
-            return { value: ctx.cycles.get(chore.id) ?? 0, unit: 'cycles' };
-        case 'usage':
-            return { value: presenceBetween(chore.lastDoneAt, ctx.now, ctx.occupancy, ctx.firstRecordAt) / DAY, unit: 'days' };
-        case 'time':
-            return { value: (ctx.now - chore.lastDoneAt) / DAY, unit: 'days' };
+    if (chore.kind !== 'one_time' && chore.growth === 'counter') return { value: ctx.cycles.get(chore.id) ?? 0, unit: 'cycles' };
+    const since = chore.kind === 'one_time' ? chore.createdAt : chore.lastDoneAt;
+    const usage = chore.kind === 'recurring' && chore.growth === 'usage';
+    let ms = 0;
+    for (const [a, b] of seasonParts(since, ctx.now, ctx.settings.time_zone, chore.seasonFrom, chore.seasonTo)) {
+        ms += usage ? presenceBetween(a, b, ctx.occupancy, ctx.firstRecordAt) : b - a;
     }
+    return { value: ms / DAY, unit: 'days' };
 }
 
 /**

@@ -121,12 +121,6 @@ export function postpone(chore: Chore, reason: PostponeReason, ctx: PostponeCont
  * @param ctx the postpone context
  */
 function dueAt(chore: Chore, interval: number, ctx: PostponeContext): number {
-    switch (chore.growth) {
-        case 'time':
-            return chore.lastDoneAt + interval * DAY;
-        case 'usage':
-            return ctx.now + (interval - ctx.elapsed) * DAY;
-        case 'counter':
-            return ctx.now;
-    }
+    if (chore.growth === 'counter') return ctx.now;
+    return ctx.now + (interval - ctx.elapsed) * DAY;
 }

@@ -130,6 +130,43 @@ export function inSeason(month: number, from: number | null, to: number | null):
 }
 
 /**
+ * Returns the parts of a period that are inside a season window. Without a window the period is one part.
+ *
+ * @param start the start of the period
+ * @param end the end of the period
+ * @param timeZone IANA time zone
+ * @param from first month of the window, null for no window
+ * @param to last month of the window, null for no window
+ * @returns the parts as start and end timestamps, sorted
+ */
+export function seasonParts(start: number, end: number, timeZone: string, from: number | null, to: number | null):
+    [number, number][] {
+    if (end <= start) return [];
+    if (from === null || to === null) return [[start, end]];
+    const parts: [number, number][] = [];
+    const first = localParts(start, timeZone);
+    let year = first.year;
+    let month = first.month;
+    let monthStart = startOfDay(`${year}-${pad(month)}-01`, timeZone);
+    while (monthStart < end) {
+        const nextYear = month === 12 ? year + 1 : year;
+        const nextMonth = month === 12 ? 1 : month + 1;
+        const nextStart = startOfDay(`${nextYear}-${pad(nextMonth)}-01`, timeZone);
+        if (inSeason(month, from, to)) {
+            const a = Math.max(monthStart, start);
+            const b = Math.min(nextStart, end);
+            const last = parts.at(-1);
+            if (last && last[1] === a) last[1] = b;
+            else parts.push([a, b]);
+        }
+        year = nextYear;
+        month = nextMonth;
+        monthStart = nextStart;
+    }
+    return parts;
+}
+
+/**
  * Converts a local date and time to a timestamp.
  *
  * @param date local date YYYY-MM-DD

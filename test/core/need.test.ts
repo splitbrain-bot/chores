@@ -39,6 +39,24 @@ describe('raw need', () => {
     });
 });
 
+describe('season', () => {
+    it('counts only the time inside the season', () => {
+        // last mowed on 20 October, the season is April to October
+        const chore = makeChore({ interval: 7, seasonFrom: 4, seasonTo: 10, lastDoneAt: Date.parse('2026-10-20T10:00+02:00') });
+        const april = Date.parse('2027-04-03T10:00+02:00');
+        const result = computeNeed(chore, ctx({ now: april }));
+        expect(result.elapsed).toBeCloseTo(11.6 + 2.4, 0);
+        expect(result.need).toBeCloseTo(2, 0);
+    });
+
+    it('counts only the presence inside the season for usage chores', () => {
+        const chore = makeChore({ growth: 'usage', interval: 10, seasonFrom: 11, seasonTo: 3,
+            lastDoneAt: Date.parse('2026-03-30T00:00+02:00') });
+        const result = computeNeed(chore, ctx({ now: Date.parse('2026-11-03T00:00+01:00') }));
+        expect(result.elapsed).toBeCloseTo(4, 1);
+    });
+});
+
 describe('counter growth', () => {
     it('counts on to off and ignores unavailable', () => {
         expect(countCycles(['on', 'unavailable', 'on', 'off', 'unavailable', 'off', 'on', 'off'])).toBe(2);

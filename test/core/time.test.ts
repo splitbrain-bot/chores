@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { currentSlot, dayTypeOf, inSeason, localParts, nextSlotStart, zonedTime } from '../../src/core/time.ts';
+import { currentSlot, dayTypeOf, inSeason, localParts, nextSlotStart, seasonParts, zonedTime } from '../../src/core/time.ts';
 import { at, settings } from './fixtures.ts';
 
 const tz = 'Europe/Berlin';
@@ -33,6 +33,25 @@ describe('inSeason', () => {
     it('handles a normal window', () => {
         expect(inSeason(10, 4, 10)).toBe(true);
         expect(inSeason(11, 4, 10)).toBe(false);
+    });
+});
+
+describe('seasonParts', () => {
+    it('returns the whole period without a window', () => {
+        expect(seasonParts(1, 5, tz, null, null)).toEqual([[1, 5]]);
+    });
+
+    it('cuts the period to the season months', () => {
+        const parts = seasonParts(at('2026-10-20T10:00+02:00'), at('2027-04-11T10:00+02:00'), tz, 4, 10);
+        expect(parts).toEqual([
+            [at('2026-10-20T10:00+02:00'), at('2026-11-01T00:00+01:00')],
+            [at('2027-04-01T00:00+02:00'), at('2027-04-11T10:00+02:00')],
+        ]);
+    });
+
+    it('handles a window over the new year', () => {
+        const parts = seasonParts(at('2026-10-15T00:00+02:00'), at('2027-04-15T00:00+02:00'), tz, 11, 3);
+        expect(parts).toEqual([[at('2026-11-01T00:00+01:00'), at('2027-04-01T00:00+02:00')]]);
     });
 });
 
