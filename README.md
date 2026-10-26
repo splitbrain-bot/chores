@@ -35,6 +35,7 @@ The server listens on port 3000. Vite serves the web app on port 5173 and sends 
 | `HA_TOKEN`         |                      | Long-lived access token of Home Assistant                 |
 | `INITIAL_PERSON`   |                      | Name of the first person, used when no person exists      |
 | `INITIAL_PASSWORD` |                      | Password of the first person                              |
+| `INITIAL_PERSON_ENTITY` | `person.<name>` | Home Assistant person entity of the first person          |
 
 ## Docker
 
@@ -44,3 +45,12 @@ docker compose up -d --build
 
 The container runs as the user `node` with the uid 1000. The directory `data` on the host must be writable for this
 uid.
+
+## MCP
+
+The MCP endpoint is `/mcp`. It accepts only tokens of the kind MCP. A logged-in person creates such a token in the
+settings screen.
+
+```
+claude mcp add --transport http chores https://<host>/mcp --header "Authorization: Bearer <token>"
+```

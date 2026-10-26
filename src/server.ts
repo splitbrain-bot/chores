@@ -7,6 +7,7 @@ import { HomeAssistant } from './ha/connection.ts';
 import { TemplateManager } from './ha/templates.ts';
 import { Watcher } from './ha/watcher.ts';
 import { createApp } from './http/app.ts';
+import { addMcpRoute } from './http/mcp.ts';
 import { ensureInitialPerson } from './service/auth.ts';
 import type { Deps } from './service/deps.ts';
 import { watchList } from './service/presence.ts';
@@ -57,6 +58,7 @@ const app = createApp(deps, {
     version,
     staticDir: config.STATIC_DIR,
     health: () => ({ haConnected: ha?.connected ?? false, lastEventAt: watcher?.lastEventAt ?? null }),
+    mcp: (a) => addMcpRoute(a, deps, version),
 });
 
 serve({ fetch: app.fetch, port: config.PORT }, (info) => {
