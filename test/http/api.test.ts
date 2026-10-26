@@ -62,7 +62,7 @@ describe('HTTP API', () => {
 
         const done = await (await t.call('POST', `/api/chores/${c.id}/done`, t.shared, {})).json() as {
             events: { choreId: number; eventId: number }[] };
-        expect(done.events).toEqual([{ choreId: c.id, eventId: expect.any(Number) }]);
+        expect(done.events).toEqual([{ choreId: c.id, eventId: expect.any(Number), earlier: true }]);
         const earlier = await t.call('POST', `/api/events/${done.events[0]!.eventId}/earlier`, t.shared);
         expect(await earlier.json()).toMatchObject({ chore: { interval: 5.95 } });
         expect((await t.call('POST', `/api/events/${done.events[0]!.eventId}/earlier`, t.shared)).status).toBe(409);

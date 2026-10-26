@@ -38,25 +38,31 @@ describe('earlier', () => {
     const chore = makeChore({ interval: 10 });
 
     it('shortens the interval within the window', () => {
-        const result = earlier(chore, stored(1, now - 30_000), false, now, 1);
+        const result = earlier(chore, stored(1, now - 30_000), false, now, 1, 1.5);
         expect(result).toMatchObject({ update: { interval: 8.5 }, event: { type: 'earlier', intervalBefore: 10,
             intervalAfter: 8.5 } });
     });
 
     it('refuses a call after the window', () => {
-        expect(earlier(chore, stored(1, now - 61_000), false, now, 1)).toEqual({ error: 'window' });
+        expect(earlier(chore, stored(1, now - 61_000), false, now, 1, 1.5)).toEqual({ error: 'window' });
     });
 
     it('refuses a second call', () => {
-        expect(earlier(chore, stored(1, now - 1000), true, now, 1)).toEqual({ error: 'already' });
+        expect(earlier(chore, stored(1, now - 1000), true, now, 1, 1.5)).toEqual({ error: 'already' });
     });
 
     it('refuses an event of another chore', () => {
-        expect(earlier(chore, stored(2, now - 1000), false, now, 1)).toEqual({ error: 'not_done' });
+        expect(earlier(chore, stored(2, now - 1000), false, now, 1, 1.5)).toEqual({ error: 'not_done' });
+    });
+
+    it('refuses a done event with a need level above the limit', () => {
+        const late = { ...stored(1, now - 1000), needLevel: 1.6 };
+        expect(earlier(chore, late, false, now, 1, 1.5)).toEqual({ error: 'overdue' });
+        expect(earlier(chore, { ...late, needLevel: 1.5 }, false, now, 1, 1.5)).not.toHaveProperty('error');
     });
 
     it('ignores one-time tasks', () => {
-        expect(earlier(makeChore({ kind: 'one_time' }), stored(1, now - 1000), false, now, 1)).toBeNull();
+        expect(earlier(makeChore({ kind: 'one_time' }), stored(1, now - 1000), false, now, 1, 1.5)).toBeNull();
     });
 });
 

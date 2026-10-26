@@ -34,6 +34,7 @@ export const settingsSchema = z.object({
     capacity_slots: z.array(slotSchema),
     hangover_effort: z.number().int().min(1).max(6),
     earlier_window_seconds: z.number().int().min(1).max(60),
+    earlier_max_need: z.number().min(0),
     one_time_snooze_days: z.number().positive(),
     lookahead_days: z.number().int().min(1).max(14),
     notify_hour: z.number().int().min(0).max(23),

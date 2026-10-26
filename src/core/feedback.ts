@@ -17,7 +17,7 @@ export interface FeedbackResult {
 }
 
 /** Error of an earlier call. */
-export type EarlierError = 'not_done' | 'window' | 'already';
+export type EarlierError = 'not_done' | 'window' | 'already' | 'overdue';
 
 /**
  * Builds the changes for a done tap.
@@ -40,6 +40,18 @@ export function done(chore: Chore, now: number, need: number, personId: number |
 }
 
 /**
+ * Tells if a done event allows the tap "the chore was necessary earlier". A chore that was done late, for example
+ * because of the capacity, gives no information about its interval.
+ *
+ * @param chore the chore
+ * @param needLevel the need level of the done event
+ * @param maxNeed the highest need level that allows the tap
+ */
+export function earlierAllowed(chore: Chore, needLevel: number, maxNeed: number): boolean {
+    return chore.kind === 'recurring' && needLevel <= maxNeed;
+}
+
+/**
  * Builds the changes for the tap "the chore was necessary earlier".
  *
  * @param chore the chore
@@ -47,14 +59,16 @@ export function done(chore: Chore, now: number, need: number, personId: number |
  * @param alreadyUsed true when the done event already has an earlier event
  * @param now time of the tap
  * @param personId person of the viewer, or null
+ * @param maxNeed the highest need level of the done event that allows the tap
  * @returns the changes, null for a one-time task, or the reason of the refusal
  */
 export function earlier(chore: Chore, doneEvent: ChoreEvent, alreadyUsed: boolean, now: number,
-    personId: number | null): FeedbackResult | null | { error: EarlierError } {
+    personId: number | null, maxNeed: number): FeedbackResult | null | { error: EarlierError } {
     if (doneEvent.type !== 'done' || doneEvent.choreId !== chore.id) return { error: 'not_done' };
     if (alreadyUsed) return { error: 'already' };
     if (now - doneEvent.at > EARLIER_LIMIT || now < doneEvent.at) return { error: 'window' };
     if (chore.kind === 'one_time') return null;
+    if (!earlierAllowed(chore, doneEvent.needLevel, maxNeed)) return { error: 'overdue' };
 
     const learned = learn(chore, -1);
     return {

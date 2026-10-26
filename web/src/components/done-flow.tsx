@@ -6,21 +6,23 @@ import { t } from '../i18n.ts';
  * The confirmation after a done tap with the button "necessary earlier". It closes itself after the window.
  *
  * @param props.eventId the done event of the main chore
+ * @param props.earlier true when the done event allows the tap "necessary earlier"
  * @param props.seconds the time in which the button is shown
  * @param props.onClose called when the confirmation is over
  */
-export function DoneConfirmation({ eventId, seconds, onClose }: { eventId: number; seconds: number; onClose: () => void }) {
+export function DoneConfirmation({ eventId, earlier, seconds, onClose }:
+    { eventId: number; earlier: boolean; seconds: number; onClose: () => void }) {
     const [thanks, setThanks] = useState(false);
 
     useEffect(() => {
-        const timer = setTimeout(onClose, (thanks ? 2 : seconds) * 1000);
+        const timer = setTimeout(onClose, (thanks || !earlier ? 2 : seconds) * 1000);
         return () => clearTimeout(timer);
-    }, [thanks, seconds, onClose]);
+    }, [thanks, earlier, seconds, onClose]);
 
     return (
         <div className="confirm">
             <p>{thanks ? t('suggestions.earlierThanks') : t('suggestions.doneConfirm')}</p>
-            {!thanks && (
+            {earlier && !thanks && (
                 <button type="button" onClick={() => {
                     api('POST', `/events/${eventId}/earlier`).finally(() => setThanks(true));
                 }}>{t('suggestions.earlier')}</button>

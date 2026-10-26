@@ -222,6 +222,8 @@ export interface Settings {
     capacity_slots: Slot[];
     hangover_effort: number;
     earlier_window_seconds: number;
+    /** Highest need level of a done event that still allows the tap "necessary earlier". */
+    earlier_max_need: number;
     one_time_snooze_days: number;
     lookahead_days: number;
     notify_hour: number;
@@ -257,6 +259,7 @@ export const DEFAULT_SETTINGS: Settings = {
     ],
     hangover_effort: 4,
     earlier_window_seconds: 10,
+    earlier_max_need: 1.5,
     one_time_snooze_days: 7,
     lookahead_days: 7,
     notify_hour: 9,

@@ -30,19 +30,24 @@ test('logs in and shows the suggestions', async ({ page }) => {
     await expect(page).toHaveURL(/\/$/);
     await expect(page.locator('.badge')).toHaveText(['Andi', 'Kaddi']);
     await expect(page.getByText('up to 120 min, energy 5')).toBeVisible();
-    await expect(page.locator('.card h2')).toHaveText(['Fußboden wischen', 'Spiegel putzen', 'Kühlschrank auswischen']);
-    await expect(page.locator('.card').first().getByText('Also possible')).toBeVisible();
+    await expect(page.locator('.card h2')).toHaveText(['Kühlschrank auswischen', 'Spiegel putzen', 'Fußboden wischen']);
+    await expect(page.locator('.card').nth(2).getByText('Also possible')).toBeVisible();
 });
 
 test('marks a suggestion as done and taps necessary earlier', async ({ page, request }) => {
     await login(page);
-    const card = page.locator('.card').first();
+    const card = page.locator('.card').filter({ hasText: 'Fußboden wischen' });
     await card.getByRole('checkbox').check();
     await card.getByRole('button', { name: 'Done' }).click();
     await expect(card.getByText('Done. Thank you!')).toBeVisible();
     await card.getByRole('button', { name: 'Was necessary earlier' }).click();
     await expect(card.getByText('Noted. The chore comes back sooner.')).toBeVisible();
-    await expect(page.locator('.card h2')).toHaveText(['Spiegel putzen', 'Kühlschrank auswischen']);
+    await expect(page.locator('.card h2')).toHaveText(['Kühlschrank auswischen', 'Spiegel putzen']);
+
+    const late = page.locator('.card').filter({ hasText: 'Kühlschrank auswischen' });
+    await late.getByRole('button', { name: 'Done' }).click();
+    await expect(late.getByText('Done. Thank you!')).toBeVisible();
+    await expect(late.getByRole('button', { name: 'Was necessary earlier' })).toHaveCount(0);
 
     const token = await page.evaluate(() => localStorage.getItem('chores.token'));
     const res = await request.get('/api/chores?q=Fußboden', { headers: { authorization: `Bearer ${token}` } });
@@ -56,7 +61,7 @@ test('postpones a suggestion with a reason', async ({ page }) => {
     const card = page.locator('.card').filter({ hasText: 'Spiegel putzen' });
     await card.getByRole('button', { name: 'Later' }).click();
     await card.getByRole('button', { name: 'No energy' }).click();
-    await expect(page.locator('.card h2')).toHaveText(['Fußboden wischen', 'Kühlschrank auswischen']);
+    await expect(page.locator('.card h2')).toHaveText(['Kühlschrank auswischen', 'Fußboden wischen']);
 
     await page.getByRole('link', { name: 'Chores' }).click();
     await expect(page.locator('.chore-row').filter({ hasText: 'Spiegel putzen' })).toContainText('paused until');

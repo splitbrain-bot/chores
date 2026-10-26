@@ -56,6 +56,14 @@ describe('done flow', () => {
         await expect(markEarlier(deps, andi, events[0]!.eventId)).rejects.toMatchObject({ status: 409 });
     });
 
+    it('refuses earlier for a chore that was done late', async () => {
+        const chore = await createChore(deps, { ...base, lastDoneAt: clock.t - 14 * DAY });
+        const [event] = await markDone(deps, andi, chore.id);
+        expect(event!.earlier).toBe(false);
+        await expect(markEarlier(deps, andi, event!.eventId)).rejects.toMatchObject({ status: 409 });
+        expect((await getChore(deps, andi, chore.id)).chore.interval).toBe(7);
+    });
+
     it('refuses earlier after one minute', async () => {
         const chore = await createChore(deps, base);
         const [event] = await markDone(deps, { kind: 'shared' }, chore.id);

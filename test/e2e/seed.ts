@@ -55,13 +55,13 @@ export async function seed(path: string): Promise<void> {
     const base = { kind: 'recurring', growth: 'time', importance: 'normal', assignment: 'any' } as const;
     const chores: ChoreInput[] = [
         { ...base, name: 'Fußboden wischen', groupKey: 'fussboden-wischen', interval: 7, durationMin: 20, effort: 3,
-            categoryIds: [kitchen.id], lastDoneAt: now - 12 * DAY },
+            categoryIds: [kitchen.id], lastDoneAt: now - 9.8 * DAY },
         { ...base, name: 'Fußboden wischen', groupKey: 'fussboden-wischen', interval: 7, durationMin: 15, effort: 3,
             categoryIds: [bath.id], lastDoneAt: now - 6 * DAY },
         { ...base, name: 'Spiegel putzen', interval: 14, durationMin: 5, effort: 1, categoryIds: [bath.id],
             lastDoneAt: now - 20 * DAY },
         { ...base, name: 'Kühlschrank auswischen', interval: 30, durationMin: 30, effort: 2, categoryIds: [kitchen.id],
-            lastDoneAt: now - 40 * DAY },
+            lastDoneAt: now - 50 * DAY },
         { ...base, name: 'Fenster putzen', interval: 90, durationMin: 60, effort: 4, lastDoneAt: now - 10 * DAY },
         { ...base, name: 'Regal bauen', kind: 'one_time', durationMin: 90, effort: 3, importance: 'optional' },
     ];

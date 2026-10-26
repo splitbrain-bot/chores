@@ -33,16 +33,17 @@ export function SuggestionCard({ suggestion, earlierWindowSeconds, onStart, onFi
     const { chore, also } = suggestion;
     const [checked, setChecked] = useState<number[]>([]);
     const [mode, setMode] = useState<'idle' | 'later' | 'sending'>('idle');
-    const [eventId, setEventId] = useState<number | null>(null);
+    const [doneEvent, setDoneEvent] = useState<{ eventId: number; earlier: boolean } | null>(null);
     const close = useCallback(() => onFinished(), [onFinished]);
 
     const names = categories.filter((c) => chore.categoryIds.includes(c.id)).map((c) => c.name);
 
-    if (eventId !== null) {
+    if (doneEvent !== null) {
         return (
             <article className="card">
                 <h2>{chore.name}</h2>
-                <DoneConfirmation eventId={eventId} seconds={earlierWindowSeconds} onClose={close} />
+                <DoneConfirmation eventId={doneEvent.eventId} earlier={doneEvent.earlier} seconds={earlierWindowSeconds}
+                    onClose={close} />
             </article>
         );
     }
@@ -82,9 +83,9 @@ export function SuggestionCard({ suggestion, earlierWindowSeconds, onStart, onFi
                         <button type="button" className="primary" disabled={mode === 'sending'} onClick={() => {
                             onStart();
                             setMode('sending');
-                            api<{ events: { choreId: number; eventId: number }[] }>('POST', `/chores/${chore.id}/done`,
-                                { also: checked })
-                                .then((r) => setEventId(r.events.find((e) => e.choreId === chore.id)!.eventId), close);
+                            api<{ events: { choreId: number; eventId: number; earlier: boolean }[] }>('POST',
+                                `/chores/${chore.id}/done`, { also: checked })
+                                .then((r) => setDoneEvent(r.events.find((e) => e.choreId === chore.id)!), close);
                         }}>{t('suggestions.done')}</button>
                         <button type="button" onClick={() => {
                             onStart();

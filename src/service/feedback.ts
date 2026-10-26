@@ -1,7 +1,8 @@
-import { done, earlier, EARLIER_LIMIT, postpone as corePostpone } from '../core/feedback.ts';
+import { done, earlier, earlierAllowed, EARLIER_LIMIT, postpone as corePostpone } from '../core/feedback.ts';
 import type { ChoreWithNeed, PostponeReason, Viewer } from '../core/types.ts';
 import { updateChore } from '../db/chores.ts';
 import { getEvent, hasEarlierBetween, insertEvent } from '../db/events.ts';
+import { getSettings } from '../db/settings.ts';
 import type { Deps } from './deps.ts';
 import { notFound, ServiceError } from './errors.ts';
 import { evaluate } from './evaluate.ts';
@@ -10,6 +11,8 @@ import { evaluate } from './evaluate.ts';
 export interface DoneEvent {
     choreId: number;
     eventId: number;
+    /** True when the event allows the tap "necessary earlier". */
+    earlier: boolean;
 }
 
 /**
@@ -49,7 +52,7 @@ export async function evaluatedChore(deps: Deps, viewer: Viewer, id: number, inc
 export async function markDone(deps: Deps, viewer: Viewer, choreId: number, also: readonly number[] = [],
     at?: number): Promise<DoneEvent[]> {
     const ids = [...new Set([choreId, ...also])];
-    const { chores } = await evaluate(deps, viewer, { ids });
+    const { state, chores } = await evaluate(deps, viewer, { ids });
     if (chores.length !== ids.length) throw notFound('Chore');
     const when = at ?? deps.now();
     if (when > deps.now()) throw new ServiceError(400, 'The time of a done event cannot be in the future');
@@ -60,7 +63,8 @@ export async function markDone(deps: Deps, viewer: Viewer, choreId: number, also
             const chore = chores.find((c) => c.id === id)!;
             const change = done(chore, when, chore.need, personOf(viewer));
             await updateChore(trx, id, change.update);
-            result.push({ choreId: id, eventId: await insertEvent(trx, change.event) });
+            const eventId = await insertEvent(trx, change.event);
+            result.push({ choreId: id, eventId, earlier: earlierAllowed(chore, chore.need, state.settings.earlier_max_need) });
         }
         return result;
     });
@@ -74,17 +78,18 @@ export async function markDone(deps: Deps, viewer: Viewer, choreId: number, also
  * @param deps the dependencies
  * @param viewer the viewer
  * @param eventId the done event
- * @throws ServiceError 404 for an unknown event, 409 after the window or for a second call
+ * @throws ServiceError 404 for an unknown event, 409 after the window, for a second call or for a late done event
  */
 export async function markEarlier(deps: Deps, viewer: Viewer, eventId: number): Promise<ChoreWithNeed> {
     const event = await getEvent(deps.db, eventId);
     if (!event) throw notFound('Event');
     const chore = await evaluatedChore(deps, viewer, event.choreId, true);
     const used = await hasEarlierBetween(deps.db, chore.id, event.at, event.at + EARLIER_LIMIT);
-    const result = earlier(chore, event, used, deps.now(), personOf(viewer));
+    const { earlier_max_need: maxNeed } = await getSettings(deps.db);
+    const result = earlier(chore, event, used, deps.now(), personOf(viewer), maxNeed);
     if (result && 'error' in result) {
         const messages = { not_done: 'The event is not a done event', window: 'The time for this tap is over',
-            already: 'The tap was already used' };
+            already: 'The tap was already used', overdue: 'The chore was done too late for this tap' };
         throw new ServiceError(409, messages[result.error]);
     }
     if (result) {

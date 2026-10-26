@@ -242,7 +242,7 @@ function run(): void {
                 apply(chore, result.update);
                 s.done++;
                 if (trueNeed > 1.3) {
-                    const e = earlier(chore, event, false, now + 5000, personId);
+                    const e = earlier(chore, event, false, now + 5000, personId, settings.earlier_max_need);
                     if (e && !('error' in e)) {
                         apply(chore, e.update);
                         s.earlier++;
