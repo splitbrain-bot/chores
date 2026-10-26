@@ -6,6 +6,7 @@ import { listChores } from './db/chores.ts';
 import { HomeAssistant } from './ha/connection.ts';
 import { TemplateManager } from './ha/templates.ts';
 import { Watcher } from './ha/watcher.ts';
+import { Scheduler } from './jobs/scheduler.ts';
 import { createApp } from './http/app.ts';
 import { addMcpRoute } from './http/mcp.ts';
 import { ensureInitialPerson } from './service/auth.ts';
@@ -28,7 +29,7 @@ if (config.INITIAL_PERSON && config.INITIAL_PASSWORD) {
 let watcher: Watcher | null = null;
 
 /**
- * Connects to Home Assistant, records the missed states and opens the subscriptions.
+ * Connects to Home Assistant, records the missed states, opens the subscriptions and starts the scheduler.
  *
  * @param conn the Home Assistant connection
  */
@@ -52,6 +53,7 @@ async function startHomeAssistant(conn: HomeAssistant): Promise<void> {
     await w.gapFill();
     await syncTemplates();
     conn.onReady(() => w.gapFill().catch(log('Gap fill')));
+    new Scheduler({ ...deps, ha: conn }).start();
 }
 
 const app = createApp(deps, {
