@@ -1,0 +1,52 @@
+{
+  "name": "chores",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=26"
+  },
+  "scripts": {
+    "dev": "node --run dev:server & node --run dev:web",
+    "dev:server": "tsx watch src/server.ts",
+    "dev:web": "vite",
+    "build": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json --noEmit && vite build",
+    "start": "node src/server.ts",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "lint": "eslint .",
+    "sim": "tsx test/sim/run.ts",
+    "migrate": "node src/db/migrate.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.5",
+    "@modelcontextprotocol/server": "^2.4.0",
+    "better-sqlite3": "^13.0.3",
+    "home-assistant-js-websocket": "^9.7.1",
+    "hono": "^4.13.14",
+    "kysely": "^0.29.7",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.64.1",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "eslint": "^10.13.0",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.1",
+    "vite": "^8.3.5",
+    "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^5.0.5"
+  },
+  "allowScripts": {
+    "better-sqlite3": true,
+    "esbuild": true
+  }
+}

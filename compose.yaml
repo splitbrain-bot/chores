@@ -1,0 +1,13 @@
+services:
+  chores:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      HA_URL: ${HA_URL}
+      HA_TOKEN: ${HA_TOKEN}
+      INITIAL_PERSON: ${INITIAL_PERSON:-}
+      INITIAL_PASSWORD: ${INITIAL_PASSWORD:-}
