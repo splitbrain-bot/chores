@@ -97,12 +97,14 @@ function toInput(f: FormState): ChoreInput {
 }
 
 /**
- * A labelled form field.
+ * A labelled form field. A group of buttons gets a named group instead of a label.
  *
  * @param props.label the label text
+ * @param props.group true for a group of buttons
  * @param props.children the input
  */
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, group = false, children }: { label: string; group?: boolean; children: ReactNode }) {
+    if (group) return <div className="field" role="group" aria-label={label}><span>{label}</span>{children}</div>;
     return <label className="field"><span>{label}</span>{children}</label>;
 }
 
@@ -162,7 +164,7 @@ export function ChoreForm({ id }: { id: number | null }) {
             {error && <p className="error">{t('common.error', { message: error })}</p>}
 
             <Field label={t('form.name')}>{input('name', 'text', { required: true })}</Field>
-            <Field label={t('form.categories')}>
+            <Field label={t('form.categories')} group>
                 <CategoryPicker categories={categories} value={form.categoryIds} onChange={(ids) => set('categoryIds', ids)} />
             </Field>
             <div className="row">
@@ -186,7 +188,7 @@ export function ChoreForm({ id }: { id: number | null }) {
             </div>
             <div className="row">
                 <Field label={t('form.assignment')}>{select('assignment', ['any', 'all'])}</Field>
-                <Field label={t('form.persons')}>
+                <Field label={t('form.persons')} group>
                     <div className="chips">
                         <button type="button" className={form.personIds.length === 0 ? 'chip on' : 'chip'}
                             aria-pressed={form.personIds.length === 0}
