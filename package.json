@@ -10,7 +10,7 @@
     "dev": "node --run dev:server & node --run dev:web",
     "dev:server": "tsx watch src/server.ts",
     "dev:web": "vite",
-    "build": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json --noEmit && vite build",
+    "build": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json --noEmit && tsc -p test/e2e/tsconfig.json --noEmit && vite build",
     "start": "node src/server.ts",
     "test": "vitest run",
     "test:e2e": "playwright test",

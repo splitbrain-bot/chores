@@ -15,5 +15,6 @@
     "skipLibCheck": true,
     "isolatedModules": true
   },
-  "include": ["src", "test", "*.ts"]
+  "include": ["src", "test", "*.ts"],
+  "exclude": ["test/e2e"]
 }
