@@ -15,5 +15,5 @@
     "skipLibCheck": true,
     "isolatedModules": true
   },
-  "include": ["src", "../src/schemas"]
+  "include": ["src", "../src/schemas", "../src/core/types.ts"]
 }

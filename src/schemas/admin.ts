@@ -4,6 +4,7 @@ import { z } from 'zod';
 export const loginSchema = z.object({
     name: z.string().min(1),
     password: z.string().min(1),
+    label: z.string().trim().min(1).max(100).optional().describe('Label of the device for the token list'),
 });
 
 const entity = z.string().regex(/^[a-z_]+\.[a-z0-9_]+$/);

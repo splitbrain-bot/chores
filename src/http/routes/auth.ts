@@ -57,8 +57,7 @@ export function authRoutes(deps: Deps): Hono<AppEnv> {
 
     app.post('/login', async (c) => {
         if (!limiter.allow(clientAddress(c), deps.now())) throw new ServiceError(429, 'Too many attempts');
-        const { name, password } = await body(c, loginSchema);
-        const label = c.req.header('user-agent')?.slice(0, 100) || 'Login';
+        const { name, password, label } = await body(c, loginSchema);
         return c.json(await login(deps, name, password, label));
     });
 

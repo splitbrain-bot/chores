@@ -17,6 +17,8 @@ export interface SuggestionsResult {
     nextSlotAt: number | null;
     presence: PersonPresence[];
     hints: Hint[];
+    /** Seconds in which the app offers the tap "necessary earlier" after a done tap. */
+    earlierWindowSeconds: number;
 }
 
 /**
@@ -49,5 +51,6 @@ export async function getSuggestions(deps: Deps, viewer: Viewer): Promise<Sugges
         nextSlotAt: capacity.minutes === 0 ? state.nextSlotAt : null,
         presence: await listPresence(deps),
         hints: hints.slice(0, HINT_COUNT),
+        earlierWindowSeconds: state.settings.earlier_window_seconds,
     };
 }
