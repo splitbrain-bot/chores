@@ -41,8 +41,8 @@ describe('chore service', () => {
         const updated = await updateChore(deps, chore.id, { interval: 4, conditionTemplate: '{{ b }}' });
         expect(updated).toMatchObject({ interval: 4, intervalMin: 1, intervalMax: 16, conditionResult: null });
         expect(updated.need).toBeCloseTo(1);
-        const cleared = await updateChore(deps, chore.id, { conditionTemplate: null });
-        expect(cleared.conditionTemplate).toBeNull();
+        const cleared = await updateChore(deps, chore.id, { conditionTemplate: null, intervalMin: null, intervalMax: 10 });
+        expect(cleared).toMatchObject({ conditionTemplate: null, intervalMin: 1, intervalMax: 10 });
 
         expect((await listChores(deps, shared, { q: 'fen' })).map((c) => c.name)).toEqual(['Fenster']);
         expect((await listChores(deps, shared, { kind: 'recurring' })).map((c) => c.name)).toEqual(['Boden']);
