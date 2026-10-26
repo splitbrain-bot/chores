@@ -9,6 +9,7 @@ const envSchema = z.object({
     HA_TOKEN: z.string().optional(),
     INITIAL_PERSON: z.string().optional(),
     INITIAL_PASSWORD: z.string().optional(),
+    INITIAL_PERSON_ENTITY: z.string().optional(),
 });
 
 /** Validated configuration of the process. */

@@ -72,3 +72,26 @@ export async function latestState(db: Database, entityId: string): Promise<State
     return db.selectFrom('haState').select(['entityId', 'state', 'at']).where('entityId', '=', entityId)
         .orderBy('at', 'desc').orderBy('id', 'desc').executeTakeFirst();
 }
+
+/**
+ * Returns the time of the last change of a person entity between home and away. The states unknown and unavailable
+ * do not count as a change.
+ *
+ * @param db the database
+ * @param entityId the person entity
+ * @returns the time of the change, the first record when no change exists, or null without records
+ */
+export async function lastHomeChange(db: Database, entityId: string): Promise<number | null> {
+    const valid = db.selectFrom('haState').select(['at', 'state']).where('entityId', '=', entityId)
+        .where('state', 'not in', ['unknown', 'unavailable']);
+    const current = await valid.orderBy('at', 'desc').orderBy('id', 'desc').executeTakeFirst();
+    if (!current) return null;
+    const home = current.state === 'home';
+    const same = (q: typeof valid) => (home ? q.where('state', '=', 'home') : q.where('state', '!=', 'home'));
+    const opposite = await (home ? valid.where('state', '!=', 'home') : valid.where('state', '=', 'home'))
+        .orderBy('at', 'desc').orderBy('id', 'desc').executeTakeFirst();
+    let query = same(valid);
+    if (opposite) query = query.where('at', '>', opposite.at);
+    const first = await query.orderBy('at').orderBy('id').executeTakeFirst();
+    return first?.at ?? current.at;
+}
