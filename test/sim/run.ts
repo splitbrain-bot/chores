@@ -79,7 +79,7 @@ function generateChores(start: number): SimChore[] {
         const id = chores.length + 1;
         chores.push({
             id, name, groupKey: null, kind, growth, interval,
-            intervalMin: interval === null ? null : interval / 4, intervalMax: interval === null ? null : interval * 4,
+            intervalMin: interval === null ? null : interval / 8, intervalMax: interval === null ? null : interval * 4,
             learnStep: 0.15, learnDirection: 0, counterEntity: null, importance: 'normal', deadlineMd: null,
             deadlineAt: null, deadlineLeadDays: 14, conditionTemplate: null, boostTemplate: null, forecastTemplate: null,
             conditionResult: null, boostResult: null, templateError: null, durationMin: pick([5, 10, 15, 30, 45, 60]),

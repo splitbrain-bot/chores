@@ -49,7 +49,7 @@ async function checkLinks(deps: Deps, personIds: readonly number[], categoryIds:
 }
 
 /**
- * Applies input values to chore values. The interval limits of a recurring chore default to a quarter and four times
+ * Applies input values to chore values. The interval limits of a recurring chore default to an eighth and four times
  * the interval when they are empty or when the input sets the interval without them.
  *
  * @param base the current values
@@ -65,7 +65,7 @@ function merge(base: NewChore, input: ChoreUpdate): NewChore {
         next.intervalMin = null;
         next.intervalMax = null;
     } else if (next.interval) {
-        if (next.intervalMin == null || (input.interval && input.intervalMin === undefined)) next.intervalMin = next.interval / 4;
+        if (next.intervalMin == null || (input.interval && input.intervalMin === undefined)) next.intervalMin = next.interval / 8;
         if (next.intervalMax == null || (input.interval && input.intervalMax === undefined)) next.intervalMax = next.interval * 4;
     }
     for (const key of ['groupKey', 'intervalMin', 'intervalMax', 'counterEntity', 'deadlineMd', 'deadlineAt',

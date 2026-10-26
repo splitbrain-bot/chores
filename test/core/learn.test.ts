@@ -3,14 +3,14 @@ import { learn } from '../../src/core/learn.ts';
 import { makeChore } from './fixtures.ts';
 
 describe('learn', () => {
-    it('goes from 7 days to 1 day with repeated earlier taps', () => {
-        let chore = makeChore({ interval: 7, intervalMin: 1, intervalMax: 28 });
+    it('goes from 7 days to 1 day in five earlier taps with the default limits', () => {
+        let chore = makeChore({ interval: 7, intervalMin: 7 / 8, intervalMax: 28 });
         const path = [chore.interval!];
         while (chore.interval! > 1) {
             chore = { ...chore, ...learn(chore, -1) };
             path.push(chore.interval!);
         }
-        expect(path.map((v) => Number(v.toFixed(2)))).toEqual([7, 5.95, 4.61, 3.05, 1.53, 1]);
+        expect(path.map((v) => Number(v.toFixed(2)))).toEqual([7, 5.95, 4.61, 3.05, 1.53, 0.88]);
     });
 
     it('halves the step on a direction change', () => {

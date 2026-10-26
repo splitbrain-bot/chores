@@ -18,7 +18,7 @@ describe('chore service', () => {
         const cat = await createCategory(deps, 'Küche');
         const p = await createPerson(deps, { name: 'Andi', haEntity: 'person.a' });
         const chore = await createChore(deps, { ...base, categoryIds: [cat.id], personIds: [p.id] });
-        expect(chore).toMatchObject({ intervalMin: 2, intervalMax: 32, lastDoneAt: clock.t, createdAt: clock.t,
+        expect(chore).toMatchObject({ intervalMin: 1, intervalMax: 32, lastDoneAt: clock.t, createdAt: clock.t,
             categoryIds: [cat.id], personIds: [p.id], need: 0, noisy: false });
         expect(changed).toBe(1);
     });
@@ -39,10 +39,10 @@ describe('chore service', () => {
         const chore = await createChore(deps, { ...base, conditionTemplate: '{{ a }}', lastDoneAt: clock.t - 4 * DAY });
         await createChore(deps, { ...base, name: 'Fenster', kind: 'one_time' });
         const updated = await updateChore(deps, chore.id, { interval: 4, conditionTemplate: '{{ b }}' });
-        expect(updated).toMatchObject({ interval: 4, intervalMin: 1, intervalMax: 16, conditionResult: null });
+        expect(updated).toMatchObject({ interval: 4, intervalMin: 0.5, intervalMax: 16, conditionResult: null });
         expect(updated.need).toBeCloseTo(1);
         const cleared = await updateChore(deps, chore.id, { conditionTemplate: null, intervalMin: null, intervalMax: 10 });
-        expect(cleared).toMatchObject({ conditionTemplate: null, intervalMin: 1, intervalMax: 10 });
+        expect(cleared).toMatchObject({ conditionTemplate: null, intervalMin: 0.5, intervalMax: 10 });
 
         expect((await listChores(deps, shared, { q: 'fen' })).map((c) => c.name)).toEqual(['Fenster']);
         expect((await listChores(deps, shared, { kind: 'recurring' })).map((c) => c.name)).toEqual(['Boden']);

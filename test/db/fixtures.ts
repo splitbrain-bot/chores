@@ -7,7 +7,7 @@ import type { NewChore } from '../../src/db/chores.ts';
  */
 export function newChore(over: Partial<NewChore> = {}): NewChore {
     return {
-        name: 'Test', groupKey: null, kind: 'recurring', growth: 'time', interval: 7, intervalMin: 1.75,
+        name: 'Test', groupKey: null, kind: 'recurring', growth: 'time', interval: 7, intervalMin: 0.875,
         intervalMax: 28, learnStep: 0.15, learnDirection: 0, counterEntity: null, importance: 'normal',
         deadlineMd: null, deadlineAt: null, deadlineLeadDays: 14, conditionTemplate: null, boostTemplate: null,
         forecastTemplate: null, conditionResult: null, boostResult: null, templateError: null, durationMin: 10,

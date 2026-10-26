@@ -99,7 +99,7 @@ test('creates and edits a chore in the form', async ({ page }) => {
 
     await row.locator('.row-main').click();
     await expect(page.getByRole('heading', { name: 'Edit chore' })).toBeVisible();
-    await expect(page.getByLabel('Minimum interval')).toHaveValue('15');
+    await expect(page.getByLabel('Minimum interval')).toHaveValue('7.5');
     await page.getByLabel('Name').fill('Backofen gründlich reinigen');
     await page.getByRole('button', { name: 'Kaddi' }).click();
     await page.getByRole('button', { name: 'Save' }).click();

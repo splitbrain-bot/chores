@@ -7,7 +7,7 @@ export const choreFields = {
     kind: z.enum(['recurring', 'one_time']),
     growth: z.enum(['usage', 'time', 'counter']),
     interval: z.number().positive().nullish().describe('Days, or cycles for growth counter. Required for recurring.'),
-    intervalMin: z.number().positive().nullish().describe('Default interval / 4'),
+    intervalMin: z.number().positive().nullish().describe('Default interval / 8'),
     intervalMax: z.number().positive().nullish().describe('Default interval * 4'),
     counterEntity: z.string().min(1).nullish().describe('Home Assistant entity, required for growth counter'),
     importance: z.enum(['optional', 'normal', 'important', 'critical']),
