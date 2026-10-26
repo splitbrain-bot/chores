@@ -22,8 +22,11 @@ export interface Identity {
     viewer: Viewer;
 }
 
-/** Actions with their own rights. */
-export type Right = 'read' | 'feedback' | 'write';
+/**
+ * Rights of the tokens. The right read covers the suggestions, the chores, the categories and the look-ahead. The
+ * right manage covers all changes and the reading of persons, settings, tokens and the overview.
+ */
+export type Right = 'read' | 'feedback' | 'manage';
 
 /**
  * Hashes a password with a random salt.
@@ -116,8 +119,7 @@ export async function authenticate(deps: Deps, plain: string): Promise<Identity 
 }
 
 /**
- * Tells if a token kind has a right. Every token can read. The shared token can also give feedback. Person and MCP
- * tokens can do everything.
+ * Tells if a token kind has a right. Every token can read and give feedback. Only person and MCP tokens can manage.
  *
  * @param kind the token kind
  * @param right the right

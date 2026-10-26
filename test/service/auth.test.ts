@@ -59,7 +59,7 @@ describe('tokens', () => {
     });
 
     it('gives the rights by kind', () => {
-        expect(['person', 'shared', 'mcp'].map((k) => can(k as never, 'write'))).toEqual([true, false, true]);
+        expect(['person', 'shared', 'mcp'].map((k) => can(k as never, 'manage'))).toEqual([true, false, true]);
         expect(['person', 'shared', 'mcp'].map((k) => can(k as never, 'feedback'))).toEqual([true, true, true]);
         expect(can('shared', 'read')).toBe(true);
     });
