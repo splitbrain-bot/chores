@@ -21,7 +21,7 @@ The server listens on port 3000. Vite serves the web app on port 5173 and sends 
 | `npm test`         | Unit and service tests                      |
 | `npm run test:e2e` | Playwright tests                            |
 | `npm run lint`     | ESLint                                      |
-| `npm run sim`      | Simulation of one year                      |
+| `npm run sim`      | Simulation of one year, see below           |
 | `npm run migrate`  | Database migrations                         |
 
 ## Environment
@@ -53,4 +53,14 @@ settings screen.
 
 ```
 claude mcp add --transport http chores https://<host>/mcp --header "Authorization: Bearer <token>"
+```
+
+## Simulation
+
+`npm run sim` simulates one year with about 150 generated chores and prints the need levels per month, the learned
+vacuuming interval and the state after a vacation. The arguments `seed=<n>`, `year=<yyyy>` and
+`settings=<json>` change the random seed, the year and the settings, for example:
+
+```
+npm run sim -- seed=2 settings='{"suggest_threshold":1}'
 ```
