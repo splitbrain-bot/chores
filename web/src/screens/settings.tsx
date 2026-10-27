@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.ts';
+import { IconPicker } from '../components/icon-picker.tsx';
 import { useApp } from '../context.ts';
 import { conditionStatusText } from '../format.ts';
 import { t, time, weekdayName } from '../i18n.ts';
@@ -126,7 +127,7 @@ function ParametersTab({ settings, onSave }: { settings: Settings; onSave: (s: S
 
 /** Values of the person form. */
 type PersonForm = { name: string; haEntity: string; distanceEntity: string; calendarEntity: string; notifyAction: string;
-    password: string };
+    password: string; color: string };
 
 /**
  * The form of one person.
@@ -138,9 +139,10 @@ function PersonEditor({ person, onSaved }: { person: Person | null; onSaved: () 
     const [f, setF] = useState<PersonForm>({
         name: person?.name ?? '', haEntity: person?.haEntity ?? '', distanceEntity: person?.distanceEntity ?? '',
         calendarEntity: person?.calendarEntity ?? '', notifyAction: person?.notifyAction ?? '', password: '',
+        color: person?.color ?? '',
     });
     const [error, setError] = useState<string | null>(null);
-    const field = (key: keyof PersonForm, type = 'text') => (
+    const field = (key: Exclude<keyof PersonForm, 'color'>, type = 'text') => (
         <label className="field">
             <span>{t(`settings.person.${key}`)}</span>
             <input type={type} value={f[key]} onChange={(e) => setF({ ...f, [key]: e.target.value })}
@@ -153,7 +155,7 @@ function PersonEditor({ person, onSaved }: { person: Person | null; onSaved: () 
             const body = {
                 name: f.name, haEntity: f.haEntity || null, distanceEntity: f.distanceEntity || null,
                 calendarEntity: f.calendarEntity || null, notifyAction: f.notifyAction || null,
-                ...(f.password ? { password: f.password } : {}),
+                ...(f.password ? { password: f.password } : {}), ...(f.color ? { color: f.color } : {}),
             };
             const request = person ? api('PATCH', `/persons/${person.id}`, body) : api('POST', '/persons', body);
             request.then(() => {
@@ -163,6 +165,12 @@ function PersonEditor({ person, onSaved }: { person: Person | null; onSaved: () 
         }}>
             {field('name')}{field('haEntity')}{field('distanceEntity')}{field('calendarEntity')}{field('notifyAction')}
             {field('password', 'password')}
+            {person && (
+                <label className="field color">
+                    <span>{t('settings.person.color')}</span>
+                    <input type="color" value={f.color} onChange={(e) => setF({ ...f, color: e.target.value })} />
+                </label>
+            )}
             {error && <p className="error">{t('common.error', { message: error })}</p>}
             <button type="submit">{person ? t('common.save') : t('settings.person.add')}</button>
         </form>
@@ -171,15 +179,11 @@ function PersonEditor({ person, onSaved }: { person: Person | null; onSaved: () 
 
 /** The list of the persons with their forms. */
 function PersonsTab() {
-    const [persons, setPersons] = useState<Person[]>([]);
-    const load = useCallback(() => {
-        api<{ persons: Person[] }>('GET', '/persons').then((r) => setPersons(r.persons), () => undefined);
-    }, []);
-    useEffect(load, [load]);
+    const { persons, reloadPersons } = useApp();
     return (
         <div>
-            {persons.map((p) => <PersonEditor key={`${p.id}-${p.name}`} person={p} onSaved={load} />)}
-            <PersonEditor key={`new-${persons.length}`} person={null} onSaved={load} />
+            {persons.map((p) => <PersonEditor key={`${p.id}-${p.name}-${p.color}`} person={p} onSaved={reloadPersons} />)}
+            <PersonEditor key={`new-${persons.length}`} person={null} onSaved={reloadPersons} />
         </div>
     );
 }
@@ -193,6 +197,9 @@ function CategoriesTab() {
             <ul className="categories-list">
                 {categories.map((c) => (
                     <li key={c.id}>
+                        <IconPicker value={c.icon} onChange={(icon) => {
+                            api('PATCH', `/categories/${c.id}`, { icon }).finally(reloadCategories);
+                        }} />
                         <input defaultValue={c.name} aria-label={t('settings.person.name')} onBlur={(e) => {
                             if (e.target.value.trim() && e.target.value !== c.name) {
                                 api('PATCH', `/categories/${c.id}`, { name: e.target.value.trim() }).finally(reloadCategories);
@@ -216,7 +223,7 @@ function CategoriesTab() {
 }
 
 /** Values of the condition form. */
-type ConditionForm = { name: string; kind: ConditionStatus['kind']; template: string };
+type ConditionForm = { name: string; kind: ConditionStatus['kind']; template: string; icon: string | null };
 
 /**
  * The form of one condition with its status. The kind of an existing condition cannot change.
@@ -227,6 +234,7 @@ type ConditionForm = { name: string; kind: ConditionStatus['kind']; template: st
 function ConditionEditor({ condition, onSaved }: { condition: ConditionStatus | null; onSaved: () => void }) {
     const [f, setF] = useState<ConditionForm>({
         name: condition?.name ?? '', kind: condition?.kind ?? 'state', template: condition?.template ?? '',
+        icon: condition?.icon ?? null,
     });
     const [error, setError] = useState<string | null>(null);
     const send = (request: Promise<unknown>) => request.then(onSaved, (err: Error) => setError(err.message));
@@ -234,13 +242,19 @@ function ConditionEditor({ condition, onSaved }: { condition: ConditionStatus | 
         <form className="condition" onSubmit={(e) => {
             e.preventDefault();
             send(condition
-                ? api('PATCH', `/conditions/${condition.id}`, { name: f.name, template: f.template })
+                ? api('PATCH', `/conditions/${condition.id}`, { name: f.name, template: f.template, icon: f.icon })
                 : api('POST', '/conditions', f));
         }}>
-            <label className="field">
-                <span>{t('settings.condition.name')}</span>
-                <input value={f.name} required onChange={(e) => setF({ ...f, name: e.target.value })} />
-            </label>
+            <div className="field name-icon">
+                <label>
+                    <span>{t('settings.condition.name')}</span>
+                    <input value={f.name} required onChange={(e) => setF({ ...f, name: e.target.value })} />
+                </label>
+                <div role="group" aria-label={t('settings.condition.icon')}>
+                    <span>{t('settings.condition.icon')}</span>
+                    <IconPicker value={f.icon} onChange={(icon) => setF({ ...f, icon })} />
+                </div>
+            </div>
             <label className="field">
                 <span>{t('settings.condition.kind')}</span>
                 <select value={f.kind} disabled={condition !== null}
@@ -277,15 +291,14 @@ function ConditionEditor({ condition, onSaved }: { condition: ConditionStatus | 
 
 /** The list of the conditions with their forms. */
 function ConditionsTab() {
-    const [conditions, setConditions] = useState<ConditionStatus[]>([]);
-    const load = useCallback(() => {
-        api<{ conditions: ConditionStatus[] }>('GET', '/conditions').then((r) => setConditions(r.conditions), () => undefined);
-    }, []);
-    useEffect(load, [load]);
+    const { conditions, reloadConditions } = useApp();
+    useEffect(reloadConditions, [reloadConditions]);
     return (
         <div>
-            {conditions.map((c) => <ConditionEditor key={`${c.id}-${c.name}-${c.template}`} condition={c} onSaved={load} />)}
-            <ConditionEditor key={`new-${conditions.length}`} condition={null} onSaved={load} />
+            {conditions.map((c) => (
+                <ConditionEditor key={`${c.id}-${c.name}-${c.template}-${c.icon}`} condition={c} onSaved={reloadConditions} />
+            ))}
+            <ConditionEditor key={`new-${conditions.length}`} condition={null} onSaved={reloadConditions} />
         </div>
     );
 }

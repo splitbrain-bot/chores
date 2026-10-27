@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { Category, Me } from './types.ts';
+import type { Category, ConditionStatus, Me, Person } from './types.ts';
 
 /** Data that all screens share. */
 export interface AppData {
@@ -8,6 +8,11 @@ export interface AppData {
     tablet: boolean;
     categories: Category[];
     reloadCategories: () => void;
+    /** The persons. Without the right to manage, a person has only the id, the name, the sort and the color. */
+    persons: Person[];
+    reloadPersons: () => void;
+    conditions: ConditionStatus[];
+    reloadConditions: () => void;
 }
 
 /** Context with the shared data. */

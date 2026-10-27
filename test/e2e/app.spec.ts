@@ -10,7 +10,7 @@ import { PERSON_TOKEN, SHARED_TOKEN } from './seed.ts';
 async function login(page: Page): Promise<void> {
     await page.addInitScript((token) => localStorage.setItem('chores.token', token), PERSON_TOKEN);
     await page.goto('/');
-    await expect(page.locator('.card').first()).toBeVisible();
+    await expect(page.locator('.task').first()).toBeVisible();
 }
 
 test.beforeEach(async ({ request }) => {
@@ -30,24 +30,29 @@ test('logs in and shows the suggestions', async ({ page }) => {
     await expect(page).toHaveURL(/\/$/);
     await expect(page.locator('.badge')).toHaveText(['Andi', 'Kaddi']);
     await expect(page.getByText('up to 120 min, energy 5')).toBeVisible();
-    await expect(page.locator('.card h2')).toHaveText(['Kühlschrank auswischen', 'Spiegel putzen', 'Fußboden wischen']);
-    await expect(page.locator('.card').nth(2).getByText('Also possible')).toBeVisible();
+    await expect(page.locator('.task h2')).toHaveText(['Kühlschrank auswischen', 'Spiegel putzen', 'Fußboden wischen']);
+    await expect(page.locator('.task').nth(2).getByText('Also possible')).toBeVisible();
 });
 
 test('marks a suggestion as done and taps necessary earlier', async ({ page, request }) => {
     await login(page);
-    const card = page.locator('.card').filter({ hasText: 'Fußboden wischen' });
-    await card.getByRole('checkbox').check();
+    const card = page.locator('.task').filter({ hasText: 'Fußboden wischen' });
+    const dialog = page.getByRole('dialog');
     await card.getByRole('button', { name: 'Done' }).click();
-    await expect(card.getByText('Done. Thank you!')).toBeVisible();
-    await card.getByRole('button', { name: 'Was necessary earlier' }).click();
-    await expect(card.getByText('Noted. The chore comes back sooner.')).toBeVisible();
-    await expect(page.locator('.card h2')).toHaveText(['Kühlschrank auswischen', 'Spiegel putzen']);
+    await dialog.getByRole('checkbox').check();
+    await dialog.getByRole('button', { name: 'Done' }).click();
+    await expect(dialog.getByText('Done. Thank you!')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Was necessary earlier' }).click();
+    await expect(dialog.getByText('Noted. The chore comes back sooner.')).toBeVisible();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.locator('.task h2')).toHaveText(['Kühlschrank auswischen', 'Spiegel putzen']);
 
-    const late = page.locator('.card').filter({ hasText: 'Kühlschrank auswischen' });
+    const late = page.locator('.task').filter({ hasText: 'Kühlschrank auswischen' });
     await late.getByRole('button', { name: 'Done' }).click();
-    await expect(late.getByText('Done. Thank you!')).toBeVisible();
-    await expect(late.getByRole('button', { name: 'Was necessary earlier' })).toHaveCount(0);
+    await expect(dialog.getByText('Done. Thank you!')).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Was necessary earlier' })).toHaveCount(0);
+    await dialog.getByRole('button', { name: 'Close' }).click();
+    await expect(page.locator('.task h2')).toHaveText(['Spiegel putzen']);
 
     const token = await page.evaluate(() => localStorage.getItem('chores.token'));
     const res = await request.get('/api/chores?q=Fußboden', { headers: { authorization: `Bearer ${token}` } });
@@ -58,12 +63,12 @@ test('marks a suggestion as done and taps necessary earlier', async ({ page, req
 
 test('shows the notes and opens the chore from a suggestion', async ({ page }) => {
     await login(page);
-    const card = page.locator('.card').filter({ hasText: 'Kühlschrank auswischen' });
-    const notes = card.getByRole('button', { name: 'Notes' });
-    await expect(notes).toHaveText('Alles ausräumen und mit Essigwasser auswischen.');
-    await notes.click();
-    await expect(notes).toHaveAttribute('aria-expanded', 'true');
-    await expect(notes).toContainText('Dichtung nicht vergessen.');
+    const card = page.locator('.task').filter({ hasText: 'Kühlschrank auswischen' });
+    const notes = card.locator('details.notes');
+    await expect(notes.locator('summary')).toHaveText('Alles ausräumen und mit Essigwasser auswischen.');
+    await expect(notes.getByText('Dichtung nicht vergessen.')).toBeHidden();
+    await notes.locator('summary').click();
+    await expect(notes.getByText('Dichtung nicht vergessen.')).toBeVisible();
 
     await card.getByRole('button', { name: 'Edit chore' }).click();
     await expect(page).toHaveURL(/\/chores\/\d+$/);
@@ -72,31 +77,38 @@ test('shows the notes and opens the chore from a suggestion', async ({ page }) =
 
 test('postpones a suggestion with a reason', async ({ page }) => {
     await login(page);
-    const card = page.locator('.card').filter({ hasText: 'Spiegel putzen' });
+    const card = page.locator('.task').filter({ hasText: 'Spiegel putzen' });
     await card.getByRole('button', { name: 'Later' }).click();
-    await card.getByRole('button', { name: 'No energy' }).click();
-    await expect(page.locator('.card h2')).toHaveText(['Kühlschrank auswischen', 'Fußboden wischen']);
+    await page.getByRole('dialog').getByRole('button', { name: 'No energy' }).click();
+    await expect(page.locator('.task h2')).toHaveText(['Kühlschrank auswischen', 'Fußboden wischen']);
 
     await page.getByRole('link', { name: 'Chores' }).click();
-    await expect(page.locator('.chore-row').filter({ hasText: 'Spiegel putzen' })).toContainText('paused until');
+    const row = page.locator('.task').filter({ hasText: 'Spiegel putzen' });
+    await expect(row).toContainText('paused until');
+
+    await row.getByRole('button', { name: 'Later' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
 test('opens the tablet mode with the shared token URL', async ({ page }) => {
     await page.goto(`/?token=${SHARED_TOKEN}`);
-    await expect(page.locator('.card').first()).toBeVisible();
+    await expect(page.locator('.task').first()).toBeVisible();
     await expect(page).toHaveURL(/\/$/);
     expect(page.url()).not.toContain('token');
     await expect(page.locator('html')).toHaveClass(/tablet/);
     await expect(page.locator('.nav a')).toHaveText(['Now', 'Chores']);
     await expect(page.getByRole('button', { name: 'Log out' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Edit chore' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Notes' })).toBeVisible();
+    await expect(page.locator('.task h2 a')).toHaveCount(0);
+    await expect(page.locator('.task details.notes')).toBeVisible();
 
     await page.goto('/settings');
-    await expect(page.locator('.card').first()).toBeVisible();
+    await expect(page.locator('.task').first()).toBeVisible();
     await page.getByRole('link', { name: 'Chores' }).click();
     await expect(page.getByRole('button', { name: 'New chore' })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Mark as done' }).first().click();
+    await page.getByRole('button', { name: 'Done' }).first().click();
+    await expect(page.getByRole('dialog').getByText('Done. Thank you!')).toBeVisible();
     await page.reload();
     await expect(page.locator('html')).toHaveClass(/tablet/);
 });
@@ -104,10 +116,11 @@ test('opens the tablet mode with the shared token URL', async ({ page }) => {
 test('groups the chore list by category or by group key', async ({ page }) => {
     await login(page);
     await page.goto('/chores');
-    await expect(page.locator('.chores h2')).toHaveText(['Küche', 'Bad', 'Without category']);
+    await expect(page.locator('.chores > section > h2')).toHaveText(['Küche', 'Bad', 'Without category']);
     await page.getByLabel('Grouping').selectOption('groupKey');
-    await expect(page.locator('.chores h2')).toHaveText(['fussboden-wischen', 'Without group key']);
-    await expect(page.locator('.chores section').first().locator('.name')).toHaveText(['Fußboden wischen', 'Fußboden wischen']);
+    await expect(page.locator('.chores > section > h2')).toHaveText(['fussboden-wischen', 'Without group key']);
+    await expect(page.locator('.chores section').first().locator('.task h2')).toHaveText(['Fußboden wischen', 'Fußboden wischen']);
+    await expect(page.locator('.chores section').first().locator('.related').first()).toContainText('Fußboden wischen (Bad)');
 });
 
 test('creates and edits a chore in the form', async ({ page }) => {
@@ -124,16 +137,16 @@ test('creates and edits a chore in the form', async ({ page }) => {
 
     await expect(page).toHaveURL(/\/chores$/);
     const row = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Küche' }) })
-        .locator('.chore-row').filter({ hasText: 'Backofen reinigen' });
+        .locator('.task').filter({ hasText: 'Backofen reinigen' });
     await expect(row).toBeVisible();
 
-    await row.locator('.row-main').click();
+    await row.getByRole('link', { name: 'Backofen reinigen' }).click();
     await expect(page.getByRole('heading', { name: 'Edit chore' })).toBeVisible();
     await expect(page.getByLabel('Minimum interval')).toHaveValue('7.5');
     await page.getByLabel('Name').fill('Backofen gründlich reinigen');
     await page.getByRole('button', { name: 'Kaddi' }).click();
     await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page.locator('.chore-row').filter({ hasText: 'Backofen gründlich reinigen' })).toBeVisible();
+    await expect(page.locator('.task').filter({ hasText: 'Backofen gründlich reinigen' })).toBeVisible();
 });
 
 test('creates a condition and uses it in a chore', async ({ page }) => {
@@ -143,25 +156,61 @@ test('creates a condition and uses it in a chore', async ({ page }) => {
     const form = page.locator('form.condition').last();
     await form.getByLabel('Name').fill('Trocken');
     await form.getByLabel('Template').fill('{{ is_state("sensor.rain", "off") }}');
+    await form.getByRole('button', { name: 'Select icon' }).click();
+    await form.getByLabel('Search icon').fill('weather-sunny');
+    await form.getByLabel('Search icon').press('Enter');
+    await form.getByRole('button', { name: 'weather-sunny', exact: true }).click();
     await form.getByRole('button', { name: 'Add condition' }).click();
     const created = page.locator('form.condition').first();
     await expect(created.getByLabel('Name')).toHaveValue('Trocken');
+    await expect(created.getByRole('button', { name: 'Select icon' })).toHaveAttribute('title', 'weather-sunny');
     await expect(created.getByText('Current result: no result')).toBeVisible();
     await expect(created.getByText('Used by 0 chores')).toBeVisible();
 
     await page.goto('/chores');
-    await page.locator('.chore-row').filter({ hasText: 'Spiegel putzen' }).locator('.row-main').click();
+    await page.getByRole('link', { name: 'Spiegel putzen' }).click();
     await page.getByRole('combobox', { name: /^Condition/ }).selectOption({ label: 'Trocken' });
     await expect(page.getByText('Current result: no result')).toBeVisible();
     await expect(page.getByLabel('Forecast condition').locator('option')).toHaveText(['–']);
     await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page.locator('.chore-row').filter({ hasText: 'Spiegel putzen' })).toContainText('condition');
+    const row = page.locator('.task').filter({ hasText: 'Spiegel putzen' });
+    await expect(row).toContainText('condition');
+    await expect(row.locator('.flag[title="Trocken"] path')).toHaveAttribute('d', /^M/);
 
     await page.goto('/settings');
     await page.getByRole('tab', { name: 'Conditions' }).click();
     await expect(page.getByText('Used by 1 chores')).toBeVisible();
     await page.locator('form.condition').first().getByRole('button', { name: 'Delete' }).click();
     await expect(page.getByText('Chores use the condition')).toBeVisible();
+});
+
+test('sets the icon of a category and the color of a person', async ({ page }) => {
+    await login(page);
+    const card = page.locator('.task').filter({ hasText: 'Spiegel putzen' });
+    await expect(card.locator('.stripe')).toHaveAttribute('title', 'Assigned: anybody');
+    await expect(card.locator('.room[title="Bad"] path')).toHaveAttribute('d', /^M/);
+
+    await page.getByRole('link', { name: 'Settings' }).click();
+    await page.getByRole('tab', { name: 'Categories' }).click();
+    const garden = page.locator('.categories-list li').nth(2);
+    await garden.getByRole('button', { name: 'Select icon' }).click();
+    await garden.getByLabel('Search icon').fill('flower');
+    await garden.getByRole('button', { name: 'flower', exact: true }).click();
+    await expect(garden.getByRole('button', { name: 'Select icon' })).toHaveAttribute('title', 'flower');
+
+    await page.getByRole('tab', { name: 'Persons' }).click();
+    const andi = page.locator('form.person').first();
+    await expect(andi.getByLabel('Color')).toHaveValue('#2f6fdb');
+    await andi.getByLabel('Color').fill('#123456');
+    await andi.getByRole('button', { name: 'Save' }).click();
+    await expect(page.locator('form.person').first().getByLabel('Color')).toHaveValue('#123456');
+    await expect(page.locator('form.person').last().getByLabel('Color')).toHaveCount(0);
+
+    await page.getByRole('link', { name: 'Chores' }).click();
+    const windows = page.locator('.task').filter({ hasText: 'Fenster putzen' });
+    await expect(windows.locator('.stripe')).toHaveAttribute('title', 'Assigned: Andi, Kaddi');
+    await expect(windows.locator('.stripe')).toHaveAttribute('style', /repeating-linear-gradient.*#123456.*#e07b1a/);
+    await expect(windows.locator('.flag[title="Noisy"]')).toBeVisible();
 });
 
 test.describe('German browser', () => {

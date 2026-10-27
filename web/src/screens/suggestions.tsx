@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.ts';
-import { SuggestionCard } from '../components/suggestion-card.tsx';
+import { TaskDialog, type TaskAction } from '../components/done-flow.tsx';
+import { TaskCard } from '../components/task-card.tsx';
 import { hintText } from '../format.ts';
 import { t, time, weekdayDate } from '../i18n.ts';
 import type { SuggestionsResponse } from '../types.ts';
@@ -10,8 +11,7 @@ import { useInterval } from '../use-interval.ts';
 export function Suggestions() {
     const [data, setData] = useState<SuggestionsResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [busy, setBusy] = useState(0);
-    const stale = useRef(false);
+    const [action, setAction] = useState<TaskAction | null>(null);
 
     const load = useCallback(() => {
         api<SuggestionsResponse>('GET', '/suggestions').then((r) => {
@@ -19,19 +19,13 @@ export function Suggestions() {
             setError(null);
         }, (err: Error) => setError(err.message));
     }, []);
+    const close = useCallback(() => {
+        setAction(null);
+        load();
+    }, [load]);
 
     useEffect(load, [load]);
-    // a reload during the done confirmation would remove the card with the button "necessary earlier"
-    useInterval(() => {
-        if (busy === 0) load();
-        else stale.current = true;
-    }, 60_000);
-    useEffect(() => {
-        if (busy === 0 && stale.current) {
-            stale.current = false;
-            load();
-        }
-    }, [busy, load]);
+    useInterval(load, 60_000);
 
     if (!data) return <p className="status">{error ? t('common.error', { message: error }) : t('common.loading')}</p>;
     const home = data.presence.filter((p) => p.home);
@@ -47,14 +41,14 @@ export function Suggestions() {
                 <span className="capacity">{t('suggestions.capacity', { ...data.capacity })}</span>
             </header>
 
-            {data.suggestions.map((s) => (
-                <SuggestionCard key={s.chore.id} suggestion={s} earlierWindowSeconds={data.earlierWindowSeconds}
-                    onStart={() => setBusy((n) => n + 1)}
-                    onFinished={() => {
-                        stale.current = true;
-                        setBusy((n) => Math.max(0, n - 1));
-                    }} />
-            ))}
+            <div className="task-list">
+                {data.suggestions.map(({ chore, also }) => (
+                    <TaskCard key={chore.id} chore={chore} related={also}
+                        onDone={() => setAction({ kind: 'done', chore, related: also })}
+                        onLater={() => setAction({ kind: 'later', chore, related: also })} />
+                ))}
+            </div>
+            {action && <TaskDialog action={action} onClose={close} />}
             {data.suggestions.length === 0 && (
                 <div className="empty">
                     {data.capacity.minutes === 0 && data.nextSlotAt

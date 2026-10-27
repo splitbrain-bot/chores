@@ -177,60 +177,211 @@ input[type="checkbox"] {
     color: var(--muted);
 }
 
-.card {
+.icon {
+    display: inline-block;
+    width: 1.15em;
+    height: 1.15em;
+    vertical-align: -0.2em;
+    flex: none;
+    fill: currentColor;
+}
+
+/* the task card: one markup for the Now screen and the chore list, the class compact changes the layout */
+
+.task {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+        "head    edit"
+        "meta    meta"
+        "flags   flags"
+        "need    need"
+        "sub     sub"
+        "actions actions";
+    gap: 6px 8px;
     background: var(--card);
     border: 1px solid var(--line);
     border-radius: var(--radius);
-    padding: var(--gap);
+    padding: var(--gap) var(--gap) var(--gap) calc(var(--gap) + 6px);
     margin-bottom: var(--gap);
+    overflow: hidden;
 }
 
-.card .meta {
+/* the assigned persons: one color, or dashes of all colors */
+.task .stripe {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    background: var(--stripe, var(--line));
+}
+
+.task .head {
+    grid-area: head;
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.8em;
     align-items: center;
-    margin: 0.2em 0;
+    gap: 6px;
+    min-width: 0;
 }
 
-.card-title {
+.task .rooms {
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 8px;
+    gap: 6px;
+    color: var(--muted);
+    white-space: nowrap;
 }
 
-.card-title .edit {
+.task .room .icon {
+    font-size: 1.1rem;
+    margin-right: 3px;
+}
+
+.task .rooms::after {
+    content: "·";
+}
+
+/* long titles: two lines in the full layout, one line in the compact layout */
+.task h2 {
+    font-size: 1.1rem;
+    margin: 0;
+    min-width: 0;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.task h2 a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.task .one-time {
+    color: var(--muted);
+}
+
+.task .edit {
+    grid-area: edit;
+    align-self: start;
     border: none;
     background: none;
     color: var(--muted);
     padding: 0 0.2em;
     font-size: 1.2rem;
-    line-height: 1.2;
 }
 
-.notes {
-    display: block;
-    width: 100%;
-    text-align: left;
-    border: none;
-    background: none;
-    padding: 0;
-    margin: 0 0 0.6em;
-    color: var(--text);
+.task .meta {
+    grid-area: meta;
+    display: flex;
+    gap: 0.8em;
+    align-items: center;
     font-size: 0.9rem;
+}
+
+.task .flags {
+    grid-area: flags;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.flag {
+    font-size: 0.8rem;
+    color: var(--muted);
+    background: var(--bg);
+    border-radius: 999px;
+    padding: 2px 8px;
+    white-space: nowrap;
+}
+
+.flag .text {
+    margin-left: 4px;
+}
+
+.flag.urgent {
+    color: var(--danger);
+}
+
+.task .need {
+    grid-area: need;
+    height: 6px;
+    background: var(--line);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.bar {
+    display: block;
+    height: 100%;
+    background: var(--muted);
+}
+
+.bar.due {
+    background: var(--accent);
+}
+
+.task .sub {
+    grid-area: sub;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    font-size: 0.9rem;
+}
+
+.task .blocked-by {
+    display: none;
+}
+
+.task .related .icon {
+    display: none;
+}
+
+.task .related .label {
+    color: var(--muted);
+}
+
+.task .related ul {
+    display: inline;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.task .related li {
+    display: inline;
+}
+
+.task .related li + li::before {
+    content: ", ";
+}
+
+.task .notes {
+    margin: 0;
+    color: var(--muted);
+}
+
+.task .notes summary {
+    cursor: pointer;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.notes.open {
-    white-space: pre-wrap;
+.task .notes p {
+    margin: 0.3em 0 0;
+    white-space: pre-line;
 }
 
-.card .reason {
-    font-size: 0.8rem;
-    margin: 0.2em 0 0.6em;
+.task .actions {
+    grid-area: actions;
+    margin-top: 4px;
+}
+
+.task .actions .label {
+    margin-left: 0.4em;
 }
 
 .dots {
@@ -249,10 +400,177 @@ input[type="checkbox"] {
     background: var(--accent);
 }
 
-.also {
+.compact {
+    container-type: inline-size;
+    margin-bottom: var(--gap);
+}
+
+.compact .task {
+    grid-template-columns: minmax(0, 1fr) auto auto 5em auto;
+    grid-template-areas:
+        "head flags meta need actions"
+        "sub  sub   sub  sub  actions";
+    gap: 2px 12px;
+    align-items: center;
+    border-radius: 8px;
+    padding: 6px 8px 6px 14px;
+    margin-bottom: 4px;
+}
+
+.compact .task .stripe {
+    width: 5px;
+}
+
+.compact .task h2 {
+    display: block;
+    font-size: 1rem;
+    font-weight: 500;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* the title link covers the whole row, the buttons stay above it */
+.compact .task h2 a::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+}
+
+.compact .task .actions {
+    position: relative;
+    margin: 0;
+    gap: 4px;
+    flex-wrap: nowrap;
+}
+
+.compact .task .actions button {
+    padding: 0.3em 0.55em;
+}
+
+.compact .task .actions .label,
+.compact .task .edit,
+.compact .task .room-name:not(.always),
+.compact .task .rooms::after,
+.compact .task .related .label,
+.compact .flag:not(.urgent) .text {
+    display: none;
+}
+
+.compact .task .meta {
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+
+.compact .task .flags {
+    gap: 2px;
+    flex-wrap: nowrap;
+}
+
+.compact .flag {
+    background: none;
+    padding: 0 2px;
+}
+
+.compact .task .sub {
+    flex-direction: row;
+    gap: 10px;
+    font-size: 0.8rem;
+    color: var(--muted);
+}
+
+.compact .task .sub > * {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.compact .task .blocked-by {
+    display: flex;
+    flex: none;
+    gap: 4px;
+}
+
+.compact .task .blocked-by span {
+    background: var(--bg);
+    color: var(--danger);
+    border-radius: 4px;
+    padding: 0 5px;
+}
+
+.compact .task .related .icon {
+    display: inline-block;
+    margin-right: 2px;
+}
+
+.compact .task .notes {
+    flex: 1;
+}
+
+.compact .task .notes summary {
+    list-style: none;
+}
+
+.compact .task .notes summary::-webkit-details-marker {
+    display: none;
+}
+
+.compact .task .notes p {
+    display: none;
+}
+
+.compact .task.blocked h2 {
+    color: var(--muted);
+}
+
+/* narrow screens: the compact row wraps into more lines */
+@container (max-width: 520px) {
+    .compact .task {
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        grid-template-areas:
+            "head head  actions"
+            "meta flags actions"
+            "need need  need"
+            "sub  sub   sub";
+        gap: 3px 8px;
+    }
+
+    .compact .task .flags {
+        justify-self: end;
+    }
+}
+
+.task-dialog {
     border: none;
-    padding: 0;
-    margin: 0 0 0.6em;
+    border-radius: var(--radius);
+    padding: 20px;
+    width: calc(100% - 32px);
+    max-width: 26rem;
+    background: var(--card);
+    color: var(--text);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+}
+
+.task-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.35);
+}
+
+.task-dialog p {
+    color: var(--muted);
+}
+
+.task-dialog .actions {
+    justify-content: flex-end;
+}
+
+.task-dialog .reasons {
+    flex-direction: column;
+}
+
+.also {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    margin: 0 0 var(--gap);
 }
 
 .also legend {
@@ -275,13 +593,6 @@ input[type="checkbox"] {
 
 html.tablet .actions button, html.tablet .reasons button {
     padding: 0.8em 1.4em;
-}
-
-.confirm {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--gap);
 }
 
 .outlook ul, .lookahead ul, .history ul {
@@ -308,54 +619,6 @@ html.tablet .actions button, html.tablet .reasons button {
     display: inline-flex;
     gap: 0.4em;
     align-items: center;
-}
-
-.chore-list {
-    list-style: none;
-    padding: 0;
-    margin: 0 0 var(--gap);
-}
-
-.chore-row {
-    display: flex;
-    gap: 6px;
-    margin-bottom: 4px;
-}
-
-.row-main {
-    flex: 1;
-    display: grid;
-    grid-template-columns: 1fr 5em;
-    gap: 2px 8px;
-    text-align: left;
-    align-items: center;
-}
-
-.row-main:disabled {
-    opacity: 1;
-}
-
-.need {
-    height: 6px;
-    background: var(--line);
-    border-radius: 3px;
-    overflow: hidden;
-}
-
-.bar {
-    display: block;
-    height: 100%;
-    background: var(--muted);
-}
-
-.bar.due {
-    background: var(--accent);
-}
-
-.blocked {
-    grid-column: 1 / -1;
-    color: var(--muted);
-    font-size: 0.8rem;
 }
 
 .chore-form .row {
@@ -466,6 +729,85 @@ tr.revoked {
     display: flex;
     gap: 6px;
     margin-bottom: 4px;
+}
+
+.field.color input {
+    width: 4em;
+    height: 2.4em;
+    padding: 2px;
+}
+
+.name-icon {
+    display: flex;
+    gap: var(--gap);
+    align-items: flex-end;
+}
+
+.name-icon > label {
+    flex: 1;
+}
+
+.name-icon span {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 2px;
+}
+
+.icon-picker {
+    position: relative;
+}
+
+.icon-picker .icon-button {
+    font-size: 1.2rem;
+    padding: 0.3em 0.5em;
+    min-width: 2.4em;
+}
+
+.icon-empty {
+    color: var(--muted);
+}
+
+.icon-panel {
+    position: absolute;
+    z-index: 2;
+    top: 100%;
+    left: 0;
+    width: min(22rem, 80vw);
+    margin-top: 4px;
+    padding: 8px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.icon-search {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.icon-search .link {
+    white-space: nowrap;
+}
+
+.icon-results {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(2.6em, 1fr));
+    gap: 4px;
+    max-height: 14rem;
+    overflow-y: auto;
+}
+
+.icon-results button {
+    font-size: 1.2rem;
+    padding: 0.3em;
+}
+
+.icon-results button.on {
+    border-color: var(--accent);
+    color: var(--accent);
 }
 
 .created-token code {

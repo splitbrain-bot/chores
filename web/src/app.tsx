@@ -9,7 +9,7 @@ import { Login } from './screens/login.tsx';
 import { Lookahead } from './screens/lookahead.tsx';
 import { SettingsScreen } from './screens/settings.tsx';
 import { Suggestions } from './screens/suggestions.tsx';
-import type { Category, Me } from './types.ts';
+import type { Category, ConditionStatus, Me, Person } from './types.ts';
 
 /** Moves a token from the URL to the storage and removes it from the URL. */
 function takeTokenFromUrl(): void {
@@ -28,6 +28,8 @@ export function App() {
     const path = usePath();
     const [me, setMe] = useState<Me | null>(null);
     const [categories, setCategories] = useState<Category[]>([]);
+    const [persons, setPersons] = useState<Person[]>([]);
+    const [conditions, setConditions] = useState<ConditionStatus[]>([]);
     const [error, setError] = useState<string | null>(null);
 
     const loadMe = useCallback(() => {
@@ -43,10 +45,21 @@ export function App() {
         api<{ categories: Category[] }>('GET', '/categories').then((r) => setCategories(r.categories), () => undefined);
     }, []);
 
+    const reloadPersons = useCallback(() => {
+        api<{ persons: Person[] }>('GET', '/persons').then((r) => setPersons(r.persons), () => undefined);
+    }, []);
+
+    const reloadConditions = useCallback(() => {
+        api<{ conditions: ConditionStatus[] }>('GET', '/conditions').then((r) => setConditions(r.conditions), () => undefined);
+    }, []);
+
     useEffect(loadMe, [loadMe]);
     useEffect(() => {
-        if (me) reloadCategories();
-    }, [me, reloadCategories]);
+        if (!me) return;
+        reloadCategories();
+        reloadPersons();
+        reloadConditions();
+    }, [me, reloadCategories, reloadPersons, reloadConditions]);
 
     const tablet = me?.kind === 'shared';
     useEffect(() => {
@@ -79,7 +92,8 @@ export function App() {
             ['/settings', t('nav.settings')]];
 
     return (
-        <AppContext.Provider value={{ me, tablet, categories, reloadCategories }}>
+        <AppContext.Provider value={{ me, tablet, categories, reloadCategories, persons, reloadPersons, conditions,
+            reloadConditions }}>
             <nav className="nav">
                 {links.map(([href, label]) => (
                     <a key={href} href={href} className={href === path ? 'active' : ''} onClick={(e) => {

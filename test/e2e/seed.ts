@@ -39,16 +39,17 @@ export async function seed(path: string): Promise<void> {
     });
 
     const andi = await createPerson(deps, { name: 'Andi', haEntity: 'person.andreas_gohr', password: 'andi-pw',
-        notifyAction: 'notify.mobile_app_phone_andi' });
-    const kaddi = await createPerson(deps, { name: 'Kaddi', haEntity: 'person.katrin_gohr', password: 'kaddi-pw' });
+        notifyAction: 'notify.mobile_app_phone_andi', color: '#2f6fdb' });
+    const kaddi = await createPerson(deps, { name: 'Kaddi', haEntity: 'person.katrin_gohr', password: 'kaddi-pw',
+        color: '#e07b1a' });
     await insertStates(db, [
         { entityId: andi.haEntity!, state: 'home', at: now - 2 * DAY },
         { entityId: kaddi.haEntity!, state: 'home', at: now - 2 * DAY },
     ]);
     await replaceOccupancy(db, [{ startAt: now - 2 * DAY, endAt: null, clockStart: 0 }]);
 
-    const kitchen = await createCategory(deps, 'Küche', 1);
-    const bath = await createCategory(deps, 'Bad', 2);
+    const kitchen = await createCategory(deps, 'Küche', 1, 'stove');
+    const bath = await createCategory(deps, 'Bad', 2, 'shower');
     await createCategory(deps, 'Garten', 3);
 
     const base = { kind: 'recurring', growth: 'time', importance: 'normal', assignment: 'any' } as const;
@@ -61,7 +62,8 @@ export async function seed(path: string): Promise<void> {
             lastDoneAt: now - 20 * DAY },
         { ...base, name: 'Kühlschrank auswischen', interval: 30, durationMin: 30, effort: 2, categoryIds: [kitchen.id],
             lastDoneAt: now - 50 * DAY, notes: 'Alles ausräumen und mit Essigwasser auswischen.\nGemüsefach separat spülen.\nDichtung nicht vergessen.' },
-        { ...base, name: 'Fenster putzen', interval: 90, durationMin: 60, effort: 4, lastDoneAt: now - 10 * DAY },
+        { ...base, name: 'Fenster putzen', interval: 90, durationMin: 60, effort: 4, lastDoneAt: now - 10 * DAY,
+            personIds: [andi.id, kaddi.id], noisy: true },
         { ...base, name: 'Regal bauen', kind: 'one_time', durationMin: 90, effort: 3, importance: 'optional' },
     ];
     for (const c of chores) await createChore(deps, c);

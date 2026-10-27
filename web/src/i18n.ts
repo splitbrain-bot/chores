@@ -74,3 +74,12 @@ export function weekdayName(day: number): string {
     // 2026-11-01 is a Sunday
     return new Date(2026, 10, 1 + day).toLocaleDateString(lang, { weekday: 'short' });
 }
+
+/**
+ * Returns the short name of a month.
+ *
+ * @param month the month, 1 is January
+ */
+export function monthName(month: number): string {
+    return new Date(2026, month - 1, 1).toLocaleDateString(lang, { month: 'short' });
+}

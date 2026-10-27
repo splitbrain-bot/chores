@@ -1,39 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.ts';
+import { TaskDialog, type TaskAction } from '../components/done-flow.tsx';
+import { TaskCard } from '../components/task-card.tsx';
 import { useApp } from '../context.ts';
-import { blockedText } from '../format.ts';
-import { num, t } from '../i18n.ts';
+import { t } from '../i18n.ts';
 import { navigate } from '../router.ts';
 import type { ChoreWithNeed } from '../types.ts';
 import { useInterval } from '../use-interval.ts';
-
-/**
- * One row of the chore list.
- *
- * @param props.chore the chore
- * @param props.onDone called after the done tap
- */
-function ChoreRow({ chore, onDone }: { chore: ChoreWithNeed; onDone: () => void }) {
-    const { tablet } = useApp();
-    const blocked = blockedText(chore);
-    return (
-        <li className="chore-row">
-            <button type="button" className="row-main" disabled={tablet} onClick={() => navigate(`/chores/${chore.id}`)}>
-                <span className="name">{chore.name}</span>
-                <span className="need" title={num(chore.need)}>
-                    <span className={chore.need >= 1 ? 'bar due' : 'bar'} style={{ width: `${Math.min(chore.need, 2) * 50}%` }} />
-                </span>
-                {(blocked.length > 0 || chore.templateError) && (
-                    <span className="blocked">
-                        {[...blocked, ...(chore.templateError ? [t('chores.templateError')] : [])].join(', ')}
-                    </span>
-                )}
-            </button>
-            <button type="button" className="done" aria-label={t('chores.markDone')} title={t('chores.markDone')}
-                onClick={() => api('POST', `/chores/${chore.id}/done`, { also: [] }).finally(onDone)}>✓</button>
-        </li>
-    );
-}
 
 /** The list of all chores, grouped by category or by group key. */
 export function Chores() {
@@ -42,14 +15,21 @@ export function Chores() {
     const [query, setQuery] = useState('');
     const [dueOnly, setDueOnly] = useState(false);
     const [groupBy, setGroupBy] = useState<'category' | 'groupKey'>('category');
+    const [action, setAction] = useState<TaskAction | null>(null);
 
     const load = useCallback(() => {
         api<{ chores: ChoreWithNeed[] }>('GET', '/chores').then((r) => setChores(r.chores), () => undefined);
     }, []);
+    const close = useCallback(() => {
+        setAction(null);
+        load();
+    }, [load]);
     useEffect(load, [load]);
     useInterval(load, 60_000);
 
     if (!chores) return <p className="status">{t('common.loading')}</p>;
+    const related = (chore: ChoreWithNeed) => (chore.groupKey === null ? []
+        : chores.filter((c) => c.groupKey === chore.groupKey && c.id !== chore.id));
     const q = query.trim().toLocaleLowerCase();
     const visible = chores
         .filter((c) => (!q || c.name.toLocaleLowerCase().includes(q)) && (!dueOnly || c.need >= 1))
@@ -87,11 +67,16 @@ export function Chores() {
             {groups.map((g) => (
                 <section key={g.key}>
                     <h2>{g.name}</h2>
-                    <ul className="chore-list">
-                        {g.chores.map((c) => <ChoreRow key={c.id} chore={c} onDone={load} />)}
-                    </ul>
+                    <div className="task-list compact">
+                        {g.chores.map((c) => (
+                            <TaskCard key={c.id} chore={c} related={related(c)}
+                                onDone={() => setAction({ kind: 'done', chore: c, related: related(c) })}
+                                onLater={() => setAction({ kind: 'later', chore: c, related: related(c) })} />
+                        ))}
+                    </div>
                 </section>
             ))}
+            {action && <TaskDialog action={action} onClose={close} />}
         </section>
     );
 }

@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import type { Kind } from '../../core/types.ts';
+import { getSettings } from '../../service/admin.ts';
 import { createChore, deleteChore, getChore, listChores, updateChore } from '../../service/chores.ts';
 import type { Deps } from '../../service/deps.ts';
 import { markDone, markEarlier, postpone } from '../../service/feedback.ts';
@@ -48,7 +49,8 @@ export function choreRoutes(deps: Deps): Hono<AppEnv> {
     app.post('/chores/:id/done', requires('feedback'), async (c) => {
         const id = idParam(c);
         const { also } = await body(c, doneSchema);
-        return c.json({ events: await markDone(deps, c.var.identity.viewer, id, also) });
+        const events = await markDone(deps, c.var.identity.viewer, id, also);
+        return c.json({ events, earlierWindowSeconds: (await getSettings(deps)).earlier_window_seconds });
     });
 
     app.post('/events/:id/earlier', requires('feedback'), async (c) =>
