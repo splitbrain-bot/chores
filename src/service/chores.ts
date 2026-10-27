@@ -1,4 +1,4 @@
-import type { ChoreEvent, ChoreWithNeed, Kind, Viewer } from '../core/types.ts';
+import type { ChoreEvent, ChoreWithNeed, Kind } from '../core/types.ts';
 import { listCategories } from '../db/categories.ts';
 import { listConditions } from '../db/conditions.ts';
 import { createChore as insertChore, getChore as loadChore, updateChore as storeChore, type NewChore } from '../db/chores.ts';
@@ -153,14 +153,14 @@ export async function deleteChore(deps: Deps, id: number): Promise<void> {
 }
 
 /**
- * Lists the chores with their need levels.
+ * Lists the chores with their need levels. The filters apply to the whole household, so a chore is possible when one
+ * of its persons can do it.
  *
  * @param deps the dependencies
- * @param viewer the viewer
  * @param query the filter
  */
-export async function listChores(deps: Deps, viewer: Viewer, query: ChoreQuery = {}): Promise<ChoreWithNeed[]> {
-    const { chores } = await evaluate(deps, viewer, { includeDeleted: query.includeDeleted });
+export async function listChores(deps: Deps, query: ChoreQuery = {}): Promise<ChoreWithNeed[]> {
+    const { chores } = await evaluate(deps, { kind: 'shared' }, { includeDeleted: query.includeDeleted });
     const q = query.q?.trim().toLocaleLowerCase();
     return chores.filter((c) => (!q || c.name.toLocaleLowerCase().includes(q))
         && (query.categoryId === undefined || c.categoryIds.includes(query.categoryId))
@@ -169,15 +169,14 @@ export async function listChores(deps: Deps, viewer: Viewer, query: ChoreQuery =
 }
 
 /**
- * Returns one chore with its latest events.
+ * Returns one chore with its latest events. The filters apply to the whole household.
  *
  * @param deps the dependencies
- * @param viewer the viewer
  * @param id the chore id
  * @param eventLimit the number of events
  */
-export async function getChore(deps: Deps, viewer: Viewer, id: number, eventLimit = 20):
+export async function getChore(deps: Deps, id: number, eventLimit = 20):
     Promise<{ chore: ChoreWithNeed; events: ChoreEvent[] }> {
-    const chore = await evaluatedChore(deps, viewer, id, true);
+    const chore = await evaluatedChore(deps, { kind: 'shared' }, id, true);
     return { chore, events: await listChoreEvents(deps.db, id, eventLimit) };
 }

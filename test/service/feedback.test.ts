@@ -46,7 +46,7 @@ describe('done flow', () => {
         const rows = await listChoreEvents(deps.db, main.id);
         expect(rows).toMatchObject([{ type: 'done', personId: andi.kind === 'person' ? andi.personId : null, effort: 2 }]);
         expect(rows[0]!.needLevel).toBeCloseTo(10 / 7);
-        expect((await getChore(deps, andi, other.id)).chore.lastDoneAt).toBe(clock.t);
+        expect((await getChore(deps, other.id)).chore.lastDoneAt).toBe(clock.t);
         expect((await getSuggestions(deps, andi)).suggestions).toEqual([]);
 
         clock.advance(5000);
@@ -61,7 +61,7 @@ describe('done flow', () => {
         const [event] = await markDone(deps, andi, chore.id);
         expect(event!.earlier).toBe(false);
         await expect(markEarlier(deps, andi, event!.eventId)).rejects.toMatchObject({ status: 409 });
-        expect((await getChore(deps, andi, chore.id)).chore.interval).toBe(7);
+        expect((await getChore(deps, chore.id)).chore.interval).toBe(7);
     });
 
     it('refuses earlier after one minute', async () => {
@@ -75,7 +75,7 @@ describe('done flow', () => {
     it('deletes a done one-time task', async () => {
         const task = await createChore(deps, { ...base, kind: 'one_time', interval: undefined });
         await markDone(deps, andi, task.id);
-        expect((await getChore(deps, andi, task.id)).chore.deletedAt).toBe(clock.t);
+        expect((await getChore(deps, task.id)).chore.deletedAt).toBe(clock.t);
         await expect(markDone(deps, andi, task.id)).rejects.toMatchObject({ status: 404 });
     });
 

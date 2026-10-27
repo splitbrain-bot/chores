@@ -19,7 +19,7 @@ export function choreRoutes(deps: Deps): Hono<AppEnv> {
     app.get('/chores', requires('read'), async (c) => {
         const category = c.req.query('category');
         const kind = c.req.query('kind');
-        const chores = await listChores(deps, c.var.identity.viewer, {
+        const chores = await listChores(deps, {
             q: c.req.query('q') || undefined,
             categoryId: category ? Number(category) : undefined,
             kind: kind === 'recurring' || kind === 'one_time' ? kind as Kind : undefined,
@@ -28,7 +28,7 @@ export function choreRoutes(deps: Deps): Hono<AppEnv> {
         return c.json({ chores });
     });
 
-    app.get('/chores/:id', requires('read'), async (c) => c.json(await getChore(deps, c.var.identity.viewer, idParam(c))));
+    app.get('/chores/:id', requires('read'), async (c) => c.json(await getChore(deps, idParam(c))));
 
     app.post('/chores', requires('manage'), async (c) => {
         const chore = await createChore(deps, await body(c, choreInputSchema));

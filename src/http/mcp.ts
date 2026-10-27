@@ -119,12 +119,12 @@ export function createMcpServer(deps: Deps, version: string, identity: Identity)
             minNeed: z.number().optional(),
             includeDeleted: z.boolean().optional(),
         }),
-    }, async (args) => result({ chores: await listChores(deps, viewer, { ...args, q: args.query }) }));
+    }, async (args) => result({ chores: await listChores(deps, { ...args, q: args.query }) }));
 
     server.registerTool('get_chore', {
         description: 'Returns one chore with its last 20 events.',
         inputSchema: z.object({ id }),
-    }, async (args) => result({ ...(await getChore(deps, viewer, args.id)) }));
+    }, async (args) => result({ ...(await getChore(deps, args.id)) }));
 
     server.registerTool('create_chore', {
         description: 'Creates a chore. Intervals are in days, or in cycles for the growth counter. Times are '

@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { DAY } from '../../src/core/types.ts';
 import { createCategory, createPerson } from '../../src/service/admin.ts';
+import { insertStates } from '../../src/db/ha_state.ts';
 import { createChore, deleteChore, getChore, listChores, updateChore } from '../../src/service/chores.ts';
 import { createCondition } from '../../src/service/conditions.ts';
+import { getSuggestions } from '../../src/service/suggestions.ts';
 import type { ChoreInput } from '../../src/schemas/chore.ts';
 import { Clock, makeDeps } from './helpers.ts';
 
 const base: ChoreInput = { name: 'Boden', kind: 'recurring', growth: 'time', interval: 8, importance: 'normal',
     durationMin: 15, effort: 2, assignment: 'any' };
-const shared = { kind: 'shared' } as const;
 
 describe('chore service', () => {
     it('creates a chore with defaults and links', async () => {
@@ -51,15 +52,34 @@ describe('chore service', () => {
         const cleared = await updateChore(deps, chore.id, { conditionId: null, intervalMin: null, intervalMax: 10 });
         expect(cleared).toMatchObject({ conditionId: null, intervalMin: 0.5, intervalMax: 10 });
 
-        expect((await listChores(deps, shared, { q: 'fen' })).map((c) => c.name)).toEqual(['Fenster']);
-        expect((await listChores(deps, shared, { kind: 'recurring' })).map((c) => c.name)).toEqual(['Boden']);
-        expect((await listChores(deps, shared, { minNeed: 0.5 })).map((c) => c.name)).toEqual(['Boden']);
+        expect((await listChores(deps, { q: 'fen' })).map((c) => c.name)).toEqual(['Fenster']);
+        expect((await listChores(deps, { kind: 'recurring' })).map((c) => c.name)).toEqual(['Boden']);
+        expect((await listChores(deps, { minNeed: 0.5 })).map((c) => c.name)).toEqual(['Boden']);
 
         await deleteChore(deps, chore.id);
-        expect((await listChores(deps, shared)).map((c) => c.name)).toEqual(['Fenster']);
-        expect((await listChores(deps, shared, { includeDeleted: true }))).toHaveLength(2);
-        expect((await getChore(deps, shared, chore.id)).chore.deletedAt).toBe(clock.t);
+        expect((await listChores(deps)).map((c) => c.name)).toEqual(['Fenster']);
+        expect((await listChores(deps, { includeDeleted: true }))).toHaveLength(2);
+        expect((await getChore(deps, chore.id)).chore.deletedAt).toBe(clock.t);
         await expect(updateChore(deps, chore.id, { name: 'x' })).rejects.toMatchObject({ status: 404 });
         await expect(deleteChore(deps, chore.id)).rejects.toMatchObject({ status: 404 });
+    });
+
+    it('lists the chores of other persons at home as possible but suggests only own chores', async () => {
+        // Saturday morning, a slot with enough capacity
+        const clock = new Clock('2026-10-31T09:00:00+01:00');
+        const deps = await makeDeps(clock);
+        const andi = await createPerson(deps, { name: 'Andi', haEntity: 'person.a' });
+        const kaddi = await createPerson(deps, { name: 'Kaddi', haEntity: 'person.k' });
+        await insertStates(deps.db, [
+            { entityId: 'person.a', state: 'home', at: clock.t - DAY },
+            { entityId: 'person.k', state: 'home', at: clock.t - DAY },
+        ]);
+        const deko = await createChore(deps, { ...base, name: 'Deko', personIds: [kaddi.id], lastDoneAt: clock.t - 10 * DAY });
+
+        expect((await listChores(deps))[0]).toMatchObject({ id: deko.id, possible: true, blockedBy: [] });
+        expect((await getChore(deps, deko.id)).chore).toMatchObject({ possible: true, blockedBy: [] });
+        expect((await getSuggestions(deps, { kind: 'person', personId: andi.id })).suggestions).toEqual([]);
+        expect((await getSuggestions(deps, { kind: 'person', personId: kaddi.id })).suggestions)
+            .toMatchObject([{ chore: { id: deko.id } }]);
     });
 });
