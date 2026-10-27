@@ -10,9 +10,6 @@ export type Importance = 'optional' | 'normal' | 'important' | 'critical';
 /** Rule for the persons who must be at home for a chore. */
 export type Assignment = 'any' | 'all';
 
-/** Day type for the capacity slots. */
-export type DayType = 'workday' | 'weekend';
-
 /** Reason of a postpone. */
 export type PostponeReason = 'no_time' | 'no_energy' | 'not_yet';
 
@@ -131,9 +128,10 @@ export interface Capacity {
     energy: number;
 }
 
-/** A capacity slot for one day type. The times are local HH:MM. */
+/** A capacity slot for some weekdays. The times are local HH:MM. */
 export interface Slot {
-    dayType: DayType;
+    /** Weekdays of the slot, 0 is Sunday. Public holidays use the slots of Sunday. */
+    days: number[];
     from: string;
     to: string;
     minutes: number;
@@ -251,12 +249,12 @@ export const DEFAULT_SETTINGS: Settings = {
     also_threshold: 0.75,
     suggestion_count: 3,
     capacity_slots: [
-        { dayType: 'workday', from: '06:00', to: '08:00', minutes: 10, energy: 2 },
-        { dayType: 'workday', from: '08:00', to: '17:00', minutes: 10, energy: 2 },
-        { dayType: 'workday', from: '17:00', to: '21:30', minutes: 45, energy: 3 },
-        { dayType: 'weekend', from: '08:00', to: '12:00', minutes: 120, energy: 5 },
-        { dayType: 'weekend', from: '12:00', to: '18:00', minutes: 120, energy: 4 },
-        { dayType: 'weekend', from: '18:00', to: '21:30', minutes: 45, energy: 3 },
+        { days: [1, 2, 3, 4], from: '06:00', to: '08:00', minutes: 10, energy: 2 },
+        { days: [1, 2, 3, 4], from: '08:00', to: '17:00', minutes: 10, energy: 2 },
+        { days: [1, 2, 3, 4], from: '17:00', to: '21:30', minutes: 45, energy: 3 },
+        { days: [5, 6, 0], from: '08:00', to: '12:00', minutes: 120, energy: 5 },
+        { days: [5, 6, 0], from: '12:00', to: '18:00', minutes: 120, energy: 4 },
+        { days: [5, 6, 0], from: '18:00', to: '21:30', minutes: 45, energy: 3 },
     ],
     hangover_effort: 4,
     earlier_window_seconds: 10,

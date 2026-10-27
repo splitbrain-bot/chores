@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.ts';
 import { useApp } from '../context.ts';
-import { t, time } from '../i18n.ts';
+import { t, time, weekdayName } from '../i18n.ts';
 import type { Person, Settings, Token } from '../types.ts';
+
+/** Weekdays in the order of the slot table, 0 is Sunday. */
+const WEEKDAYS = [1, 2, 3, 4, 5, 6, 0];
 
 type Tab = 'capacity' | 'parameters' | 'persons' | 'categories' | 'tokens';
 
@@ -46,19 +49,22 @@ function CapacityTab({ settings, onSave }: { settings: Settings; onSave: (s: Set
             <table className="slots">
                 <thead>
                     <tr>
-                        <th>{t('settings.dayType')}</th><th>{t('settings.from')}</th><th>{t('settings.to')}</th>
+                        {WEEKDAYS.map((d) => <th key={d} className="day">{weekdayName(d)}</th>)}
+                        <th>{t('settings.from')}</th><th>{t('settings.to')}</th>
                         <th>{t('settings.minutes')}</th><th>{t('settings.energy')}</th><th />
                     </tr>
                 </thead>
                 <tbody>
                     {slots.map((s, i) => (
                         <tr key={i}>
-                            <td>
-                                <select value={s.dayType} onChange={(e) => update(i, { dayType: e.target.value as 'workday' | 'weekend' })}>
-                                    <option value="workday">{t('settings.dayType.workday')}</option>
-                                    <option value="weekend">{t('settings.dayType.weekend')}</option>
-                                </select>
-                            </td>
+                            {WEEKDAYS.map((d) => (
+                                <td key={d} className="day">
+                                    <input type="checkbox" aria-label={weekdayName(d)} checked={s.days.includes(d)}
+                                        onChange={(e) => update(i, { days: e.target.checked
+                                            ? WEEKDAYS.filter((w) => w === d || s.days.includes(w))
+                                            : s.days.filter((w) => w !== d) })} />
+                                </td>
+                            ))}
                             <td><input type="time" value={s.from} onChange={(e) => update(i, { from: e.target.value })} /></td>
                             <td><input type="time" value={s.to} onChange={(e) => update(i, { to: e.target.value })} /></td>
                             <td><input type="number" min={0} value={s.minutes} onChange={(e) => update(i, { minutes: Number(e.target.value) })} /></td>
@@ -69,8 +75,9 @@ function CapacityTab({ settings, onSave }: { settings: Settings; onSave: (s: Set
                 </tbody>
             </table>
             </div>
+            <p className="hint">{t('settings.holidaySlots')}</p>
             <div className="actions">
-                <button type="button" onClick={() => setSlots([...slots, { dayType: 'weekend', from: '08:00', to: '12:00', minutes: 60, energy: 3 }])}>
+                <button type="button" onClick={() => setSlots([...slots, { days: [6, 0], from: '08:00', to: '12:00', minutes: 60, energy: 3 }])}>
                     {t('settings.addSlot')}
                 </button>
                 <button type="submit" className="primary">{t('common.save')}</button>

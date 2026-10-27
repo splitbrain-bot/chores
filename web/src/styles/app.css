@@ -137,6 +137,10 @@ input[type="checkbox"] {
     color: var(--danger);
 }
 
+.hint {
+    color: var(--muted);
+}
+
 .status-bar {
     display: flex;
     flex-wrap: wrap;
@@ -417,6 +421,19 @@ th, td {
     text-align: left;
     padding: 4px;
     border-bottom: 1px solid var(--line);
+}
+
+.slots th, .slots td {
+    padding: 4px 2px;
+}
+
+.slots .day {
+    text-align: center;
+}
+
+.slots input {
+    padding-left: 0.3em;
+    padding-right: 0.3em;
 }
 
 tr.revoked {

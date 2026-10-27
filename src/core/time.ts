@@ -1,4 +1,4 @@
-import { DAY, MINUTE, type DayType, type Slot } from './types.ts';
+import { DAY, MINUTE, type Slot } from './types.ts';
 
 /** Local calendar fields of a timestamp. */
 export interface LocalParts {
@@ -95,15 +95,14 @@ export function weekdayOf(date: string): number {
 }
 
 /**
- * Returns the day type of a local date. Friday to Sunday and public holidays are weekend days.
+ * Returns the weekday whose capacity slots apply to a local date. Public holidays use the slots of Sunday.
  *
  * @param date local date YYYY-MM-DD
  * @param holidays local dates of the public holidays
+ * @returns the weekday, 0 is Sunday
  */
-export function dayTypeOf(date: string, holidays: ReadonlySet<string>): DayType {
-    const wd = weekdayOf(date);
-    if (holidays.has(date) || wd === 0 || wd >= 5) return 'weekend';
-    return 'workday';
+export function slotWeekday(date: string, holidays: ReadonlySet<string>): number {
+    return holidays.has(date) ? 0 : weekdayOf(date);
 }
 
 /**
@@ -201,13 +200,13 @@ export function startOfDay(date: string, timeZone: string): number {
  *
  * @param date local date YYYY-MM-DD
  * @param timeZone IANA time zone
- * @param slots the slot table of all day types
+ * @param slots the slot table of all weekdays
  * @param holidays local dates of the public holidays
  */
 export function slotsOfDay(date: string, timeZone: string, slots: Slot[], holidays: ReadonlySet<string>): PlacedSlot[] {
-    const type = dayTypeOf(date, holidays);
+    const weekday = slotWeekday(date, holidays);
     return slots
-        .filter((s) => s.dayType === type)
+        .filter((s) => s.days.includes(weekday))
         .map((slot) => ({ slot, start: zonedTime(date, slot.from, timeZone), end: zonedTime(date, slot.to, timeZone) }))
         .sort((a, b) => a.start - b.start);
 }
@@ -217,7 +216,7 @@ export function slotsOfDay(date: string, timeZone: string, slots: Slot[], holida
  *
  * @param now milliseconds since the epoch
  * @param timeZone IANA time zone
- * @param slots the slot table of all day types
+ * @param slots the slot table of all weekdays
  * @param holidays local dates of the public holidays
  * @returns the slot or null outside of all slots
  */
@@ -231,7 +230,7 @@ export function currentSlot(now: number, timeZone: string, slots: Slot[], holida
  *
  * @param now milliseconds since the epoch
  * @param timeZone IANA time zone
- * @param slots the slot table of all day types
+ * @param slots the slot table of all weekdays
  * @param holidays local dates of the public holidays
  * @returns the start of the next slot, or null when the table has no slot
  */

@@ -64,3 +64,13 @@ export function dayMonth(ts: number): string {
 export function weekdayDate(date: string): string {
     return new Date(`${date}T12:00:00`).toLocaleDateString(lang, { weekday: 'long', day: 'numeric', month: 'numeric' });
 }
+
+/**
+ * Returns the short name of a weekday.
+ *
+ * @param day the weekday, 0 is Sunday
+ */
+export function weekdayName(day: number): string {
+    // 2026-11-01 is a Sunday
+    return new Date(2026, 10, 1 + day).toLocaleDateString(lang, { weekday: 'short' });
+}

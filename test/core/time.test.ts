@@ -1,21 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { currentSlot, dayTypeOf, inSeason, localParts, nextSlotStart, seasonParts, zonedTime } from '../../src/core/time.ts';
+import { currentSlot, inSeason, localParts, nextSlotStart, seasonParts, slotWeekday, zonedTime } from '../../src/core/time.ts';
 import { at, settings } from './fixtures.ts';
 
 const tz = 'Europe/Berlin';
 const none = new Set<string>();
 
-describe('dayTypeOf', () => {
-    it('gives the day type of every weekday', () => {
+describe('slotWeekday', () => {
+    it('gives the weekday of every day', () => {
         // 2026-10-26 is a Monday
-        const types = ['26', '27', '28', '29', '30', '31', '01'].map((d, i) =>
-            dayTypeOf(i < 6 ? `2026-10-${d}` : `2026-11-${d}`, none));
-        expect(types).toEqual(['workday', 'workday', 'workday', 'workday', 'weekend', 'weekend', 'weekend']);
+        const days = ['26', '27', '28', '29', '30', '31', '01'].map((d, i) =>
+            slotWeekday(i < 6 ? `2026-10-${d}` : `2026-11-${d}`, none));
+        expect(days).toEqual([1, 2, 3, 4, 5, 6, 0]);
     });
 
-    it('treats a public holiday on a Wednesday as a weekend day', () => {
-        expect(dayTypeOf('2027-03-03', none)).toBe('workday');
-        expect(dayTypeOf('2027-03-03', new Set(['2027-03-03']))).toBe('weekend');
+    it('treats a public holiday on a Wednesday as a Sunday', () => {
+        expect(slotWeekday('2027-03-03', none)).toBe(3);
+        expect(slotWeekday('2027-03-03', new Set(['2027-03-03']))).toBe(0);
     });
 });
 
@@ -80,6 +80,14 @@ describe('slots', () => {
         const slot = currentSlot(at('2026-10-25T11:59+01:00'), tz, settings.capacity_slots, none);
         expect(slot?.end).toBe(at('2026-10-25T12:00+01:00'));
         expect(slot!.end - slot!.start).toBe(4 * 3_600_000);
+    });
+
+    it('uses a slot only on its weekdays', () => {
+        const slots = [{ days: [3], from: '10:00', to: '12:00', minutes: 30, energy: 3 }];
+        // 2026-10-28 is a Wednesday
+        expect(currentSlot(at('2026-10-28T11:00+01:00'), tz, slots, none)?.slot.from).toBe('10:00');
+        expect(currentSlot(at('2026-10-29T11:00+01:00'), tz, slots, none)).toBeNull();
+        expect(nextSlotStart(at('2026-10-28T13:00+01:00'), tz, slots, none)).toBe(at('2026-11-04T10:00+01:00'));
     });
 
     it('gives the local fields', () => {

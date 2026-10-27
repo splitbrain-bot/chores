@@ -32,8 +32,7 @@ export async function seed(path: string): Promise<void> {
 
     await putSettings(db, {
         capacity_slots: [
-            { dayType: 'workday', from: '00:00', to: '23:59', minutes: 120, energy: 5 },
-            { dayType: 'weekend', from: '00:00', to: '23:59', minutes: 120, energy: 5 },
+            { days: [0, 1, 2, 3, 4, 5, 6], from: '00:00', to: '23:59', minutes: 120, energy: 5 },
         ],
         ha_frame_ancestors: ['https://ha.example.org'],
         earlier_window_seconds: DEFAULT_SETTINGS.earlier_window_seconds,

@@ -107,7 +107,7 @@ describe('HTTP API', () => {
         const put = await t.call('PUT', '/api/settings', t.person, { ...settings, suggestion_count: 2 });
         expect(await put.json()).toMatchObject({ settings: { suggestion_count: 2 } });
         expect((await t.call('PUT', '/api/settings', t.person, { ...settings, time_zone: 'Mars/Base' })).status).toBe(400);
-        const badSlot = { ...settings, capacity_slots: [{ dayType: 'workday', from: '10:00', to: '09:00', minutes: 5, energy: 1 }] };
+        const badSlot = { ...settings, capacity_slots: [{ days: [1], from: '10:00', to: '09:00', minutes: 5, energy: 1 }] };
         expect((await t.call('PUT', '/api/settings', t.person, badSlot)).status).toBe(400);
     });
 

@@ -32,7 +32,7 @@ export function isLookaheadCandidate(chore: ChoreWithNeed, personIds: readonly n
 }
 
 /**
- * Returns the free minutes of a person on a day: the slot minutes of the day type minus the busy calendar time in
+ * Returns the free minutes of a person on a day: the slot minutes of the weekday minus the busy calendar time in
  * the slots.
  *
  * @param date local date YYYY-MM-DD

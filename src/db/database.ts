@@ -5,6 +5,7 @@ import { CamelCasePlugin, Kysely, SqliteDialect } from 'kysely';
 import { Migrator, type Migration } from 'kysely/migration';
 import * as initial from './migrations/2026-10-27-initial.ts';
 import * as personEntityOptional from './migrations/2026-10-27-person-entity-optional.ts';
+import * as slotWeekdays from './migrations/2026-10-27-slot-weekdays.ts';
 import type { DB } from './types.ts';
 
 /** The database handle of the application. */
@@ -14,6 +15,7 @@ export type Database = Kysely<DB>;
 const migrations: Record<string, Migration> = {
     '2026-10-27-initial': initial,
     '2026-10-27-person-entity-optional': personEntityOptional,
+    '2026-10-27-slot-weekdays': slotWeekdays,
 };
 
 /**

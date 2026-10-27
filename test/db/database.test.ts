@@ -37,3 +37,26 @@ describe('migration person-entity-optional', () => {
         await db.destroy();
     });
 });
+
+describe('migration slot-weekdays', () => {
+    it('converts the day types of the stored slots to weekdays', async () => {
+        const { openDatabase, migrate } = await import('../../src/db/database.ts');
+        const { Migrator } = await import('kysely/migration');
+        const initial = await import('../../src/db/migrations/2026-10-27-initial.ts');
+        const db = openDatabase(':memory:');
+        await new Migrator({ db, provider: { getMigrations: async () => ({ '2026-10-27-initial': initial }) } }).migrateToLatest();
+        const slots = [
+            { dayType: 'workday', from: '17:00', to: '21:00', minutes: 30, energy: 3 },
+            { dayType: 'weekend', from: '08:00', to: '12:00', minutes: 90, energy: 5 },
+        ];
+        await db.insertInto('setting').values({ key: 'capacity_slots', value: JSON.stringify(slots) }).execute();
+
+        await migrate(db);
+        const row = await db.selectFrom('setting').select('value').where('key', '=', 'capacity_slots').executeTakeFirstOrThrow();
+        expect(JSON.parse(row.value)).toEqual([
+            { days: [1, 2, 3, 4], from: '17:00', to: '21:00', minutes: 30, energy: 3 },
+            { days: [5, 6, 0], from: '08:00', to: '12:00', minutes: 90, energy: 5 },
+        ]);
+        await db.destroy();
+    });
+});

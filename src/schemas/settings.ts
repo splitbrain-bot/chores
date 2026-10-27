@@ -4,7 +4,7 @@ const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 
 /** Schema of a capacity slot. */
 export const slotSchema = z.object({
-    dayType: z.enum(['workday', 'weekend']),
+    days: z.array(z.number().int().min(0).max(6)).min(1).describe('Weekdays, 0 is Sunday. Holidays use Sunday.'),
     from: time,
     to: time,
     minutes: z.number().int().min(0).max(1440),
