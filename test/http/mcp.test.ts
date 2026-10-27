@@ -59,7 +59,7 @@ describe('MCP endpoint', () => {
             body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' }) });
         const text = await list.text();
         for (const name of ['list_persons', 'update_person', 'get_settings', 'update_settings', 'set_capacity_slots',
-            'list_categories', 'create_category', 'list_conditions', 'create_condition',
+            'list_categories', 'create_category', 'update_category', 'list_conditions', 'create_condition',
             'update_condition', 'delete_condition', 'list_chores', 'get_chore', 'create_chore', 'update_chore', 'delete_chore',
             'mark_done', 'postpone', 'get_suggestions', 'get_lookahead', 'get_overview']) {
             expect(text).toContain(`"name":"${name}"`);
@@ -102,6 +102,9 @@ describe('MCP endpoint', () => {
             { category: { id: number } };
         expect((await tool('list_categories')).structuredContent).toEqual({ categories: [{ id: category.id, name: 'Küche', sort: 0,
             icon: 'stove' }] });
+        expect((await tool('update_category', { id: category.id, icon: 'fridge' })).structuredContent)
+            .toEqual({ category: { id: category.id, name: 'Küche', sort: 0, icon: 'fridge' } });
+        expect((await tool('update_category', { id: 99, name: 'x' })).isError).toBe(true);
 
         const { condition } = (await tool('create_condition', { name: 'Trocken', kind: 'state', template: '{{ a }}' }))
             .structuredContent as { condition: { id: number } };

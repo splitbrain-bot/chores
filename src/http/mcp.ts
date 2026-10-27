@@ -2,7 +2,9 @@ import type { Hono } from 'hono';
 import { createMcpHandler, McpServer, type AuthInfo } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import type { Viewer } from '../core/types.ts';
-import { createCategory, getSettings, listCategories, listPersons, setSettings, updatePerson } from '../service/admin.ts';
+import {
+    createCategory, getSettings, listCategories, listPersons, setSettings, updateCategory, updatePerson,
+} from '../service/admin.ts';
 import type { Identity } from '../service/auth.ts';
 import { createChore, deleteChore, getChore, listChores, updateChore } from '../service/chores.ts';
 import { createCondition, deleteCondition, listConditions, updateCondition } from '../service/conditions.ts';
@@ -12,7 +14,7 @@ import { getLookahead } from '../service/lookahead.ts';
 import { getOverview } from '../service/overview.ts';
 import { listPresence } from '../service/presence.ts';
 import { getSuggestions } from '../service/suggestions.ts';
-import { categorySchema, personUpdateSchema } from '../schemas/admin.ts';
+import { categorySchema, categoryUpdateSchema, personUpdateSchema } from '../schemas/admin.ts';
 import { choreInputSchema, choreUpdateSchema } from '../schemas/chore.ts';
 import { conditionSchema, conditionUpdateSchema } from '../schemas/condition.ts';
 import { postponeSchema } from '../schemas/feedback.ts';
@@ -83,6 +85,11 @@ export function createMcpServer(deps: Deps, version: string, identity: Identity)
         description: 'Creates a category.',
         inputSchema: categorySchema,
     }, async ({ name, sort, icon }) => result({ category: await createCategory(deps, name, sort, icon) }));
+
+    server.registerTool('update_category', {
+        description: 'Changes the given values of a category: the name, the sort position or the icon.',
+        inputSchema: categoryUpdateSchema.extend({ id }),
+    }, async ({ id: categoryId, ...values }) => result({ category: await updateCategory(deps, categoryId, values) }));
 
     server.registerTool('list_conditions', {
         description: 'Lists the conditions with their status. A state condition has the current result 1 or 0, or '
