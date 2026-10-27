@@ -2,7 +2,7 @@ import type { StringKey } from './en.ts';
 
 /** German strings. */
 export const de: Record<StringKey, string> = {
-    'app.name': 'Haushalt',
+    'app.name': 'Chores',
     'nav.suggestions': 'Jetzt',
     'nav.chores': 'Aufgaben',
     'nav.lookahead': 'Ausblick',

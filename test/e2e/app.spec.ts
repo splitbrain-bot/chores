@@ -123,6 +123,7 @@ test.describe('German browser', () => {
         await expect(page.locator('.nav a')).toHaveText(['Jetzt', 'Aufgaben', 'Ausblick', 'Einstellungen']);
         await expect(page.getByRole('button', { name: 'Erledigt' }).first()).toBeVisible();
         await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+        await expect(page).toHaveTitle('Chores');
     });
 });
 
