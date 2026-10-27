@@ -61,7 +61,7 @@ export async function seed(path: string): Promise<void> {
         { ...base, name: 'Spiegel putzen', interval: 14, durationMin: 5, effort: 1, categoryIds: [bath.id],
             lastDoneAt: now - 20 * DAY },
         { ...base, name: 'Kühlschrank auswischen', interval: 30, durationMin: 30, effort: 2, categoryIds: [kitchen.id],
-            lastDoneAt: now - 50 * DAY },
+            lastDoneAt: now - 50 * DAY, notes: 'Alles ausräumen und mit Essigwasser auswischen.\nGemüsefach separat spülen.\nDichtung nicht vergessen.' },
         { ...base, name: 'Fenster putzen', interval: 90, durationMin: 60, effort: 4, lastDoneAt: now - 10 * DAY },
         { ...base, name: 'Regal bauen', kind: 'one_time', durationMin: 90, effort: 3, importance: 'optional' },
     ];

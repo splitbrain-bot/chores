@@ -41,6 +41,8 @@ export const en = {
     'suggestions.allDone': 'All done.',
     'suggestions.outlook': 'Outlook',
     'suggestions.effort': 'Effort {n} of 5',
+    'suggestions.edit': 'Edit chore',
+    'suggestions.notes': 'Notes',
 
     'reason.interval': 'Interval {interval} {unit}, last done {elapsed} {unit} ago, need {need}',
     'reason.deadline': 'Due by {date}',

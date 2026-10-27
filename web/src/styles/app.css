@@ -184,6 +184,41 @@ input[type="checkbox"] {
     margin: 0.2em 0;
 }
 
+.card-title {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.card-title .edit {
+    border: none;
+    background: none;
+    color: var(--muted);
+    padding: 0 0.2em;
+    font-size: 1.2rem;
+    line-height: 1.2;
+}
+
+.notes {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: none;
+    padding: 0;
+    margin: 0 0 0.6em;
+    color: var(--text);
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.notes.open {
+    white-space: pre-wrap;
+}
+
 .card .reason {
     font-size: 0.8rem;
     margin: 0.2em 0 0.6em;

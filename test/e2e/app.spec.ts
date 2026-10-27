@@ -56,6 +56,20 @@ test('marks a suggestion as done and taps necessary earlier', async ({ page, req
     expect(chores.every((c) => Date.now() - c.lastDoneAt < 60_000)).toBe(true);
 });
 
+test('shows the notes and opens the chore from a suggestion', async ({ page }) => {
+    await login(page);
+    const card = page.locator('.card').filter({ hasText: 'Kühlschrank auswischen' });
+    const notes = card.getByRole('button', { name: 'Notes' });
+    await expect(notes).toHaveText('Alles ausräumen und mit Essigwasser auswischen.');
+    await notes.click();
+    await expect(notes).toHaveAttribute('aria-expanded', 'true');
+    await expect(notes).toContainText('Dichtung nicht vergessen.');
+
+    await card.getByRole('button', { name: 'Edit chore' }).click();
+    await expect(page).toHaveURL(/\/chores\/\d+$/);
+    await expect(page.getByLabel('Name')).toHaveValue('Kühlschrank auswischen');
+});
+
 test('postpones a suggestion with a reason', async ({ page }) => {
     await login(page);
     const card = page.locator('.card').filter({ hasText: 'Spiegel putzen' });
@@ -75,6 +89,8 @@ test('opens the tablet mode with the shared token URL', async ({ page }) => {
     await expect(page.locator('html')).toHaveClass(/tablet/);
     await expect(page.locator('.nav a')).toHaveText(['Now', 'Chores']);
     await expect(page.getByRole('button', { name: 'Log out' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Edit chore' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Notes' })).toBeVisible();
 
     await page.goto('/settings');
     await expect(page.locator('.card').first()).toBeVisible();

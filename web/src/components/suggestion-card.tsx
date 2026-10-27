@@ -3,6 +3,7 @@ import { api } from '../api.ts';
 import { useApp } from '../context.ts';
 import { reasonText } from '../format.ts';
 import { t } from '../i18n.ts';
+import { navigate } from '../router.ts';
 import type { Suggestion } from '../types.ts';
 import { DoneConfirmation, PostponeReasons } from './done-flow.tsx';
 
@@ -16,6 +17,40 @@ export function EffortDots({ effort }: { effort: number }) {
         <span className="dots" title={t('suggestions.effort', { n: effort })} aria-label={t('suggestions.effort', { n: effort })}>
             {[1, 2, 3, 4, 5].map((n) => <span key={n} className={n <= effort ? 'dot on' : 'dot'} />)}
         </span>
+    );
+}
+
+/**
+ * The notes of a chore. Only the first line is visible until a click expands them.
+ *
+ * @param props.notes the notes
+ */
+export function Notes({ notes }: { notes: string }) {
+    const [open, setOpen] = useState(false);
+    return (
+        <button type="button" className={open ? 'notes open' : 'notes'} aria-expanded={open} aria-label={t('suggestions.notes')}
+            onClick={() => setOpen(!open)}>
+            {open ? notes : notes.split('\n')[0]}
+        </button>
+    );
+}
+
+/**
+ * The title of a card with the edit button. The tablet shows no edit button.
+ *
+ * @param props.id the chore id
+ * @param props.name the chore name
+ */
+function CardTitle({ id, name }: { id: number; name: string }) {
+    const { tablet } = useApp();
+    return (
+        <div className="card-title">
+            <h2>{name}</h2>
+            {!tablet && (
+                <button type="button" className="edit" aria-label={t('suggestions.edit')} title={t('suggestions.edit')}
+                    onClick={() => navigate(`/chores/${id}`)}>⚙</button>
+            )}
+        </div>
     );
 }
 
@@ -41,7 +76,7 @@ export function SuggestionCard({ suggestion, earlierWindowSeconds, onStart, onFi
     if (doneEvent !== null) {
         return (
             <article className="card">
-                <h2>{chore.name}</h2>
+                <CardTitle id={chore.id} name={chore.name} />
                 <DoneConfirmation eventId={doneEvent.eventId} earlier={doneEvent.earlier} seconds={earlierWindowSeconds}
                     onClose={close} />
             </article>
@@ -50,13 +85,14 @@ export function SuggestionCard({ suggestion, earlierWindowSeconds, onStart, onFi
 
     return (
         <article className="card">
-            <h2>{chore.name}</h2>
+            <CardTitle id={chore.id} name={chore.name} />
             <p className="meta">
                 {names.length > 0 && <span className="categories">{names.join(', ')}</span>}
                 <span>{t('common.minutes', { n: chore.durationMin })}</span>
                 <EffortDots effort={chore.effort} />
             </p>
             <p className="reason">{reasonText(chore)}</p>
+            {chore.notes && <Notes notes={chore.notes} />}
             {also.length > 0 && (
                 <fieldset className="also">
                     <legend>{t('suggestions.also')}</legend>

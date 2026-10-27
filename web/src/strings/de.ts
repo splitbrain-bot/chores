@@ -43,6 +43,8 @@ export const de: Record<StringKey, string> = {
     'suggestions.allDone': 'Alles erledigt.',
     'suggestions.outlook': 'Ausblick',
     'suggestions.effort': 'Aufwand {n} von 5',
+    'suggestions.edit': 'Aufgabe bearbeiten',
+    'suggestions.notes': 'Notizen',
 
     'reason.interval': 'Intervall {interval} {unit}, zuletzt vor {elapsed} {unit}, Bedarf {need}',
     'reason.deadline': 'Fällig bis {date}',
