@@ -8,7 +8,7 @@ export default defineConfig({
         react(),
         VitePWA({
             registerType: 'autoUpdate',
-            includeAssets: ['icons/*.png', 'icons/icon.svg'],
+            includeAssets: ['icons/*.png', 'icons/*.svg'],
             manifest: {
                 name: 'Chores',
                 short_name: 'Chores',
