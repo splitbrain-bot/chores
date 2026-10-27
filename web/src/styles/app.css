@@ -295,6 +295,10 @@ html.tablet .actions button, html.tablet .reasons button {
     flex: 1 1 12em;
 }
 
+.toolbar select {
+    width: auto;
+}
+
 .check {
     display: inline-flex;
     gap: 0.4em;

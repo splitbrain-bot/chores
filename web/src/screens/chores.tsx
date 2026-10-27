@@ -35,12 +35,13 @@ function ChoreRow({ chore, onDone }: { chore: ChoreWithNeed; onDone: () => void 
     );
 }
 
-/** The list of all chores, grouped by category. */
+/** The list of all chores, grouped by category or by group key. */
 export function Chores() {
     const { categories, tablet } = useApp();
     const [chores, setChores] = useState<ChoreWithNeed[] | null>(null);
     const [query, setQuery] = useState('');
     const [dueOnly, setDueOnly] = useState(false);
+    const [groupBy, setGroupBy] = useState<'category' | 'groupKey'>('category');
 
     const load = useCallback(() => {
         api<{ chores: ChoreWithNeed[] }>('GET', '/chores').then((r) => setChores(r.chores), () => undefined);
@@ -54,11 +55,17 @@ export function Chores() {
         .filter((c) => (!q || c.name.toLocaleLowerCase().includes(q)) && (!dueOnly || c.need >= 1))
         .sort((a, b) => b.need - a.need);
 
-    const groups = [
-        ...categories.map((cat) => ({ key: String(cat.id), name: cat.name,
-            chores: visible.filter((c) => c.categoryIds.includes(cat.id)) })),
-        { key: 'none', name: t('chores.noCategory'), chores: visible.filter((c) => c.categoryIds.length === 0) },
-    ].filter((g) => g.chores.length > 0);
+    const groupKeys = [...new Set(visible.map((c) => c.groupKey).filter((k) => k !== null))].sort((a, b) => a.localeCompare(b));
+    const groups = (groupBy === 'category'
+        ? [
+            ...categories.map((cat) => ({ key: String(cat.id), name: cat.name,
+                chores: visible.filter((c) => c.categoryIds.includes(cat.id)) })),
+            { key: 'none', name: t('chores.noCategory'), chores: visible.filter((c) => c.categoryIds.length === 0) },
+        ]
+        : [
+            ...groupKeys.map((k) => ({ key: k, name: k, chores: visible.filter((c) => c.groupKey === k) })),
+            { key: 'none', name: t('chores.noGroupKey'), chores: visible.filter((c) => c.groupKey === null) },
+        ]).filter((g) => g.chores.length > 0);
 
     return (
         <section className="chores">
@@ -69,6 +76,11 @@ export function Chores() {
                     <input type="checkbox" checked={dueOnly} onChange={(e) => setDueOnly(e.target.checked)} />
                     {t('chores.dueOnly')}
                 </label>
+                <select aria-label={t('chores.groupBy')} value={groupBy}
+                    onChange={(e) => setGroupBy(e.target.value as 'category' | 'groupKey')}>
+                    <option value="category">{t('chores.groupBy.category')}</option>
+                    <option value="groupKey">{t('chores.groupBy.groupKey')}</option>
+                </select>
                 {!tablet && <button type="button" onClick={() => navigate('/chores/new')}>{t('chores.new')}</button>}
             </div>
             {groups.length === 0 && <p className="empty">{t('chores.empty')}</p>}

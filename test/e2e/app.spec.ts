@@ -101,6 +101,15 @@ test('opens the tablet mode with the shared token URL', async ({ page }) => {
     await expect(page.locator('html')).toHaveClass(/tablet/);
 });
 
+test('groups the chore list by category or by group key', async ({ page }) => {
+    await login(page);
+    await page.goto('/chores');
+    await expect(page.locator('.chores h2')).toHaveText(['Küche', 'Bad', 'Without category']);
+    await page.getByLabel('Grouping').selectOption('groupKey');
+    await expect(page.locator('.chores h2')).toHaveText(['fussboden-wischen', 'Without group key']);
+    await expect(page.locator('.chores section').first().locator('.name')).toHaveText(['Fußboden wischen', 'Fußboden wischen']);
+});
+
 test('creates and edits a chore in the form', async ({ page }) => {
     await login(page);
     await page.getByRole('link', { name: 'Chores' }).click();
