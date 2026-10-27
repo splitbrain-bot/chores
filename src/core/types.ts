@@ -87,8 +87,8 @@ export interface Chore {
     templateError: string | null;
     durationMin: number;
     effort: number;
-    seasonFrom: number | null;
-    seasonTo: number | null;
+    /** Months of the season, 1 is January. Empty means the whole year. */
+    seasonMonths: number[];
     noisy: boolean;
     notes: string | null;
     lastDoneAt: number;

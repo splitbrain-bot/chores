@@ -1,4 +1,4 @@
-import { dayMonth, hasKey, num, t, time, weekdayName } from './i18n.ts';
+import { dayMonth, hasKey, monthName, num, t, time, weekdayName } from './i18n.ts';
 import type { ChoreWithNeed, ConditionStatus, Hint, Suggestion } from './types.ts';
 
 /**
@@ -75,4 +75,19 @@ export function conditionStatusText(condition: ConditionStatus): string {
     if (condition.forecast.length === 0) return t('condition.noForecast');
     return t('condition.forecast', { days: condition.forecast
         .map((d) => `${weekdayName(new Date(`${d.date}T12:00:00`).getDay())} ${resultText(d.result)}`).join(', ') });
+}
+
+/**
+ * Returns the months of a season as ranges of consecutive months, for example "Mar–May, Nov–Feb".
+ *
+ * @param months the months of the season, 1 is January
+ */
+export function seasonText(months: readonly number[]): string {
+    // month 0 is December and month 13 is January, so that a range can go across the new year
+    const on = (m: number) => months.includes(((m + 11) % 12) + 1);
+    return months.filter((m) => !on(m - 1)).map((start) => {
+        let end = start;
+        while (on(end + 1) && (end % 12) + 1 !== start) end = (end % 12) + 1;
+        return start === end ? monthName(start) : `${monthName(start)}–${monthName(end)}`;
+    }).join(', ');
 }

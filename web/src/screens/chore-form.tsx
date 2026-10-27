@@ -31,8 +31,7 @@ interface FormState {
     effort: string;
     personIds: number[];
     categoryIds: number[];
-    seasonFrom: string;
-    seasonTo: string;
+    seasonMonths: number[];
     noisy: boolean;
     notes: string;
     lastDoneAt: string;
@@ -42,7 +41,7 @@ const EMPTY: FormState = {
     name: '', groupKey: '', kind: 'recurring', growth: 'usage', interval: '7', intervalMin: '', intervalMax: '',
     counterEntity: '', importance: 'normal', deadlineMd: '', deadlineAt: '', deadlineLeadDays: '14',
     conditionId: '', boostId: '', forecastId: '', durationMin: '15', effort: '2',
-    personIds: [], categoryIds: [], seasonFrom: '', seasonTo: '', noisy: false, notes: '', lastDoneAt: '',
+    personIds: [], categoryIds: [], seasonMonths: [], noisy: false, notes: '', lastDoneAt: '',
 };
 
 /**
@@ -70,7 +69,7 @@ function toForm(c: ChoreWithNeed): FormState {
         deadlineLeadDays: String(c.deadlineLeadDays), conditionId: s(c.conditionId), boostId: s(c.boostId),
         forecastId: s(c.forecastId), durationMin: String(c.durationMin),
         effort: String(c.effort), personIds: c.personIds, categoryIds: c.categoryIds,
-        seasonFrom: s(c.seasonFrom), seasonTo: s(c.seasonTo), noisy: c.noisy, notes: s(c.notes),
+        seasonMonths: c.seasonMonths, noisy: c.noisy, notes: s(c.notes),
         lastDoneAt: toLocalInput(c.lastDoneAt),
     };
 }
@@ -92,7 +91,7 @@ function toInput(f: FormState): ChoreInput {
         deadlineAt: f.deadlineAt ? new Date(`${f.deadlineAt}T23:59:59`).getTime() : null,
         deadlineLeadDays: Number(f.deadlineLeadDays), conditionId: number(f.conditionId), boostId: number(f.boostId),
         forecastId: number(f.forecastId), durationMin: Number(f.durationMin), effort: Number(f.effort),
-        personIds: f.personIds, categoryIds: f.categoryIds, seasonFrom: number(f.seasonFrom), seasonTo: number(f.seasonTo),
+        personIds: f.personIds, categoryIds: f.categoryIds, seasonMonths: f.seasonMonths,
         noisy: f.noisy, notes: text(f.notes), lastDoneAt: f.lastDoneAt ? new Date(f.lastDoneAt).getTime() : undefined,
     };
 }
@@ -195,11 +194,7 @@ export function ChoreForm({ id }: { id: number | null }) {
                 <small className="hint">{t('form.personsHint')}</small>
             </Field>
             <Field label={t('form.season')} group>
-                <SeasonPicker from={form.seasonFrom ? Number(form.seasonFrom) : null}
-                    to={form.seasonTo ? Number(form.seasonTo) : null} onChange={(from, to) => {
-                        set('seasonFrom', from === null ? '' : String(from));
-                        set('seasonTo', to === null ? '' : String(to));
-                    }} />
+                <SeasonPicker months={form.seasonMonths} onChange={(months) => set('seasonMonths', months)} />
             </Field>
             <label className="check">
                 <input type="checkbox" name="noisy" checked={form.noisy} onChange={(e) => set('noisy', e.target.checked)} />

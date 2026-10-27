@@ -98,7 +98,7 @@ export function baseBlocks(chore: Chore, ctx: PossibleContext): BlockCode[] {
     const local = localParts(ctx.now, ctx.settings.time_zone);
     if (chore.deletedAt !== null) blocks.push('deleted');
     if (chore.snoozedUntil !== null && chore.snoozedUntil > ctx.now) blocks.push('snoozed');
-    if (!inSeason(local.month, chore.seasonFrom, chore.seasonTo)) blocks.push('season');
+    if (!inSeason(local.month, chore.seasonMonths)) blocks.push('season');
     if (chore.noisy && isQuietDay(local.date, ctx.holidays)) blocks.push('quiet_day');
     if (chore.conditionId !== null && chore.conditionResult !== 1) blocks.push('condition');
     if (doers(chore, ctx).length === 0) blocks.push('persons');

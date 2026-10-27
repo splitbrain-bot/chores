@@ -28,7 +28,6 @@ export interface ChoreQuery {
 function check(c: Omit<NewChore, 'createdAt' | 'updatedAt'>): void {
     if (c.kind === 'recurring' && !c.interval) throw new ServiceError(400, 'A recurring chore needs an interval');
     if (c.growth === 'counter' && !c.counterEntity) throw new ServiceError(400, 'A counter chore needs a counter entity');
-    if ((c.seasonFrom === null) !== (c.seasonTo === null)) throw new ServiceError(400, 'A season needs a start and an end');
     if (c.intervalMin !== null && c.intervalMax !== null && c.intervalMin > c.intervalMax) {
         throw new ServiceError(400, 'The minimum interval is larger than the maximum interval');
     }
@@ -86,9 +85,12 @@ function merge(base: NewChore, input: ChoreUpdate): NewChore {
         if (next.intervalMax == null || (input.interval && input.intervalMax === undefined)) next.intervalMax = next.interval * 4;
     }
     for (const key of ['groupKey', 'intervalMin', 'intervalMax', 'counterEntity', 'deadlineMd', 'deadlineAt',
-        'conditionId', 'boostId', 'forecastId', 'seasonFrom', 'seasonTo', 'notes'] as const) {
+        'conditionId', 'boostId', 'forecastId', 'notes'] as const) {
         if (next[key] === undefined) (next as unknown as Record<string, unknown>)[key] = null;
     }
+    // all twelve months are the same as the whole year
+    const months = [...new Set(next.seasonMonths ?? [])].sort((a, b) => a - b);
+    next.seasonMonths = months.length === 12 ? [] : months;
     return next;
 }
 
@@ -105,7 +107,7 @@ export async function createChore(deps: Deps, input: ChoreInput): Promise<ChoreW
         intervalMax: null, learnStep: 0.15, learnDirection: 0, counterEntity: null, importance: 'normal',
         deadlineMd: null, deadlineAt: null, deadlineLeadDays: 14, conditionId: null, boostId: null,
         forecastId: null, conditionResult: null, boostResult: null, templateError: null, durationMin: 10,
-        effort: 1, seasonFrom: null, seasonTo: null, noisy: false, notes: null, lastDoneAt: now,
+        effort: 1, seasonMonths: [], noisy: false, notes: null, lastDoneAt: now,
         snoozedUntil: null, notYetCount: 0, lastNotifiedAt: null, createdAt: now, updatedAt: now, deletedAt: null,
         personIds: [], categoryIds: [],
     };

@@ -77,7 +77,7 @@ export function elapsed(chore: Chore, ctx: NeedContext): { value: number; unit: 
     const since = chore.kind === 'one_time' ? chore.createdAt : chore.lastDoneAt;
     const usage = chore.kind === 'recurring' && chore.growth === 'usage';
     let ms = 0;
-    for (const [a, b] of seasonParts(since, ctx.now, ctx.settings.time_zone, chore.seasonFrom, chore.seasonTo)) {
+    for (const [a, b] of seasonParts(since, ctx.now, ctx.settings.time_zone, chore.seasonMonths)) {
         ms += usage ? presenceBetween(a, b, ctx.occupancy, ctx.firstRecordAt) : b - a;
     }
     return { value: ms / DAY, unit: 'days' };

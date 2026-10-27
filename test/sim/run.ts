@@ -83,7 +83,7 @@ function generateChores(start: number): SimChore[] {
             learnStep: 0.15, learnDirection: 0, counterEntity: null, importance: 'normal', deadlineMd: null,
             deadlineAt: null, deadlineLeadDays: 14, conditionId: null, boostId: null, forecastId: null,
             conditionResult: null, boostResult: null, templateError: null, durationMin: pick([5, 10, 15, 30, 45, 60]),
-            effort: 1 + Math.floor(random() * 4), seasonFrom: null, seasonTo: null, noisy: false,
+            effort: 1 + Math.floor(random() * 4), seasonMonths: [], noisy: false,
             notes: null, lastDoneAt: interval === null ? start : start - random() * interval * DAY, snoozedUntil: null,
             notYetCount: 0, lastNotifiedAt: null, createdAt: start, updatedAt: start, deletedAt: null, personIds: [],
             categoryIds: [], ...extra,
@@ -107,7 +107,7 @@ function generateChores(start: number): SimChore[] {
     for (let i = 0; i < 15; i++) {
         const from = pick([3, 4, 5, 9, 11]);
         add(`Saison ${i + 1}`, 'recurring', 'time', pick([7, 14, 30]),
-            { seasonFrom: from, seasonTo: ((from + 4) % 12) + 1, noisy: random() < 0.5 });
+            { seasonMonths: [0, 1, 2, 3, 4, 5].map((i) => ((from + i - 1) % 12) + 1), noisy: random() < 0.5 });
     }
     for (let i = 0; i < 15; i++) {
         add(`Projekt ${i + 1}`, 'one_time', 'time', null, { importance: 'optional', durationMin: pick([60, 90, 120]) });

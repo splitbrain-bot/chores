@@ -22,8 +22,8 @@ export const choreFields = {
     personIds: z.array(z.number().int()).optional().describe('Empty or absent means any person, one person means only '
         + 'this person, more persons must do the chore together'),
     categoryIds: z.array(z.number().int()).optional(),
-    seasonFrom: z.number().int().min(1).max(12).nullish(),
-    seasonTo: z.number().int().min(1).max(12).nullish(),
+    seasonMonths: z.array(z.number().int().min(1).max(12)).optional()
+        .describe('Months of the season, 1 is January. Empty or absent means the whole year'),
     noisy: z.boolean().optional(),
     notes: z.string().max(5000).nullish(),
     lastDoneAt: z.number().int().optional().describe('Milliseconds since the epoch, default now'),

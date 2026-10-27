@@ -13,6 +13,24 @@ export interface ChoreFilter {
 }
 
 /**
+ * Converts the months of a season to bits, bit 0 is January.
+ *
+ * @param months the months 1 to 12
+ */
+function monthsToBits(months: readonly number[]): number {
+    return months.reduce((bits, m) => bits | (1 << (m - 1)), 0);
+}
+
+/**
+ * Converts the bits of a season to sorted months.
+ *
+ * @param bits the bits, bit 0 is January
+ */
+function bitsToMonths(bits: number): number[] {
+    return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].filter((m) => (bits & (1 << (m - 1))) !== 0);
+}
+
+/**
  * Converts a row and its links to a chore.
  *
  * @param row the row
@@ -28,6 +46,7 @@ function toChore(row: ChoreRow, personIds: number[], categoryIds: number[], cond
         ...row,
         learnDirection: Math.sign(row.learnDirection) as -1 | 0 | 1,
         noisy: row.noisy === 1,
+        seasonMonths: bitsToMonths(row.seasonMonths),
         conditionResult: condition?.result ?? null,
         boostResult: boost?.result ?? null,
         templateError: condition?.error ?? boost?.error ?? null,
@@ -52,9 +71,10 @@ async function conditionMap(db: Database): Promise<Map<number, Condition>> {
  */
 function toRow(values: Partial<Chore>): ChoreRowUpdate {
     const { id: _id, personIds: _p, categoryIds: _c, conditionResult: _cr, boostResult: _br, templateError: _te, noisy,
-        ...rest } = values;
+        seasonMonths, ...rest } = values;
     const row: ChoreRowUpdate = { ...rest };
     if (noisy !== undefined) row.noisy = noisy ? 1 : 0;
+    if (seasonMonths !== undefined) row.seasonMonths = monthsToBits(seasonMonths);
     return row;
 }
 

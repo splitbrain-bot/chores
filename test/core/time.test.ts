@@ -20,38 +20,41 @@ describe('slotWeekday', () => {
 });
 
 describe('inSeason', () => {
-    it('wraps a window over the new year', () => {
-        expect(inSeason(12, 11, 3)).toBe(true);
-        expect(inSeason(4, 11, 3)).toBe(false);
-        expect(inSeason(3, 11, 3)).toBe(true);
+    it('accepts only the months of the season', () => {
+        expect(inSeason(12, [11, 12, 1])).toBe(true);
+        expect(inSeason(4, [3, 5, 9])).toBe(false);
+        expect(inSeason(9, [3, 5, 9])).toBe(true);
     });
 
-    it('accepts every month without a window', () => {
-        expect(inSeason(7, null, null)).toBe(true);
-    });
-
-    it('handles a normal window', () => {
-        expect(inSeason(10, 4, 10)).toBe(true);
-        expect(inSeason(11, 4, 10)).toBe(false);
+    it('accepts every month without a season', () => {
+        expect(inSeason(7, [])).toBe(true);
     });
 });
 
 describe('seasonParts', () => {
     it('returns the whole period without a window', () => {
-        expect(seasonParts(1, 5, tz, null, null)).toEqual([[1, 5]]);
+        expect(seasonParts(1, 5, tz, [])).toEqual([[1, 5]]);
     });
 
     it('cuts the period to the season months', () => {
-        const parts = seasonParts(at('2026-10-20T10:00+02:00'), at('2027-04-11T10:00+02:00'), tz, 4, 10);
+        const parts = seasonParts(at('2026-10-20T10:00+02:00'), at('2027-04-11T10:00+02:00'), tz, [4, 5, 6, 7, 8, 9, 10]);
         expect(parts).toEqual([
             [at('2026-10-20T10:00+02:00'), at('2026-11-01T00:00+01:00')],
             [at('2027-04-01T00:00+02:00'), at('2027-04-11T10:00+02:00')],
         ]);
     });
 
-    it('handles a window over the new year', () => {
-        const parts = seasonParts(at('2026-10-15T00:00+02:00'), at('2027-04-15T00:00+02:00'), tz, 11, 3);
+    it('handles a season over the new year', () => {
+        const parts = seasonParts(at('2026-10-15T00:00+02:00'), at('2027-04-15T00:00+02:00'), tz, [11, 12, 1, 2, 3]);
         expect(parts).toEqual([[at('2026-11-01T00:00+01:00'), at('2027-04-01T00:00+02:00')]]);
+    });
+
+    it('handles a season with gaps', () => {
+        const parts = seasonParts(at('2026-03-15T00:00+01:00'), at('2026-10-15T00:00+02:00'), tz, [3, 4, 9]);
+        expect(parts).toEqual([
+            [at('2026-03-15T00:00+01:00'), at('2026-05-01T00:00+02:00')],
+            [at('2026-09-01T00:00+02:00'), at('2026-10-01T00:00+02:00')],
+        ]);
     });
 });
 

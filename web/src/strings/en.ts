@@ -47,7 +47,7 @@ export const en = {
     'suggestions.whyLater': 'Why later?',
     'suggestions.oneTime': 'One-time task',
     'suggestions.noisy': 'Noisy',
-    'suggestions.season': 'Season {from}–{to}',
+    'suggestions.season': 'Season {months}',
     'suggestions.assigned': 'Assigned: {names}',
     'suggestions.anybody': 'anybody',
 
@@ -117,7 +117,6 @@ export const en = {
     'form.categories': 'Categories',
     'form.season': 'Season',
     'form.season.whole': 'Whole year',
-    'form.season.last': 'Now tap the last month of the season.',
     'form.noisy': 'Noisy (not on Sundays and holidays)',
     'form.notes': 'Notes',
     'form.lastDoneAt': 'Last done',

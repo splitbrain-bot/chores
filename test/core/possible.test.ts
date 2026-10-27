@@ -121,7 +121,7 @@ describe('other filters', () => {
     });
 
     it('blocks by season', () => {
-        expect(baseBlocks(makeChore({ seasonFrom: 4, seasonTo: 9 }), ctx(p1, states))).toContain('season');
+        expect(baseBlocks(makeChore({ seasonMonths: [4, 5, 6, 7, 8, 9] }), ctx(p1, states))).toContain('season');
     });
 
     it('checks the capacity and the need threshold', () => {

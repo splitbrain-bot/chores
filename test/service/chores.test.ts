@@ -29,12 +29,14 @@ describe('chore service', () => {
         const deps = await makeDeps(new Clock('2026-10-26T20:00:00+01:00'));
         await expect(createChore(deps, { ...base, interval: undefined })).rejects.toMatchObject({ status: 400 });
         await expect(createChore(deps, { ...base, growth: 'counter' })).rejects.toMatchObject({ status: 400 });
-        await expect(createChore(deps, { ...base, seasonFrom: 4 })).rejects.toMatchObject({ status: 400 });
         await expect(createChore(deps, { ...base, categoryIds: [9] })).rejects.toMatchObject({ status: 400 });
         await expect(createChore(deps, { ...base, conditionId: 9 })).rejects.toMatchObject({ status: 400 });
         const forecast = await createCondition(deps, { name: 'Trocken', kind: 'forecast', template: '{{ day.dry }}' });
         await expect(createChore(deps, { ...base, conditionId: forecast.id })).rejects.toMatchObject({ status: 400 });
         expect(await createChore(deps, { ...base, forecastId: forecast.id })).toMatchObject({ forecastId: forecast.id });
+        expect(await createChore(deps, { ...base, seasonMonths: [9, 3, 3] })).toMatchObject({ seasonMonths: [3, 9] });
+        expect(await createChore(deps, { ...base, seasonMonths: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }))
+            .toMatchObject({ seasonMonths: [] });
         const task = await createChore(deps, { ...base, kind: 'one_time' });
         expect(task).toMatchObject({ interval: null, intervalMin: null });
     });

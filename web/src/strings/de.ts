@@ -49,7 +49,7 @@ export const de: Record<StringKey, string> = {
     'suggestions.whyLater': 'Warum später?',
     'suggestions.oneTime': 'Einmalige Aufgabe',
     'suggestions.noisy': 'Laut',
-    'suggestions.season': 'Saison {from}–{to}',
+    'suggestions.season': 'Saison {months}',
     'suggestions.assigned': 'Zugewiesen: {names}',
     'suggestions.anybody': 'alle',
 
@@ -119,7 +119,6 @@ export const de: Record<StringKey, string> = {
     'form.categories': 'Kategorien',
     'form.season': 'Saison',
     'form.season.whole': 'Ganzes Jahr',
-    'form.season.last': 'Jetzt den letzten Monat der Saison antippen.',
     'form.noisy': 'Laut (nicht an Sonn- und Feiertagen)',
     'form.notes': 'Notizen',
     'form.lastDoneAt': 'Zuletzt erledigt',

@@ -91,7 +91,7 @@ function checkDay(chore: ChoreWithNeed, date: string, interval: number, persons:
     const reasons: HintReason[] = [];
 
     const month = Number(date.slice(5, 7));
-    if (!inSeason(month, chore.seasonFrom, chore.seasonTo)) return null;
+    if (!inSeason(month, chore.seasonMonths)) return null;
 
     const growth = chore.elapsedUnit === 'days' && interval > 0 ? (startOfDay(date, tz) - ctx.now) / DAY / interval : 0;
     if (!chore.urgent && chore.need + growth < ctx.settings.suggest_threshold) return null;

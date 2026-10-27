@@ -54,8 +54,8 @@ export interface ChoreTable {
     forecastId: number | null;
     durationMin: number;
     effort: number;
-    seasonFrom: number | null;
-    seasonTo: number | null;
+    /** Months of the season as bits, bit 0 is January. 0 means the whole year. */
+    seasonMonths: Generated<number>;
     noisy: Generated<number>;
     notes: string | null;
     lastDoneAt: number;

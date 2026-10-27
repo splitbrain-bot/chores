@@ -175,3 +175,38 @@ describe('migration without-assignment', () => {
         await db.destroy();
     });
 });
+
+describe('migration without-season-range', () => {
+    it('converts the first and the last month to the months of the season and back', async () => {
+        const { openDatabase, migrate } = await import('../../src/db/database.ts');
+        const { Migrator } = await import('kysely/migration');
+        const { sql } = await import('kysely');
+        const names = ['initial', 'person-entity-optional', 'slot-weekdays', 'templates-to-conditions',
+            'visual-icons-and-colors', 'without-assignment'];
+        const migrations = Object.fromEntries(await Promise.all(names.map(async (name) =>
+            [`2026-10-27-${name}`, await import(`../../src/db/migrations/2026-10-27-${name}.ts`)])));
+        const range = await import('../../src/db/migrations/2026-10-27-without-season-range.ts');
+        const db = openDatabase(':memory:');
+        await new Migrator({ db, provider: { getMigrations: async () => migrations } }).migrateToLatest();
+        for (const [from, to] of [[null, null], [4, 10], [11, 2]]) {
+            await sql`INSERT INTO chore (name, kind, growth, importance, duration_min, effort, last_done_at, created_at,
+                updated_at, season_from, season_to) VALUES ('x', 'recurring', 'time', 'normal', 10, 1, 0, 0, 0, ${from},
+                ${to})`.execute(db);
+        }
+
+        await migrate(db);
+        const months = await db.selectFrom('chore').select('seasonMonths').orderBy('id').execute();
+        expect(months.map((r) => r.seasonMonths)).toEqual([0, 0b11_1111_1000, 0b1100_0000_0011]);
+
+        await db.updateTable('chore').set({ seasonMonths: 0b1_0000_0110 }).where('id', '=', 1).execute();
+        await range.down(db as never);
+        const rows = await sql<{ seasonFrom: number | null; seasonTo: number | null }>`SELECT season_from, season_to
+            FROM chore ORDER BY id`.execute(db);
+        expect(rows.rows).toEqual([
+            { seasonFrom: 2, seasonTo: 3 },
+            { seasonFrom: 4, seasonTo: 10 },
+            { seasonFrom: 11, seasonTo: 2 },
+        ]);
+        await db.destroy();
+    });
+});

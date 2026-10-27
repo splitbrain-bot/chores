@@ -116,32 +116,27 @@ export function isQuietDay(date: string, holidays: ReadonlySet<string>): boolean
 }
 
 /**
- * Tells if a month is inside a season window. A window with from greater than to wraps over the new year.
+ * Tells if a month is inside a season.
  *
  * @param month month 1 to 12
- * @param from first month of the window, null for no window
- * @param to last month of the window, null for no window
+ * @param months the months of the season, empty for the whole year
  */
-export function inSeason(month: number, from: number | null, to: number | null): boolean {
-    if (from === null || to === null) return true;
-    if (from <= to) return month >= from && month <= to;
-    return month >= from || month <= to;
+export function inSeason(month: number, months: readonly number[]): boolean {
+    return months.length === 0 || months.includes(month);
 }
 
 /**
- * Returns the parts of a period that are inside a season window. Without a window the period is one part.
+ * Returns the parts of a period that are inside a season. Without a season the period is one part.
  *
  * @param start the start of the period
  * @param end the end of the period
  * @param timeZone IANA time zone
- * @param from first month of the window, null for no window
- * @param to last month of the window, null for no window
+ * @param months the months of the season, empty for the whole year
  * @returns the parts as start and end timestamps, sorted
  */
-export function seasonParts(start: number, end: number, timeZone: string, from: number | null, to: number | null):
-    [number, number][] {
+export function seasonParts(start: number, end: number, timeZone: string, months: readonly number[]): [number, number][] {
     if (end <= start) return [];
-    if (from === null || to === null) return [[start, end]];
+    if (months.length === 0) return [[start, end]];
     const parts: [number, number][] = [];
     const first = localParts(start, timeZone);
     let year = first.year;
@@ -151,7 +146,7 @@ export function seasonParts(start: number, end: number, timeZone: string, from: 
         const nextYear = month === 12 ? year + 1 : year;
         const nextMonth = month === 12 ? 1 : month + 1;
         const nextStart = startOfDay(`${nextYear}-${pad(nextMonth)}-01`, timeZone);
-        if (inSeason(month, from, to)) {
+        if (inSeason(month, months)) {
             const a = Math.max(monthStart, start);
             const b = Math.min(nextStart, end);
             const last = parts.at(-1);

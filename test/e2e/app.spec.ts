@@ -148,15 +148,15 @@ test('creates and edits a chore in the form', async ({ page }) => {
     await page.getByRole('button', { name: 'Kaddi' }).click();
     const season = page.getByRole('group', { name: 'Season' });
     await expect(season.getByText('Whole year')).toBeVisible();
-    await season.getByRole('button', { name: 'Nov' }).click();
-    await expect(season.getByText('Now tap the last month of the season.')).toBeVisible();
-    await season.getByRole('button', { name: 'Feb' }).click();
-    await expect(season.getByText('Season Nov–Feb')).toBeVisible();
+    for (const month of ['May', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar']) await season.getByRole('button', { name: month }).click();
+    await expect(season.getByText('Season May, Nov–Mar')).toBeVisible();
+    await season.getByRole('button', { name: 'Mar' }).click();
+    await expect(season.getByText('Season May, Nov–Feb')).toBeVisible();
     await expect(season.getByRole('button', { name: 'Jan' })).toHaveAttribute('aria-pressed', 'true');
     await expect(season.getByRole('button', { name: 'Mar' })).toHaveAttribute('aria-pressed', 'false');
     await page.getByRole('button', { name: 'Save' }).click();
     const card = page.locator('.task').filter({ hasText: 'Backofen gründlich reinigen' });
-    await expect(card.locator('.flag[title="Season Nov–Feb"]')).toBeVisible();
+    await expect(card.locator('.flag[title="Season May, Nov–Feb"]')).toBeVisible();
 });
 
 test('creates a condition and uses it in a chore', async ({ page }) => {

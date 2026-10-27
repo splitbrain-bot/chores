@@ -4,8 +4,8 @@ import {
 } from '@mdi/js';
 import type { CSSProperties, ReactNode } from 'react';
 import { useApp } from '../context.ts';
-import { blockedText, reasonText } from '../format.ts';
-import { dayMonth, monthName, num, t } from '../i18n.ts';
+import { blockedText, reasonText, seasonText } from '../format.ts';
+import { dayMonth, num, t } from '../i18n.ts';
 import { navigate } from '../router.ts';
 import type { Category, ChoreWithNeed } from '../types.ts';
 import { Icon } from './icon.tsx';
@@ -99,8 +99,8 @@ export function TaskCard({ chore, related, onDone, onLater }:
     const flags = [
         deadline && <Flag key="deadline" icon={<Icon path={mdiCalendarAlert} />} text={deadline}
             urgent={chore.reason.code === 'deadline'} />,
-        chore.seasonFrom !== null && chore.seasonTo !== null && <Flag key="season" icon={<Icon path={mdiSprout} />}
-            text={t('suggestions.season', { from: monthName(chore.seasonFrom), to: monthName(chore.seasonTo) })} />,
+        chore.seasonMonths.length > 0 && <Flag key="season" icon={<Icon path={mdiSprout} />}
+            text={t('suggestions.season', { months: seasonText(chore.seasonMonths) })} />,
         ...(['conditionId', 'boostId', 'forecastId'] as const).map((key) => {
             const condition = conditions.find((c) => c.id === chore[key]);
             if (!condition) return null;
