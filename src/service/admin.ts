@@ -10,7 +10,7 @@ import { notFound, ServiceError } from './errors.ts';
 /** Values of a person as the API accepts them. */
 export interface PersonInput {
     name: string;
-    haEntity: string;
+    haEntity?: string | null;
     distanceEntity?: string | null;
     calendarEntity?: string | null;
     notifyAction?: string | null;
@@ -169,6 +169,7 @@ export function getSettings(deps: Deps): Promise<Settings> {
  */
 export async function setSettings(deps: Deps, settings: Settings): Promise<Settings> {
     await putSettings(deps.db, settings);
+    deps.onSettingsChanged?.();
     return loadSettings(deps.db);
 }
 

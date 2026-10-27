@@ -43,8 +43,8 @@ export async function seed(path: string): Promise<void> {
         notifyAction: 'notify.mobile_app_phone_andi' });
     const kaddi = await createPerson(deps, { name: 'Kaddi', haEntity: 'person.katrin_gohr', password: 'kaddi-pw' });
     await insertStates(db, [
-        { entityId: andi.haEntity, state: 'home', at: now - 2 * DAY },
-        { entityId: kaddi.haEntity, state: 'home', at: now - 2 * DAY },
+        { entityId: andi.haEntity!, state: 'home', at: now - 2 * DAY },
+        { entityId: kaddi.haEntity!, state: 'home', at: now - 2 * DAY },
     ]);
     await replaceOccupancy(db, [{ startAt: now - 2 * DAY, endAt: null, clockStart: 0 }]);
 

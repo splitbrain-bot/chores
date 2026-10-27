@@ -119,11 +119,13 @@ export async function loadState(deps: Deps, chores: readonly Chore[]): Promise<E
         capacities.set(p.id, capacityFor(p.id, now, settings, holidays, calendars.get(p.id) ?? [], recentDone));
     }
 
+    // a person without a person entity is always at home, so the presence clock is the wall clock
+    const tracked = persons.every((p) => p.haEntity);
     const needCtx: NeedContext = {
         now,
         settings,
-        occupancy: await listOccupancy(db),
-        firstRecordAt: await firstStateAt(db, persons.map((p) => p.haEntity)),
+        occupancy: tracked ? await listOccupancy(db) : [],
+        firstRecordAt: tracked ? await firstStateAt(db, persons.map((p) => p.haEntity!)) : null,
         cycles: await loadCycles(db, chores),
     };
     const nextSlotAt = nextSlotStart(now, settings.time_zone, settings.capacity_slots, holidays);

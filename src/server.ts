@@ -28,6 +28,7 @@ let watcher: Watcher | null = null;
 async function startHomeAssistant(conn: HomeAssistant): Promise<void> {
     const w = new Watcher(db, conn);
     const templates = new TemplateManager(db, conn);
+    const scheduler = new Scheduler({ ...deps, ha: conn });
     const syncTemplates = () => listChores(db).then((chores) => templates.sync(chores));
     const syncEntities = () => watchList(db).then((list) => w.setEntities(list));
     const log = (what: string) => (err: unknown) => console.error(`${what} failed`, err);
@@ -36,7 +37,15 @@ async function startHomeAssistant(conn: HomeAssistant): Promise<void> {
         syncTemplates().catch(log('Template sync'));
         syncEntities().catch(log('Entity sync'));
     };
-    deps.onPersonsChanged = () => syncEntities().catch(log('Entity sync'));
+    deps.onPersonsChanged = () => {
+        syncEntities().catch(log('Entity sync'));
+        scheduler.refreshCalendars().catch(log('Calendar refresh'));
+    };
+    deps.onSettingsChanged = () => {
+        scheduler.refreshForecast().catch(log('Forecast refresh'));
+        scheduler.refreshHolidays().catch(log('Holiday refresh'));
+        scheduler.refreshCalendars().catch(log('Calendar refresh'));
+    };
 
     await conn.start();
     console.log('Connected to Home Assistant');
@@ -45,7 +54,7 @@ async function startHomeAssistant(conn: HomeAssistant): Promise<void> {
     await w.gapFill();
     await syncTemplates();
     conn.onReady(() => w.gapFill().catch(log('Gap fill')));
-    new Scheduler({ ...deps, ha: conn }).start();
+    scheduler.start();
 }
 
 const app = createApp(deps, {

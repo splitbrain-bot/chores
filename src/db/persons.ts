@@ -5,7 +5,7 @@ import type { PersonRow } from './types.ts';
 /** Values of a new person. */
 export interface NewPerson {
     name: string;
-    haEntity: string;
+    haEntity?: string | null;
     distanceEntity?: string | null;
     calendarEntity?: string | null;
     notifyAction?: string | null;
@@ -85,7 +85,7 @@ export async function countPersons(db: Database): Promise<number> {
  */
 export async function createPerson(db: Database, p: NewPerson): Promise<Person> {
     const row = await db.insertInto('person').values({
-        name: p.name, haEntity: p.haEntity, haDistanceEntity: p.distanceEntity ?? null,
+        name: p.name, haEntity: p.haEntity ?? null, haDistanceEntity: p.distanceEntity ?? null,
         haCalendarEntity: p.calendarEntity ?? null, haNotifyAction: p.notifyAction ?? null,
         passwordHash: p.passwordHash ?? null, sort: p.sort ?? 0,
     }).returningAll().executeTakeFirstOrThrow();

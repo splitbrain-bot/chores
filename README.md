@@ -55,12 +55,12 @@ uid.
 The command line tool creates a person with a password, for example the first person after the installation:
 
 ```
-docker exec -it chores chores add-person Andi person.andreas_gohr
+docker exec -it chores chores add-person Andi
 ```
 
 The tool asks for the password twice. Without a terminal it reads the password from the first two lines of the
-standard input. The server reads the watched Home Assistant entities at the start, so the container needs a restart
-after a new person. Logged-in persons can add more persons in the settings screen.
+standard input. The Home Assistant entities of the person are set in the settings screen. Changes there apply at
+once. A person without a person entity counts as always at home.
 
 ## MCP
 

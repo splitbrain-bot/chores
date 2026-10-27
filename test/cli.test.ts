@@ -16,19 +16,19 @@ describe('command line tool', () => {
     it('adds a person with a password', async () => {
         const deps = await makeDeps(new Clock('2026-10-27T09:00:00+01:00'));
         const out = io('geheim', 'geheim');
-        expect(await runCli(['add-person', 'Andi', 'person.andreas_gohr'], deps, out)).toBe(0);
-        expect(out.lines[0]).toContain('Created the person Andi');
-        expect((await login(deps, 'andi', 'geheim')).person.haEntity).toBe('person.andreas_gohr');
+        expect(await runCli(['add-person', 'Andi'], deps, out)).toBe(0);
+        expect(out.lines).toEqual(['Created the person Andi']);
+        expect((await login(deps, 'andi', 'geheim')).person.haEntity).toBeNull();
     });
 
-    it('refuses different passwords, invalid values and existing names', async () => {
+    it('refuses different passwords, empty passwords and existing names', async () => {
         const deps = await makeDeps(new Clock('2026-10-27T09:00:00+01:00'));
-        expect(await runCli(['add-person', 'Andi', 'person.a'], deps, io('a', 'b'))).toBe(1);
-        expect(await runCli(['add-person', 'Andi', 'no entity'], deps, io('a', 'a'))).toBe(1);
-        expect(await runCli(['add-person', 'Andi', 'person.a'], deps, io('', ''))).toBe(1);
-        expect(await runCli(['add-person', 'Andi', 'person.a'], deps, io('a', 'a'))).toBe(0);
+        expect(await runCli(['add-person', 'Andi'], deps, io('a', 'b'))).toBe(1);
+        expect(await runCli(['add-person', 'Andi'], deps, io('', ''))).toBe(1);
+        expect(await runCli(['add-person', 'Andi', 'person.a'], deps, io('a', 'a'))).toBe(2);
+        expect(await runCli(['add-person', 'Andi'], deps, io('a', 'a'))).toBe(0);
         const out = io('a', 'a');
-        expect(await runCli(['add-person', 'ANDI', 'person.b'], deps, out)).toBe(1);
+        expect(await runCli(['add-person', 'ANDI'], deps, out)).toBe(1);
         expect(out.lines).toEqual(['The name exists already']);
         expect(await listPersons(deps.db)).toHaveLength(1);
     });

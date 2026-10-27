@@ -23,7 +23,8 @@ export type EventType = 'done' | 'earlier' | 'postpone';
 export interface Person {
     id: number;
     name: string;
-    haEntity: string;
+    /** Person entity of Home Assistant. A person without it counts as always at home. */
+    haEntity: string | null;
     distanceEntity: string | null;
     calendarEntity: string | null;
     notifyAction: string | null;

@@ -16,8 +16,8 @@ export interface CliIo {
 const USAGE = `Usage: chores <command>
 
 Commands:
-  add-person <name> <ha-entity>   Create a person with a password, for example
-                                  chores add-person Andi person.andreas_gohr`;
+  add-person <name>   Create a person with a password. The Home Assistant entities
+                      of the person are set later in the settings screen.`;
 
 /**
  * Runs one command of the command line tool.
@@ -31,7 +31,7 @@ export async function runCli(argv: string[], deps: Deps, io: CliIo): Promise<num
     const { positionals } = parseArgs({ args: argv, allowPositionals: true, strict: true });
     const [command, ...args] = positionals;
 
-    if (command !== 'add-person' || args.length !== 2) {
+    if (command !== 'add-person' || args.length !== 1) {
         io.print(USAGE);
         return 2;
     }
@@ -41,14 +41,14 @@ export async function runCli(argv: string[], deps: Deps, io: CliIo): Promise<num
         io.print('The passwords are not the same');
         return 1;
     }
-    const input = personSchema.safeParse({ name: args[0], haEntity: args[1], password });
+    const input = personSchema.safeParse({ name: args[0], password });
     if (!input.success) {
         io.print(input.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('\n'));
         return 1;
     }
     try {
         const person = await createPerson(deps, input.data);
-        io.print(`Created the person ${person.name}. Restart the container so that the server watches ${person.haEntity}.`);
+        io.print(`Created the person ${person.name}`);
         return 0;
     } catch (err) {
         if (err instanceof ServiceError) {

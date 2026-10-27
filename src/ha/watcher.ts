@@ -33,6 +33,9 @@ export class Watcher {
     private list: WatchList = { persons: [], others: [] };
     private unsubscribe: (() => Promise<void>) | null = null;
 
+    /** True after the first entity list. The gap fill records the states of the first list. */
+    private started = false;
+
     /** Time of the last received state change. */
     lastEventAt: number | null = null;
 
@@ -51,14 +54,19 @@ export class Watcher {
     }
 
     /**
-     * Sets the watched entities and subscribes again when the list changed.
+     * Sets the watched entities and subscribes again when the list changed. After the first list, the current
+     * states of new entities are recorded at once.
      *
      * @param list the new list
      */
     async setEntities(list: WatchList): Promise<void> {
         const before = JSON.stringify([[...this.list.persons].sort(), [...this.list.others].sort()]);
         const after = JSON.stringify([[...list.persons].sort(), [...list.others].sort()]);
+        const known = new Set(this.entities);
         this.list = { persons: [...list.persons], others: [...list.others] };
+        const added = this.entities.filter((e) => !known.has(e));
+        const started = this.started;
+        this.started = true;
         if (before === after && this.unsubscribe) return;
 
         if (this.unsubscribe) {
@@ -75,6 +83,26 @@ export class Watcher {
                 this.handleState(record).catch((err) => console.error('State update failed', err));
             },
         );
+        if (started && added.length > 0) await this.recordCurrent(added);
+    }
+
+    /**
+     * Records the current states of entities that differ from their last record, and rebuilds the occupancy.
+     *
+     * @param entities the entities
+     */
+    private async recordCurrent(entities: readonly string[]): Promise<void> {
+        const now = Date.now();
+        const states = (await this.ha.getStates()).filter((s) => entities.includes(s.entity_id));
+        await this.db.transaction().execute(async (trx) => {
+            for (const s of states) {
+                if ((await latestState(trx, s.entity_id))?.state === s.state) continue;
+                const changed = Date.parse(s.last_changed);
+                const at = Number.isNaN(changed) ? now : Math.min(changed, now);
+                await insertStates(trx, [{ entityId: s.entity_id, state: s.state, at }]);
+            }
+            await replaceOccupancy(trx, buildOccupancy(await listStates(trx, this.list.persons)));
+        });
     }
 
     /**

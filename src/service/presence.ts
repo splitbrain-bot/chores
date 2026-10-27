@@ -13,20 +13,21 @@ export interface PersonPresence extends PresenceState {
 }
 
 /**
- * Reads the presence of one person from the state log.
+ * Reads the presence of one person from the state log. A person without a person entity counts as always at home.
  *
  * @param db the database
  * @param person the person
  * @param now the current time
  */
 export async function presenceOf(db: Database, person: Person, now: number): Promise<PresenceState> {
-    const state = await lastValidStateBefore(db, person.haEntity, now + 1);
     let distanceKm: number | null = null;
     if (person.distanceEntity) {
         const d = await latestState(db, person.distanceEntity);
         const value = d && isValidState(d.state) ? Number.parseFloat(d.state) : Number.NaN;
         distanceKm = Number.isFinite(value) ? value : null;
     }
+    if (!person.haEntity) return { personId: person.id, home: true, since: null, distanceKm };
+    const state = await lastValidStateBefore(db, person.haEntity, now + 1);
     return {
         personId: person.id,
         home: state?.state === 'home',
@@ -50,7 +51,7 @@ export async function listPresence(deps: Deps): Promise<PersonPresence[]> {
 }
 
 /**
- * Returns the entities that the watcher records: the person and distance entities of every person and the counter
+ * Returns the entities that the watcher records: the person and distance entities of the persons and the counter
  * entities of the active chores.
  *
  * @param db the database
@@ -61,5 +62,5 @@ export async function watchList(db: Database): Promise<WatchList> {
     const others = new Set<string>();
     for (const p of persons) if (p.distanceEntity) others.add(p.distanceEntity);
     for (const c of chores) if (c.growth === 'counter' && c.counterEntity) others.add(c.counterEntity);
-    return { persons: persons.map((p) => p.haEntity), others: [...others] };
+    return { persons: persons.flatMap((p) => (p.haEntity ? [p.haEntity] : [])), others: [...others] };
 }

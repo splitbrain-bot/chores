@@ -4,6 +4,7 @@ import SQLite from 'better-sqlite3';
 import { CamelCasePlugin, Kysely, SqliteDialect } from 'kysely';
 import { Migrator, type Migration } from 'kysely/migration';
 import * as initial from './migrations/2026-10-27-initial.ts';
+import * as personEntityOptional from './migrations/2026-10-27-person-entity-optional.ts';
 import type { DB } from './types.ts';
 
 /** The database handle of the application. */
@@ -12,6 +13,7 @@ export type Database = Kysely<DB>;
 /** All migrations by name. The names sort in the order of execution. */
 const migrations: Record<string, Migration> = {
     '2026-10-27-initial': initial,
+    '2026-10-27-person-entity-optional': personEntityOptional,
 };
 
 /**

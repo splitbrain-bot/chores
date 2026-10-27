@@ -126,7 +126,7 @@ type PersonForm = { name: string; haEntity: string; distanceEntity: string; cale
  */
 function PersonEditor({ person, onSaved }: { person: Person | null; onSaved: () => void }) {
     const [f, setF] = useState<PersonForm>({
-        name: person?.name ?? '', haEntity: person?.haEntity ?? 'person.', distanceEntity: person?.distanceEntity ?? '',
+        name: person?.name ?? '', haEntity: person?.haEntity ?? '', distanceEntity: person?.distanceEntity ?? '',
         calendarEntity: person?.calendarEntity ?? '', notifyAction: person?.notifyAction ?? '', password: '',
     });
     const [error, setError] = useState<string | null>(null);
@@ -141,7 +141,7 @@ function PersonEditor({ person, onSaved }: { person: Person | null; onSaved: () 
         <form className="person" onSubmit={(e) => {
             e.preventDefault();
             const body = {
-                name: f.name, haEntity: f.haEntity, distanceEntity: f.distanceEntity || null,
+                name: f.name, haEntity: f.haEntity || null, distanceEntity: f.distanceEntity || null,
                 calendarEntity: f.calendarEntity || null, notifyAction: f.notifyAction || null,
                 ...(f.password ? { password: f.password } : {}),
             };

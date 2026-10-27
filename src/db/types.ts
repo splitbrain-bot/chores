@@ -4,7 +4,7 @@ import type { Generated, Insertable, Selectable, Updateable } from 'kysely';
 export interface PersonTable {
     id: Generated<number>;
     name: string;
-    haEntity: string;
+    haEntity: string | null;
     haDistanceEntity: string | null;
     haCalendarEntity: string | null;
     haNotifyAction: string | null;

@@ -71,8 +71,10 @@ describe('Home Assistant connector', () => {
 
         await watcher.setEntities({ persons: ['person.a'], others: ['sensor.distance_a'] });
         expect(fake.commands.filter((c) => c.type === 'subscribe_trigger')).toHaveLength(1);
+        fake.handlers.set('get_states', () => [{ entity_id: 'person.k', state: 'home', last_changed: '2026-10-26T09:30:00Z' }]);
         await watcher.setEntities({ persons: ['person.a', 'person.k'], others: [] });
         await fake.waitFor('unsubscribe_events');
+        expect((await listStates(db, ['person.k'])).map((r) => r.state)).toEqual(['home']);
         expect(fake.last('subscribe_trigger')!.trigger).toEqual({ trigger: 'state', entity_id: ['person.a', 'person.k'] });
     });
 

@@ -12,7 +12,7 @@ const entity = z.string().regex(/^[a-z_]+\.[a-z0-9_]+$/);
 /** Body of a new person. */
 export const personSchema = z.object({
     name: z.string().trim().min(1).max(100),
-    haEntity: entity,
+    haEntity: entity.nullish(),
     distanceEntity: entity.nullish(),
     calendarEntity: entity.nullish(),
     notifyAction: entity.nullish(),

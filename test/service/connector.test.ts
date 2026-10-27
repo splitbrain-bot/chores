@@ -3,7 +3,7 @@ import { HOUR } from '../../src/core/types.ts';
 import { getChore as loadChore } from '../../src/db/chores.ts';
 import { insertStates, listStates } from '../../src/db/ha_state.ts';
 import { listOccupancy } from '../../src/db/occupancy.ts';
-import { createPerson } from '../../src/db/persons.ts';
+import { createPerson, updatePerson } from '../../src/db/persons.ts';
 import { TemplateManager } from '../../src/ha/templates.ts';
 import { Watcher } from '../../src/ha/watcher.ts';
 import { createChore } from '../../src/service/chores.ts';
@@ -37,6 +37,55 @@ describe('occupancy update', () => {
         expect(presence.map((p) => [p.name, p.home, p.since])).toEqual([
             ['Andi', false, t0 + 7 * HOUR], ['Kaddi', false, t0 + 3 * HOUR],
         ]);
+    });
+});
+
+describe('person without entity', () => {
+    it('counts as always at home and makes the presence clock the wall clock', async () => {
+        const clock = new Clock('2026-10-26T20:00:00+01:00');
+        const deps = await makeDeps(clock);
+        await createPerson(deps.db, { name: 'Andi' });
+        expect((await listPresence(deps))[0]).toMatchObject({ name: 'Andi', home: true, since: null });
+        expect(await watchList(deps.db)).toEqual({ persons: [], others: [] });
+    });
+});
+
+describe('changed entities', () => {
+    it('records the current state of a new entity at once', async () => {
+        const clock = new Clock('2026-10-26T20:00:00+01:00');
+        const deps = await makeDeps(clock);
+        const fake = deps.fake!;
+        const andi = await createPerson(deps.db, { name: 'Andi' });
+        fake.states = [
+            { entity_id: 'person.a', state: 'not_home', last_changed: '2026-10-26T18:00:00+01:00' },
+            { entity_id: 'sensor.d', state: '12.5', last_changed: '2026-10-26T18:00:00+01:00' },
+        ];
+        const watcher = new Watcher(deps.db, fake);
+        await watcher.setEntities(await watchList(deps.db));
+        expect(fake.subscriptions).toHaveLength(0);
+
+        await updatePerson(deps.db, andi.id, { haEntity: 'person.a', distanceEntity: 'sensor.d' });
+        await watcher.setEntities(await watchList(deps.db));
+        expect(fake.subscriptions.at(-1)!.message).toMatchObject({ trigger: { entity_id: ['person.a', 'sensor.d'] } });
+        expect((await listPresence(deps))[0]).toMatchObject({ home: false, distanceKm: 12.5,
+            since: Date.parse('2026-10-26T18:00:00+01:00') });
+
+        fake.states = [{ entity_id: 'person.k', state: 'home', last_changed: '2026-10-26T19:00:00+01:00' }];
+        await createPerson(deps.db, { name: 'Kaddi', haEntity: 'person.k' });
+        await watcher.setEntities(await watchList(deps.db));
+        expect(await listOccupancy(deps.db)).toEqual([
+            { startAt: Date.parse('2026-10-26T19:00:00+01:00'), endAt: null, clockStart: 0 },
+        ]);
+        expect(await listStates(deps.db, ['person.a'])).toHaveLength(1);
+    });
+
+    it('records nothing for the first list', async () => {
+        const deps = await makeDeps(new Clock('2026-10-26T20:00:00+01:00'));
+        await createPerson(deps.db, { name: 'Andi', haEntity: 'person.a' });
+        deps.fake!.states = [{ entity_id: 'person.a', state: 'home', last_changed: '2026-10-26T18:00:00+01:00' }];
+        const watcher = new Watcher(deps.db, deps.fake!);
+        await watcher.setEntities(await watchList(deps.db));
+        expect(await listStates(deps.db, ['person.a'])).toEqual([]);
     });
 });
 
