@@ -83,7 +83,7 @@ export async function forecastResults(deps: Deps, conditions: readonly Condition
 export async function getLookahead(deps: Deps): Promise<LookaheadResult> {
     const { state, chores } = await evaluate(deps, { kind: 'shared' });
     const personIds = state.persons.map((p) => p.id);
-    const candidates = chores.filter((c) => isLookaheadCandidate(c, personIds));
+    const candidates = chores.filter((c) => isLookaheadCandidate(c));
     const forecast = await loadForecast(deps, state.settings.time_zone);
     const used = new Set(candidates.map((c) => c.forecastId));
     const conditions = (await listConditions(deps.db)).filter((c) => c.kind === 'forecast' && used.has(c.id));

@@ -112,13 +112,13 @@ describe('MCP endpoint', () => {
             .toMatchObject({ condition: { name: 'Trocken', template: '{{ b }}' } });
 
         const created = await tool('create_chore', { name: 'Fußboden wischen', groupKey: 'fussboden-wischen', kind: 'recurring',
-            growth: 'usage', interval: 7, importance: 'normal', durationMin: 15, effort: 2, assignment: 'any',
+            growth: 'usage', interval: 7, importance: 'normal', durationMin: 15, effort: 2,
             categoryIds: [category.id], lastDoneAt: t.clock.t - 3 * DAY, conditionId: condition.id });
         const choreId = (created.structuredContent as { chore: { id: number } }).chore.id;
         expect(created.structuredContent).toMatchObject({ chore: { intervalMin: 0.875, intervalMax: 28 } });
 
         const invalid = await tool('create_chore', { name: 'x', kind: 'recurring', growth: 'time', importance: 'normal',
-            durationMin: 5, effort: 1, assignment: 'any' });
+            durationMin: 5, effort: 1 });
         expect(invalid.isError).toBe(true);
         expect(invalid.content[0]!.text).toContain('interval');
 

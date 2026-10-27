@@ -27,7 +27,6 @@ interface FormState {
     forecastId: string;
     durationMin: string;
     effort: string;
-    assignment: ChoreInput['assignment'];
     personIds: number[];
     categoryIds: number[];
     seasonFrom: string;
@@ -40,7 +39,7 @@ interface FormState {
 const EMPTY: FormState = {
     name: '', groupKey: '', kind: 'recurring', growth: 'usage', interval: '7', intervalMin: '', intervalMax: '',
     counterEntity: '', importance: 'normal', deadlineMd: '', deadlineAt: '', deadlineLeadDays: '14',
-    conditionId: '', boostId: '', forecastId: '', durationMin: '15', effort: '2', assignment: 'any',
+    conditionId: '', boostId: '', forecastId: '', durationMin: '15', effort: '2',
     personIds: [], categoryIds: [], seasonFrom: '', seasonTo: '', noisy: false, notes: '', lastDoneAt: '',
 };
 
@@ -68,7 +67,7 @@ function toForm(c: ChoreWithNeed): FormState {
         deadlineAt: c.deadlineAt === null ? '' : toLocalInput(c.deadlineAt).slice(0, 10),
         deadlineLeadDays: String(c.deadlineLeadDays), conditionId: s(c.conditionId), boostId: s(c.boostId),
         forecastId: s(c.forecastId), durationMin: String(c.durationMin),
-        effort: String(c.effort), assignment: c.assignment, personIds: c.personIds, categoryIds: c.categoryIds,
+        effort: String(c.effort), personIds: c.personIds, categoryIds: c.categoryIds,
         seasonFrom: s(c.seasonFrom), seasonTo: s(c.seasonTo), noisy: c.noisy, notes: s(c.notes),
         lastDoneAt: toLocalInput(c.lastDoneAt),
     };
@@ -90,7 +89,7 @@ function toInput(f: FormState): ChoreInput {
         deadlineMd: text(f.deadlineMd),
         deadlineAt: f.deadlineAt ? new Date(`${f.deadlineAt}T23:59:59`).getTime() : null,
         deadlineLeadDays: Number(f.deadlineLeadDays), conditionId: number(f.conditionId), boostId: number(f.boostId),
-        forecastId: number(f.forecastId), durationMin: Number(f.durationMin), effort: Number(f.effort), assignment: f.assignment,
+        forecastId: number(f.forecastId), durationMin: Number(f.durationMin), effort: Number(f.effort),
         personIds: f.personIds, categoryIds: f.categoryIds, seasonFrom: number(f.seasonFrom), seasonTo: number(f.seasonTo),
         noisy: f.noisy, notes: text(f.notes), lastDoneAt: f.lastDoneAt ? new Date(f.lastDoneAt).getTime() : undefined,
     };
@@ -137,7 +136,7 @@ export function ChoreForm({ id }: { id: number | null }) {
     const input = (key: keyof FormState, type = 'text', extra: Record<string, unknown> = {}) => (
         <input name={key} type={type} value={String(form[key])} onChange={(e) => set(key, e.target.value as never)} {...extra} />
     );
-    const select = <K extends 'kind' | 'growth' | 'importance' | 'assignment'>(key: K, options: FormState[K][]) => (
+    const select = <K extends 'kind' | 'growth' | 'importance'>(key: K, options: FormState[K][]) => (
         <select name={key} value={form[key]} onChange={(e) => set(key, e.target.value as FormState[K])}>
             {options.map((o) => <option key={o} value={o}>{t(`form.${key}.${o}` as never)}</option>)}
         </select>
@@ -178,24 +177,19 @@ export function ChoreForm({ id }: { id: number | null }) {
                 <Field label={t('form.durationMin')}>{input('durationMin', 'number', { min: 1, required: true })}</Field>
                 <Field label={t('form.effort')}>{input('effort', 'number', { min: 1, max: 5, required: true })}</Field>
             </div>
-            <div className="row">
-                <Field label={t('form.assignment')}>{select('assignment', ['any', 'all'])}</Field>
-                <Field label={t('form.persons')} group>
-                    <div className="chips">
-                        <button type="button" className={form.personIds.length === 0 ? 'chip on' : 'chip'}
-                            aria-pressed={form.personIds.length === 0}
-                            onClick={() => set('personIds', [])}>{t('form.allPersons')}</button>
-                        {persons.map((p) => {
-                            const on = form.personIds.includes(p.id);
-                            return (
-                                <button key={p.id} type="button" className={on ? 'chip on' : 'chip'} aria-pressed={on}
-                                    onClick={() => set('personIds', on ? form.personIds.filter((x) => x !== p.id)
-                                        : [...form.personIds, p.id])}>{p.name}</button>
-                            );
-                        })}
-                    </div>
-                </Field>
-            </div>
+            <Field label={t('form.persons')} group>
+                <div className="chips">
+                    {persons.map((p) => {
+                        const on = form.personIds.includes(p.id);
+                        return (
+                            <button key={p.id} type="button" className={on ? 'chip on' : 'chip'} aria-pressed={on}
+                                onClick={() => set('personIds', on ? form.personIds.filter((x) => x !== p.id)
+                                    : [...form.personIds, p.id])}>{p.name}</button>
+                        );
+                    })}
+                </div>
+                <small className="hint">{t('form.personsHint')}</small>
+            </Field>
             <div className="row">
                 <Field label={t('form.seasonFrom')}>{input('seasonFrom', 'number', { min: 1, max: 12 })}</Field>
                 <Field label={t('form.seasonTo')}>{input('seasonTo', 'number', { min: 1, max: 12 })}</Field>

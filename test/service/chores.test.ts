@@ -9,7 +9,7 @@ import type { ChoreInput } from '../../src/schemas/chore.ts';
 import { Clock, makeDeps } from './helpers.ts';
 
 const base: ChoreInput = { name: 'Boden', kind: 'recurring', growth: 'time', interval: 8, importance: 'normal',
-    durationMin: 15, effort: 2, assignment: 'any' };
+    durationMin: 15, effort: 2 };
 
 describe('chore service', () => {
     it('creates a chore with defaults and links', async () => {

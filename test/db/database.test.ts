@@ -131,3 +131,47 @@ describe('migration visual-icons-and-colors', () => {
         await db.destroy();
     });
 });
+
+describe('migration without-assignment', () => {
+    it('converts the assignment to the persons of the chores and back', async () => {
+        const { openDatabase } = await import('../../src/db/database.ts');
+        const { Migrator } = await import('kysely/migration');
+        const { sql } = await import('kysely');
+        const migrations = {
+            '2026-10-27-initial': await import('../../src/db/migrations/2026-10-27-initial.ts'),
+            '2026-10-27-person-entity-optional': await import('../../src/db/migrations/2026-10-27-person-entity-optional.ts'),
+            '2026-10-27-slot-weekdays': await import('../../src/db/migrations/2026-10-27-slot-weekdays.ts'),
+            '2026-10-27-templates-to-conditions': await import('../../src/db/migrations/2026-10-27-templates-to-conditions.ts'),
+            '2026-10-27-visual-icons-and-colors': await import('../../src/db/migrations/2026-10-27-visual-icons-and-colors.ts'),
+        };
+        const without = await import('../../src/db/migrations/2026-10-27-without-assignment.ts');
+        const db = openDatabase(':memory:');
+        await new Migrator({ db, provider: { getMigrations: async () => migrations } }).migrateToLatest();
+        for (const name of ['Andi', 'Kaddi', 'Kim']) await db.insertInto('person').values({ name }).execute();
+        const chore = async (assignment: string, personIds: number[]) => {
+            const { rows } = await sql<{ id: number }>`INSERT INTO chore (name, kind, growth, importance, duration_min,
+                effort, assignment, last_done_at, created_at, updated_at)
+                VALUES ('x', 'recurring', 'time', 'normal', 10, 1, ${assignment}, 0, 0, 0) RETURNING id`.execute(db);
+            for (const personId of personIds) {
+                await db.insertInto('chorePerson').values({ choreId: rows[0]!.id, personId }).execute();
+            }
+        };
+        await chore('any', []);
+        await chore('any', [1]);
+        await chore('any', [1, 2]);
+        await chore('all', []);
+        await chore('all', [2, 3]);
+
+        await without.up(db as never);
+        const persons = async () => {
+            const rows = await db.selectFrom('chorePerson').selectAll().orderBy('choreId').orderBy('personId').execute();
+            return [1, 2, 3, 4, 5].map((id) => rows.filter((r) => r.choreId === id).map((r) => r.personId));
+        };
+        expect(await persons()).toEqual([[], [1], [], [1, 2, 3], [2, 3]]);
+
+        await without.down(db as never);
+        const rows = await sql<{ assignment: string }>`SELECT assignment FROM chore ORDER BY id`.execute(db);
+        expect(rows.rows.map((r) => r.assignment)).toEqual(['any', 'any', 'any', 'all', 'all']);
+        await db.destroy();
+    });
+});

@@ -12,7 +12,7 @@ import type { ChoreInput } from '../../src/schemas/chore.ts';
 import { Clock, makeDeps } from './helpers.ts';
 
 const base: ChoreInput = { name: 'Boden wischen', kind: 'recurring', growth: 'time', interval: 7, importance: 'normal',
-    durationMin: 15, effort: 2, assignment: 'any' };
+    durationMin: 15, effort: 2 };
 
 describe('done flow', () => {
     // Saturday morning slot with 120 minutes

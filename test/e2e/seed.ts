@@ -52,7 +52,7 @@ export async function seed(path: string): Promise<void> {
     const bath = await createCategory(deps, 'Bad', 2, 'shower');
     await createCategory(deps, 'Garten', 3);
 
-    const base = { kind: 'recurring', growth: 'time', importance: 'normal', assignment: 'any' } as const;
+    const base = { kind: 'recurring', growth: 'time', importance: 'normal' } as const;
     const chores: ChoreInput[] = [
         { ...base, name: 'Fußboden wischen', groupKey: 'fussboden-wischen', interval: 7, durationMin: 20, effort: 3,
             categoryIds: [kitchen.id], lastDoneAt: now - 9.8 * DAY },

@@ -55,6 +55,16 @@ describe('lookahead', () => {
         expect(hints[0]!.reasons[0]).toEqual({ code: 'weather', condition: 'sunny', temperature: 12, precipitation: 0 });
     });
 
+    it('gives a chore of more persons the next day on which all of them are free', () => {
+        // person 2 is busy on Friday, Saturday fits for both
+        const busy = { start: at('2026-10-30T00:00+01:00'), end: at('2026-10-31T00:00+01:00'), summary: 'x', allDay: false };
+        const chore = evaluated({ durationMin: 30, personIds: [1, 2] });
+        const hints = lookahead([chore], ctx({ calendars: new Map([[2, [busy]]]) }));
+        expect(hints[0]!.date).toBe('2026-10-31');
+        expect(hints[0]!.reasons).toContainEqual({ code: 'all_free' });
+        expect(lookahead([evaluated({ durationMin: 30, personIds: [1] })], ctx())).toEqual([]);
+    });
+
     it('ignores chores without a reason for a hint and chores with a low need', () => {
         expect(lookahead([evaluated({})], ctx())).toEqual([]);
         expect(lookahead([evaluated({ noisy: true, interval: 100 }, 0.1)], ctx())).toEqual([]);

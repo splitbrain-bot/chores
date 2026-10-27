@@ -1,6 +1,6 @@
 import { busyMinutes } from './capacity.ts';
 import { effectiveInterval } from './need.ts';
-import { candidates } from './possible.ts';
+import { candidates, together } from './possible.ts';
 import { addDays, inSeason, isQuietDay, localDate, slotsOfDay, startOfDay } from './time.ts';
 import { DAY, type CalendarEvent, type ChoreWithNeed, type ForecastDay, type Hint, type HintReason, type Settings }
     from './types.ts';
@@ -23,12 +23,11 @@ export interface LookaheadContext {
  * Tells if a chore needs a look-ahead hint at all.
  *
  * @param chore the chore
- * @param personIds ids of all persons
  */
-export function isLookaheadCandidate(chore: ChoreWithNeed, personIds: readonly number[]): boolean {
+export function isLookaheadCandidate(chore: ChoreWithNeed): boolean {
     if (chore.deletedAt !== null) return false;
     if (chore.forecastId !== null || chore.noisy) return true;
-    return chore.assignment === 'all' && candidates(chore, personIds).length > 1;
+    return together(chore);
 }
 
 /**
@@ -60,7 +59,7 @@ export function lookahead(chores: readonly ChoreWithNeed[], ctx: LookaheadContex
     const hints: Hint[] = [];
 
     for (const chore of chores) {
-        if (!isLookaheadCandidate(chore, ctx.personIds)) continue;
+        if (!isLookaheadCandidate(chore)) continue;
         const persons = candidates(chore, ctx.personIds);
         const interval = effectiveInterval(chore, ctx.settings);
 
@@ -114,9 +113,9 @@ function checkDay(chore: ChoreWithNeed, date: string, interval: number, persons:
     }
 
     const free = persons.map((id) => freeMinutesOnDay(date, ctx.calendars.get(id) ?? [], ctx));
-    const minutes = chore.assignment === 'all' ? Math.min(...free) : Math.max(...free);
+    const minutes = together(chore) ? Math.min(...free) : Math.max(...free);
     if (!(chore.durationMin <= minutes)) return null;
-    if (chore.assignment === 'all' && persons.length > 1) reasons.push({ code: 'all_free' });
+    if (together(chore)) reasons.push({ code: 'all_free' });
     reasons.push({ code: 'free_time', minutes });
 
     return { choreId: chore.id, choreName: chore.name, date, reasons };

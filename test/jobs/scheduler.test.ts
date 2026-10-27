@@ -74,7 +74,7 @@ describe('scheduler', () => {
 
     it('sends one deadline notification per day at the notify hour', async () => {
         const chore = await createChore(deps, { name: 'Sprenger abgebaut und Wasser abgestellt', kind: 'recurring',
-            growth: 'time', interval: 365, importance: 'critical', durationMin: 30, effort: 3, assignment: 'any',
+            growth: 'time', interval: 365, importance: 'critical', durationMin: 30, effort: 3,
             deadlineMd: '11-15', personIds: [2], lastDoneAt: Date.now() - 300 * DAY });
         const notifications = () => fake.calls.filter((c) => c.domain === 'notify');
 
@@ -103,7 +103,7 @@ describe('scheduler', () => {
         const dry = await createCondition(deps.db, { name: 'Trocken', kind: 'forecast',
             template: '{{ day.precipitation == 0 }}' });
         await createChore(deps, { name: 'Dachrinne', kind: 'recurring', growth: 'time', interval: 180, importance: 'normal',
-            durationMin: 60, effort: 4, assignment: 'any', personIds: [1], lastDoneAt: Date.now() - 200 * DAY,
+            durationMin: 60, effort: 4, personIds: [1], lastDoneAt: Date.now() - 200 * DAY,
             forecastId: dry.id });
         fake.responses.delete('weather.get_forecasts');
         await scheduler.sendNotifications();

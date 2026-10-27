@@ -7,9 +7,6 @@ export type Growth = 'usage' | 'time' | 'counter';
 /** Importance of a chore. It sets the slope of the need level after the interval. */
 export type Importance = 'optional' | 'normal' | 'important' | 'critical';
 
-/** Rule for the persons who must be at home for a chore. */
-export type Assignment = 'any' | 'all';
-
 /** Reason of a postpone. */
 export type PostponeReason = 'no_time' | 'no_energy' | 'not_yet';
 
@@ -90,7 +87,6 @@ export interface Chore {
     templateError: string | null;
     durationMin: number;
     effort: number;
-    assignment: Assignment;
     seasonFrom: number | null;
     seasonTo: number | null;
     noisy: boolean;

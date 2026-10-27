@@ -19,8 +19,8 @@ export const choreFields = {
     forecastId: z.number().int().positive().nullish().describe('Forecast condition for the look-ahead'),
     durationMin: z.number().int().min(1).max(1440),
     effort: z.number().int().min(1).max(5),
-    assignment: z.enum(['any', 'all']),
-    personIds: z.array(z.number().int()).optional().describe('Empty or absent means all persons'),
+    personIds: z.array(z.number().int()).optional().describe('Empty or absent means any person, one person means only '
+        + 'this person, more persons must do the chore together'),
     categoryIds: z.array(z.number().int()).optional(),
     seasonFrom: z.number().int().min(1).max(12).nullish(),
     seasonTo: z.number().int().min(1).max(12).nullish(),

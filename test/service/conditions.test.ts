@@ -7,7 +7,7 @@ import { FORECAST_KEY } from '../../src/service/evaluate.ts';
 import { Clock, makeDeps } from './helpers.ts';
 
 const chore = { name: 'Rasen', kind: 'recurring', growth: 'time', interval: 7, importance: 'normal', durationMin: 30,
-    effort: 3, assignment: 'any' } as const;
+    effort: 3 } as const;
 
 describe('condition service', () => {
     it('lists the conditions with their status', async () => {

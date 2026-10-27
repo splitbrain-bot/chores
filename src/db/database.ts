@@ -8,6 +8,7 @@ import * as personEntityOptional from './migrations/2026-10-27-person-entity-opt
 import * as slotWeekdays from './migrations/2026-10-27-slot-weekdays.ts';
 import * as templatesToConditions from './migrations/2026-10-27-templates-to-conditions.ts';
 import * as visualIconsAndColors from './migrations/2026-10-27-visual-icons-and-colors.ts';
+import * as withoutAssignment from './migrations/2026-10-27-without-assignment.ts';
 import type { DB } from './types.ts';
 
 /** The database handle of the application. */
@@ -20,6 +21,7 @@ const migrations: Record<string, Migration> = {
     '2026-10-27-slot-weekdays': slotWeekdays,
     '2026-10-27-templates-to-conditions': templatesToConditions,
     '2026-10-27-visual-icons-and-colors': visualIconsAndColors,
+    '2026-10-27-without-assignment': withoutAssignment,
 };
 
 /**

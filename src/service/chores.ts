@@ -105,7 +105,7 @@ export async function createChore(deps: Deps, input: ChoreInput): Promise<ChoreW
         intervalMax: null, learnStep: 0.15, learnDirection: 0, counterEntity: null, importance: 'normal',
         deadlineMd: null, deadlineAt: null, deadlineLeadDays: 14, conditionId: null, boostId: null,
         forecastId: null, conditionResult: null, boostResult: null, templateError: null, durationMin: 10,
-        effort: 1, assignment: 'any', seasonFrom: null, seasonTo: null, noisy: false, notes: null, lastDoneAt: now,
+        effort: 1, seasonFrom: null, seasonTo: null, noisy: false, notes: null, lastDoneAt: now,
         snoozedUntil: null, notYetCount: 0, lastNotifiedAt: null, createdAt: now, updatedAt: now, deletedAt: null,
         personIds: [], categoryIds: [],
     };

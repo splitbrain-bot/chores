@@ -22,7 +22,7 @@ const shared: Viewer = { kind: 'shared' };
 const p1: Viewer = { kind: 'person', personId: 1 };
 const p2: Viewer = { kind: 'person', personId: 2 };
 
-describe('assignment any', () => {
+describe('one person or any person', () => {
     const chore = makeChore({ personIds: [1] });
 
     it('shared device: needs a candidate at home', () => {
@@ -41,35 +41,27 @@ describe('assignment any', () => {
         expect(doers(anyone, ctx(p2, { 1: { home: false }, 2: { home: true } }))).toEqual([2]);
         expect(doers(anyone, ctx(shared, { 1: { home: false }, 2: { home: true } }))).toEqual([2]);
     });
-
-    it('works with three persons', () => {
-        const two = makeChore({ personIds: [1, 3] });
-        const states = { 1: { home: false }, 2: { home: true }, 3: { home: true } };
-        expect(doers(two, ctx(shared, states, [1, 2, 3]))).toEqual([3]);
-        expect(doers(two, ctx({ kind: 'person', personId: 3 }, states, [1, 2, 3]))).toEqual([3]);
-        expect(doers(two, ctx(p2, states, [1, 2, 3]))).toEqual([]);
-    });
 });
 
-describe('assignment all', () => {
-    const chore = makeChore({ assignment: 'all' });
+describe('more persons together', () => {
+    const chore = makeChore({ personIds: [1, 2] });
 
-    it('shared device: needs every candidate at home', () => {
+    it('shared device: needs every assigned person at home', () => {
         expect(doers(chore, ctx(shared, { 1: { home: true }, 2: { home: true } }))).toEqual([1, 2]);
         expect(doers(chore, ctx(shared, { 1: { home: true }, 2: { home: false } }))).toEqual([]);
     });
 
-    it('person: needs the person in S and every candidate at home', () => {
+    it('person: needs the person in S and every assigned person at home', () => {
         expect(doers(chore, ctx(p1, { 1: { home: true }, 2: { home: true } }))).toEqual([1]);
         expect(doers(chore, ctx(p1, { 1: { home: true }, 2: { home: false } }))).toEqual([]);
     });
 
     it('works with three persons', () => {
-        const two = makeChore({ assignment: 'all', personIds: [1, 2] });
         const states = { 1: { home: true }, 2: { home: true }, 3: { home: false } };
-        expect(doers(two, ctx(shared, states, [1, 2, 3]))).toEqual([1, 2]);
-        expect(doers(two, ctx({ kind: 'person', personId: 3 }, states, [1, 2, 3]))).toEqual([]);
-        expect(doers(makeChore({ assignment: 'all' }), ctx(shared, states, [1, 2, 3]))).toEqual([]);
+        expect(doers(chore, ctx(shared, states, [1, 2, 3]))).toEqual([1, 2]);
+        expect(doers(chore, ctx({ kind: 'person', personId: 3 }, states, [1, 2, 3]))).toEqual([]);
+        expect(doers(makeChore({ personIds: [1, 3] }), ctx(shared, states, [1, 2, 3]))).toEqual([]);
+        expect(doers(makeChore(), ctx(shared, states, [1, 2, 3]))).toEqual([1, 2]);
     });
 });
 
@@ -95,6 +87,13 @@ describe('handover', () => {
     it('does not apply to normal chores', () => {
         const states = { 1: { home: false, since: now - 48 * HOUR }, 2: { home: true } };
         expect(doers({ ...chore, importance: 'normal' }, ctx(p2, states))).toEqual([]);
+    });
+
+    it('does not apply to chores of more persons', () => {
+        const states = { 1: { home: false, since: now - 48 * HOUR }, 2: { home: false, since: now - 48 * HOUR },
+            3: { home: true } };
+        const p3: Viewer = { kind: 'person', personId: 3 };
+        expect(doers({ ...chore, personIds: [1, 2] }, ctx(p3, states, [1, 2, 3]))).toEqual([]);
     });
 });
 

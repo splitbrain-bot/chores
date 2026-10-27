@@ -4,7 +4,7 @@ import { DEFAULT_SETTINGS } from '../../src/core/types.ts';
 import { testApp, type TestApp } from './helpers.ts';
 
 const chore = { name: 'Boden', kind: 'recurring', growth: 'time', interval: 7, importance: 'normal', durationMin: 15,
-    effort: 2, assignment: 'any' };
+    effort: 2 };
 
 describe('HTTP API', () => {
     let t: TestApp;

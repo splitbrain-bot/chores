@@ -23,7 +23,7 @@ export function makeChore(over: Partial<Chore> = {}): Chore {
         intervalMax: null, learnStep: 0.15, learnDirection: 0, counterEntity: null, importance: 'normal',
         deadlineMd: null, deadlineAt: null, deadlineLeadDays: 14, conditionId: null, boostId: null,
         forecastId: null, conditionResult: null, boostResult: null, templateError: null, durationMin: 10,
-        effort: 2, assignment: 'any', seasonFrom: null, seasonTo: null, noisy: false, notes: null,
+        effort: 2, seasonFrom: null, seasonTo: null, noisy: false, notes: null,
         lastDoneAt: at('2026-10-01T10:00+02:00'), snoozedUntil: null, notYetCount: 0, lastNotifiedAt: null,
         createdAt: at('2026-01-01T10:00+01:00'), updatedAt: 0, deletedAt: null, personIds: [], categoryIds: [],
         ...over,

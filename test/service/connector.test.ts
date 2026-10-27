@@ -135,7 +135,7 @@ describe('template results', () => {
         const fake = deps.fake as FakeApi;
         const dry = await createCondition(deps, { name: 'Trocken', kind: 'state', template: '{{ dry }}' });
         const chore = await createChore(deps, { name: 'Rasen', kind: 'recurring', growth: 'time', interval: 7,
-            importance: 'normal', durationMin: 30, effort: 3, assignment: 'any', conditionId: dry.id });
+            importance: 'normal', durationMin: 30, effort: 3, conditionId: dry.id });
         const templates = new TemplateManager(deps.db, fake);
         await templates.sync(await listConditions(deps.db));
         const sub = fake.subscriptions.find((s) => s.message.type === 'render_template')!;

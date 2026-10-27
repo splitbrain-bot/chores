@@ -54,7 +54,6 @@ export interface ChoreTable {
     forecastId: number | null;
     durationMin: number;
     effort: number;
-    assignment: 'any' | 'all';
     seasonFrom: number | null;
     seasonTo: number | null;
     noisy: Generated<number>;

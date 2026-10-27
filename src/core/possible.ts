@@ -14,6 +14,15 @@ export interface PossibleContext {
 }
 
 /**
+ * Tells if the assigned persons of a chore must do it together. This is the case for more than one person.
+ *
+ * @param chore the chore
+ */
+export function together(chore: Chore): boolean {
+    return chore.personIds.length > 1;
+}
+
+/**
  * Returns the candidate persons of a chore. An empty list on the chore means every person.
  *
  * @param chore the chore
@@ -38,15 +47,15 @@ export function longAbsence(p: PresenceState | undefined, now: number, settings:
 }
 
 /**
- * Tells if another person takes over a chore because all candidate persons are away for a long time.
+ * Tells if another person takes over a chore because its one assigned person is away for a long time.
  *
  * @param chore the chore
  * @param ctx the filter context
  */
 export function handover(chore: Chore, ctx: PossibleContext): boolean {
-    if (chore.assignment !== 'any' || chore.personIds.length === 0) return false;
+    if (chore.personIds.length !== 1) return false;
     if (chore.importance !== 'important' && chore.importance !== 'critical') return false;
-    return chore.personIds.every((id) => longAbsence(ctx.presence.get(id), ctx.now, ctx.settings));
+    return longAbsence(ctx.presence.get(chore.personIds[0]!), ctx.now, ctx.settings);
 }
 
 /**
@@ -60,7 +69,7 @@ export function doers(chore: Chore, ctx: PossibleContext): number[] {
     const home = (id: number) => ctx.presence.get(id)?.home === true;
     const h = ctx.personIds.filter(home);
 
-    if (chore.assignment === 'all') {
+    if (together(chore)) {
         if (!s.every(home)) return [];
         if (ctx.viewer.kind === 'shared') return s;
         return s.includes(ctx.viewer.personId) ? [ctx.viewer.personId] : [];

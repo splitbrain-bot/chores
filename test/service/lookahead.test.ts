@@ -24,7 +24,7 @@ describe('look-ahead and overview', () => {
             template: '{{ day.precipitation == 0 }}' });
         expect(dry.forecast).toEqual([{ date: '2026-10-30', result: false }, { date: '2026-10-31', result: true }]);
         const gutters = await createChore(deps, { name: 'Dachrinne', kind: 'recurring', growth: 'time', interval: 180,
-            importance: 'normal', durationMin: 60, effort: 4, assignment: 'any', lastDoneAt: clock.t - 200 * DAY,
+            importance: 'normal', durationMin: 60, effort: 4, lastDoneAt: clock.t - 200 * DAY,
             forecastId: dry.id });
 
         const result = await getLookahead(deps);
@@ -45,9 +45,9 @@ describe('look-ahead and overview', () => {
         await createPerson(deps, { name: 'Andi', haEntity: 'person.a' });
         await insertStates(deps.db, [{ entityId: 'person.a', state: 'home', at: clock.t - DAY }]);
         await createChore(deps, { name: 'Sprenger', kind: 'recurring', growth: 'time', interval: 365,
-            importance: 'critical', durationMin: 30, effort: 3, assignment: 'any', deadlineMd: '11-15' });
+            importance: 'critical', durationMin: 30, effort: 3, deadlineMd: '11-15' });
         await createChore(deps, { name: 'Alt', kind: 'recurring', growth: 'time', interval: 2, importance: 'normal',
-            durationMin: 10, effort: 1, assignment: 'any', lastDoneAt: clock.t - 10 * DAY });
+            durationMin: 10, effort: 1, lastDoneAt: clock.t - 10 * DAY });
         const o = await getOverview(deps);
         expect(o.top.map((c) => c.name)).toEqual(['Sprenger', 'Alt']);
         expect(o.neglected.map((c) => c.name)).toEqual(['Sprenger', 'Alt']);
