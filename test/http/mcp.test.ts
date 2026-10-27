@@ -65,6 +65,7 @@ describe('MCP endpoint', () => {
             expect(text).toContain(`"name":"${name}"`);
         }
         expect(text).toContain('"durationMin"');
+        expect(text).toContain('Lowest need level for a suggestion');
     });
 
     it('configures the persons and the settings', async () => {

@@ -95,7 +95,8 @@ function CapacityTab({ settings, onSave }: { settings: Settings; onSave: (s: Set
  */
 function ParametersTab({ settings, onSave }: { settings: Settings; onSave: (s: Settings) => void }) {
     const [values, setValues] = useState<Settings>(settings);
-    const keys = (Object.keys(settings) as (keyof Settings)[]).filter((k) => k !== 'capacity_slots');
+    const keys = (Object.keys(settings) as (keyof Settings)[])
+        .filter((k): k is Exclude<keyof Settings, 'capacity_slots'> => k !== 'capacity_slots');
     return (
         <form className="parameters" onSubmit={(e) => {
             e.preventDefault();
@@ -114,6 +115,7 @@ function ParametersTab({ settings, onSave }: { settings: Settings; onSave: (s: S
                                 : Array.isArray(value)
                                     ? <input value={value.join(' ')} onChange={(e) => set(e.target.value.split(/\s+/).filter(Boolean))} />
                                     : <input value={String(value)} onChange={(e) => set(e.target.value)} />}
+                        <small className="hint">{t(`param.${key}`)}</small>
                     </label>
                 );
             })}

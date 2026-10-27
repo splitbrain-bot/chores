@@ -141,6 +141,11 @@ input[type="checkbox"] {
     color: var(--muted);
 }
 
+.field > .hint {
+    display: block;
+    margin-top: 2px;
+}
+
 .status-bar {
     display: flex;
     flex-wrap: wrap;
