@@ -41,13 +41,13 @@ describe('lookahead', () => {
     });
 
     it('gives no hint when the forecast template is false on every day', () => {
-        const chore = evaluated({ id: 5, forecastTemplate: '{{ day.precipitation == 0 }}' });
+        const chore = evaluated({ id: 5, forecastId: 1 });
         const results = new Map([[5, new Map([['2026-10-30', false], ['2026-10-31', false], ['2026-11-01', null]])]]);
         expect(lookahead([chore], ctx({ forecastResults: results }))).toEqual([]);
     });
 
     it('uses the forecast entry in the reasons', () => {
-        const chore = evaluated({ id: 5, forecastTemplate: '{{ day.precipitation == 0 }}' });
+        const chore = evaluated({ id: 5, forecastId: 1 });
         const results = new Map([[5, new Map([['2026-10-31', true]])]]);
         const forecast = new Map([['2026-10-31', { datetime: '2026-10-31', condition: 'sunny', temperature: 12,
             precipitation: 0 }]]);

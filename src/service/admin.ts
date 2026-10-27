@@ -23,7 +23,7 @@ export interface PersonInput {
  *
  * @param err the error
  */
-function isUniqueError(err: unknown): boolean {
+export function isUniqueError(err: unknown): boolean {
     return err instanceof Error && 'code' in err && err.code === 'SQLITE_CONSTRAINT_UNIQUE';
 }
 

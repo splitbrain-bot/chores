@@ -1,5 +1,5 @@
-import { dayMonth, hasKey, num, t, time } from './i18n.ts';
-import type { ChoreWithNeed, Hint, Suggestion } from './types.ts';
+import { dayMonth, hasKey, num, t, time, weekdayName } from './i18n.ts';
+import type { ChoreWithNeed, ConditionStatus, Hint, Suggestion } from './types.ts';
 
 /**
  * Returns the explanation of the need level of a chore.
@@ -52,4 +52,27 @@ export function hintText(hint: Hint): string {
                 return t(`hint.${r.code}`);
         }
     }).filter(Boolean).join(', ');
+}
+
+/**
+ * Formats a template result.
+ *
+ * @param result 1 or true for yes, 0 or false for no, null for no result
+ */
+function resultText(result: number | boolean | null): string {
+    if (result === null) return t('condition.noResult');
+    return result === 1 || result === true ? t('common.yes') : t('common.no');
+}
+
+/**
+ * Returns the status of a condition: the current result of a state condition, or the result per day of a forecast
+ * condition.
+ *
+ * @param condition the condition with its status
+ */
+export function conditionStatusText(condition: ConditionStatus): string {
+    if (condition.kind === 'state') return t('condition.result', { result: resultText(condition.result) });
+    if (condition.forecast.length === 0) return t('condition.noForecast');
+    return t('condition.forecast', { days: condition.forecast
+        .map((d) => `${weekdayName(new Date(`${d.date}T12:00:00`).getDay())} ${resultText(d.result)}`).join(', ') });
 }

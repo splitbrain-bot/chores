@@ -19,6 +19,16 @@ export interface CategoryTable {
     sort: Generated<number>;
 }
 
+/** Table condition. */
+export interface ConditionTable {
+    id: Generated<number>;
+    name: string;
+    kind: 'state' | 'forecast';
+    template: string;
+    result: number | null;
+    error: string | null;
+}
+
 /** Table chore. */
 export interface ChoreTable {
     id: Generated<number>;
@@ -36,12 +46,9 @@ export interface ChoreTable {
     deadlineMd: string | null;
     deadlineAt: number | null;
     deadlineLeadDays: Generated<number>;
-    conditionTemplate: string | null;
-    boostTemplate: string | null;
-    forecastTemplate: string | null;
-    conditionResult: number | null;
-    boostResult: number | null;
-    templateError: string | null;
+    conditionId: number | null;
+    boostId: number | null;
+    forecastId: number | null;
     durationMin: number;
     effort: number;
     assignment: 'any' | 'all';
@@ -129,6 +136,7 @@ export interface CacheTable {
 export interface DB {
     person: PersonTable;
     category: CategoryTable;
+    condition: ConditionTable;
     chore: ChoreTable;
     choreCategory: ChoreCategoryTable;
     chorePerson: ChorePersonTable;
@@ -148,6 +156,9 @@ export type NewChoreRow = Insertable<ChoreTable>;
 
 /** A chore row for an update. */
 export type ChoreRowUpdate = Updateable<ChoreTable>;
+
+/** A selected condition row. */
+export type ConditionRow = Selectable<ConditionTable>;
 
 /** A selected person row. */
 export type PersonRow = Selectable<PersonTable>;

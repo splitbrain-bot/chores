@@ -136,6 +136,34 @@ test('creates and edits a chore in the form', async ({ page }) => {
     await expect(page.locator('.chore-row').filter({ hasText: 'Backofen gründlich reinigen' })).toBeVisible();
 });
 
+test('creates a condition and uses it in a chore', async ({ page }) => {
+    await login(page);
+    await page.getByRole('link', { name: 'Settings' }).click();
+    await page.getByRole('tab', { name: 'Conditions' }).click();
+    const form = page.locator('form.condition').last();
+    await form.getByLabel('Name').fill('Trocken');
+    await form.getByLabel('Template').fill('{{ is_state("sensor.rain", "off") }}');
+    await form.getByRole('button', { name: 'Add condition' }).click();
+    const created = page.locator('form.condition').first();
+    await expect(created.getByLabel('Name')).toHaveValue('Trocken');
+    await expect(created.getByText('Current result: no result')).toBeVisible();
+    await expect(created.getByText('Used by 0 chores')).toBeVisible();
+
+    await page.goto('/chores');
+    await page.locator('.chore-row').filter({ hasText: 'Spiegel putzen' }).locator('.row-main').click();
+    await page.getByRole('combobox', { name: /^Condition/ }).selectOption({ label: 'Trocken' });
+    await expect(page.getByText('Current result: no result')).toBeVisible();
+    await expect(page.getByLabel('Forecast condition').locator('option')).toHaveText(['–']);
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(page.locator('.chore-row').filter({ hasText: 'Spiegel putzen' })).toContainText('condition');
+
+    await page.goto('/settings');
+    await page.getByRole('tab', { name: 'Conditions' }).click();
+    await expect(page.getByText('Used by 1 chores')).toBeVisible();
+    await page.locator('form.condition').first().getByRole('button', { name: 'Delete' }).click();
+    await expect(page.getByText('Chores use the condition')).toBeVisible();
+});
+
 test.describe('German browser', () => {
     test.use({ locale: 'de-DE' });
 

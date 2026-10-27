@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { serve } from '@hono/node-server';
 import { loadConfig } from './config.ts';
 import { createDatabase } from './db/database.ts';
-import { listChores } from './db/chores.ts';
+import { listConditions } from './db/conditions.ts';
 import { HomeAssistant } from './ha/connection.ts';
 import { TemplateManager } from './ha/templates.ts';
 import { Watcher } from './ha/watcher.ts';
@@ -29,13 +29,15 @@ async function startHomeAssistant(conn: HomeAssistant): Promise<void> {
     const w = new Watcher(db, conn);
     const templates = new TemplateManager(db, conn);
     const scheduler = new Scheduler({ ...deps, ha: conn });
-    const syncTemplates = () => listChores(db).then((chores) => templates.sync(chores));
+    const syncTemplates = () => listConditions(db).then((conditions) => templates.sync(conditions));
     const syncEntities = () => watchList(db).then((list) => w.setEntities(list));
     const log = (what: string) => (err: unknown) => console.error(`${what} failed`, err);
 
     deps.onChoresChanged = () => {
-        syncTemplates().catch(log('Template sync'));
         syncEntities().catch(log('Entity sync'));
+    };
+    deps.onConditionsChanged = () => {
+        syncTemplates().catch(log('Template sync'));
     };
     deps.onPersonsChanged = () => {
         syncEntities().catch(log('Entity sync'));

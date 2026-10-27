@@ -1,4 +1,5 @@
-import type { Chore } from '../core/types.ts';
+import type { Chore, Condition } from '../core/types.ts';
+import { listConditions } from './conditions.ts';
 import type { Database } from './database.ts';
 import type { ChoreRow, ChoreRowUpdate, NewChoreRow } from './types.ts';
 
@@ -17,24 +18,41 @@ export interface ChoreFilter {
  * @param row the row
  * @param personIds the linked persons
  * @param categoryIds the linked categories
+ * @param conditions all conditions by id, for the current results
  */
-function toChore(row: ChoreRow, personIds: number[], categoryIds: number[]): Chore {
+function toChore(row: ChoreRow, personIds: number[], categoryIds: number[], conditions: ReadonlyMap<number, Condition>):
+    Chore {
+    const condition = row.conditionId === null ? undefined : conditions.get(row.conditionId);
+    const boost = row.boostId === null ? undefined : conditions.get(row.boostId);
     return {
         ...row,
         learnDirection: Math.sign(row.learnDirection) as -1 | 0 | 1,
         noisy: row.noisy === 1,
+        conditionResult: condition?.result ?? null,
+        boostResult: boost?.result ?? null,
+        templateError: condition?.error ?? boost?.error ?? null,
         personIds,
         categoryIds,
     };
 }
 
 /**
- * Converts chore values to row values. The links are not part of the row.
+ * Loads all conditions by id.
+ *
+ * @param db the database
+ */
+async function conditionMap(db: Database): Promise<Map<number, Condition>> {
+    return new Map((await listConditions(db)).map((c) => [c.id, c]));
+}
+
+/**
+ * Converts chore values to row values. The links and the condition results are not part of the row.
  *
  * @param values the chore values
  */
 function toRow(values: Partial<Chore>): ChoreRowUpdate {
-    const { id: _id, personIds: _p, categoryIds: _c, noisy, ...rest } = values;
+    const { id: _id, personIds: _p, categoryIds: _c, conditionResult: _cr, boostResult: _br, templateError: _te, noisy,
+        ...rest } = values;
     const row: ChoreRowUpdate = { ...rest };
     if (noisy !== undefined) row.noisy = noisy ? 1 : 0;
     return row;
@@ -60,7 +78,8 @@ export async function listChores(db: Database, filter: ChoreFilter = {}): Promis
     const categories = await db.selectFrom('choreCategory').selectAll().execute();
     const personMap = group(persons.map((r) => [r.choreId, r.personId]));
     const categoryMap = group(categories.map((r) => [r.choreId, r.categoryId]));
-    return rows.map((r) => toChore(r, personMap.get(r.id) ?? [], categoryMap.get(r.id) ?? []));
+    const conditions = await conditionMap(db);
+    return rows.map((r) => toChore(r, personMap.get(r.id) ?? [], categoryMap.get(r.id) ?? [], conditions));
 }
 
 /**
@@ -75,7 +94,7 @@ export async function getChore(db: Database, id: number): Promise<Chore | undefi
     const persons = await db.selectFrom('chorePerson').select('personId').where('choreId', '=', id).execute();
     const categories = await db.selectFrom('choreCategory').select('categoryId').where('choreId', '=', id).execute();
     return toChore(row, persons.map((r) => r.personId).sort((a, b) => a - b),
-        categories.map((r) => r.categoryId).sort((a, b) => a - b));
+        categories.map((r) => r.categoryId).sort((a, b) => a - b), await conditionMap(db));
 }
 
 /**
@@ -128,21 +147,6 @@ async function setLinks(db: Database, id: number, personIds?: number[], category
                 .execute();
         }
     }
-}
-
-/**
- * Stores the result of a template subscription.
- *
- * @param db the database
- * @param id the chore id
- * @param which the template
- * @param result 1, 0 or null for a render error
- * @param error the error text of a render error
- */
-export async function setTemplateResult(db: Database, id: number, which: 'condition' | 'boost', result: number | null,
-    error: string | null): Promise<void> {
-    const column = which === 'condition' ? 'conditionResult' : 'boostResult';
-    await db.updateTable('chore').set({ [column]: result, templateError: error }).where('id', '=', id).execute();
 }
 
 /**

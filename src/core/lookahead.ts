@@ -15,7 +15,7 @@ export interface LookaheadContext {
     calendars: ReadonlyMap<number, readonly CalendarEvent[]>;
     /** Daily forecast per local date. */
     forecast: ReadonlyMap<string, ForecastDay>;
-    /** Result of the forecast template per chore id and local date, null for a render error. */
+    /** Result of the forecast condition per chore id and local date, null for a render error. */
     forecastResults: ReadonlyMap<number, ReadonlyMap<string, boolean | null>>;
 }
 
@@ -27,7 +27,7 @@ export interface LookaheadContext {
  */
 export function isLookaheadCandidate(chore: ChoreWithNeed, personIds: readonly number[]): boolean {
     if (chore.deletedAt !== null) return false;
-    if (chore.forecastTemplate !== null || chore.noisy) return true;
+    if (chore.forecastId !== null || chore.noisy) return true;
     return chore.assignment === 'all' && candidates(chore, personIds).length > 1;
 }
 
@@ -97,7 +97,7 @@ function checkDay(chore: ChoreWithNeed, date: string, interval: number, persons:
     const growth = chore.elapsedUnit === 'days' && interval > 0 ? (startOfDay(date, tz) - ctx.now) / DAY / interval : 0;
     if (!chore.urgent && chore.need + growth < ctx.settings.suggest_threshold) return null;
 
-    if (chore.forecastTemplate !== null) {
+    if (chore.forecastId !== null) {
         if (ctx.forecastResults.get(chore.id)?.get(date) !== true) return null;
         const day = ctx.forecast.get(date);
         reasons.push({

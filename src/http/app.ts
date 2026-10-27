@@ -10,6 +10,7 @@ import type { AppEnv } from './env.ts';
 import { authRoutes } from './routes/auth.ts';
 import { categoryRoutes } from './routes/categories.ts';
 import { choreRoutes } from './routes/chores.ts';
+import { conditionRoutes } from './routes/conditions.ts';
 import { personRoutes } from './routes/persons.ts';
 import { settingsRoutes } from './routes/settings.ts';
 import { suggestionRoutes } from './routes/suggestions.ts';
@@ -52,7 +53,8 @@ export function createApp(deps: Deps, options: AppOptions): Hono<AppEnv> {
 
     const api = new Hono<AppEnv>();
     api.use('*', bearer(deps));
-    for (const routes of [suggestionRoutes, choreRoutes, categoryRoutes, personRoutes, settingsRoutes, tokenRoutes]) {
+    for (const routes of [suggestionRoutes, choreRoutes, conditionRoutes, categoryRoutes, personRoutes, settingsRoutes,
+        tokenRoutes]) {
         api.route('/', routes(deps));
     }
     app.route('/api', api);

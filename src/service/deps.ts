@@ -8,8 +8,10 @@ export interface Deps {
     ha: HaApi | null;
     /** Returns the current time. */
     now: () => number;
-    /** Called after a change of the chores, for the template subscriptions and the watched entities. */
+    /** Called after a change of the chores, for the watched entities. */
     onChoresChanged?: () => void;
+    /** Called after a change of the conditions, for the template subscriptions. */
+    onConditionsChanged?: () => void;
     /** Called after a change of the persons, for the watched entities and the calendars. */
     onPersonsChanged?: () => void;
     /** Called after a change of the settings, for the forecast, the holidays and the calendars. */

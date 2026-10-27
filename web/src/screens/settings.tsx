@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.ts';
 import { useApp } from '../context.ts';
+import { conditionStatusText } from '../format.ts';
 import { t, time, weekdayName } from '../i18n.ts';
-import type { Person, Settings, Token } from '../types.ts';
+import type { ConditionStatus, Person, Settings, Token } from '../types.ts';
 
 /** Weekdays in the order of the slot table, 0 is Sunday. */
 const WEEKDAYS = [1, 2, 3, 4, 5, 6, 0];
 
-type Tab = 'capacity' | 'parameters' | 'persons' | 'categories' | 'tokens';
+type Tab = 'capacity' | 'parameters' | 'persons' | 'categories' | 'conditions' | 'tokens';
 
 /**
  * Loads the settings and stores changes.
@@ -212,6 +213,81 @@ function CategoriesTab() {
     );
 }
 
+/** Values of the condition form. */
+type ConditionForm = { name: string; kind: ConditionStatus['kind']; template: string };
+
+/**
+ * The form of one condition with its status. The kind of an existing condition cannot change.
+ *
+ * @param props.condition the condition, or null for a new condition
+ * @param props.onSaved called after a save or a delete
+ */
+function ConditionEditor({ condition, onSaved }: { condition: ConditionStatus | null; onSaved: () => void }) {
+    const [f, setF] = useState<ConditionForm>({
+        name: condition?.name ?? '', kind: condition?.kind ?? 'state', template: condition?.template ?? '',
+    });
+    const [error, setError] = useState<string | null>(null);
+    const send = (request: Promise<unknown>) => request.then(onSaved, (err: Error) => setError(err.message));
+    return (
+        <form className="condition" onSubmit={(e) => {
+            e.preventDefault();
+            send(condition
+                ? api('PATCH', `/conditions/${condition.id}`, { name: f.name, template: f.template })
+                : api('POST', '/conditions', f));
+        }}>
+            <label className="field">
+                <span>{t('settings.condition.name')}</span>
+                <input value={f.name} required onChange={(e) => setF({ ...f, name: e.target.value })} />
+            </label>
+            <label className="field">
+                <span>{t('settings.condition.kind')}</span>
+                <select value={f.kind} disabled={condition !== null}
+                    onChange={(e) => setF({ ...f, kind: e.target.value as ConditionForm['kind'] })}>
+                    <option value="state">{t('settings.condition.kind.state')}</option>
+                    <option value="forecast">{t('settings.condition.kind.forecast')}</option>
+                </select>
+            </label>
+            <label className="field">
+                <span>{t('settings.condition.template')}</span>
+                <textarea rows={2} value={f.template} required onChange={(e) => setF({ ...f, template: e.target.value })} />
+            </label>
+            {f.kind === 'forecast' && <p className="hint">{t('settings.condition.forecastHint')}</p>}
+            {condition && (
+                <p className="template-result">
+                    {conditionStatusText(condition)}
+                    {condition.error && <span className="error"> {condition.error}</span>}
+                    <br />
+                    {t('settings.condition.usedBy', { n: condition.choreIds.length })}
+                </p>
+            )}
+            {error && <p className="error">{t('common.error', { message: error })}</p>}
+            <div className="actions">
+                <button type="submit">{condition ? t('common.save') : t('settings.condition.add')}</button>
+                {condition && (
+                    <button type="button" className="link" onClick={() => send(api('DELETE', `/conditions/${condition.id}`))}>
+                        {t('common.delete')}
+                    </button>
+                )}
+            </div>
+        </form>
+    );
+}
+
+/** The list of the conditions with their forms. */
+function ConditionsTab() {
+    const [conditions, setConditions] = useState<ConditionStatus[]>([]);
+    const load = useCallback(() => {
+        api<{ conditions: ConditionStatus[] }>('GET', '/conditions').then((r) => setConditions(r.conditions), () => undefined);
+    }, []);
+    useEffect(load, [load]);
+    return (
+        <div>
+            {conditions.map((c) => <ConditionEditor key={`${c.id}-${c.name}-${c.template}`} condition={c} onSaved={load} />)}
+            <ConditionEditor key={`new-${conditions.length}`} condition={null} onSaved={load} />
+        </div>
+    );
+}
+
 /** The list of the tokens with the forms for new device and MCP tokens. */
 function TokensTab() {
     const [tokens, setTokens] = useState<Token[]>([]);
@@ -303,7 +379,7 @@ function TokensTab() {
 export function SettingsScreen() {
     const [tab, setTab] = useState<Tab>('capacity');
     const [settings, save, message] = useSettings();
-    const tabs: Tab[] = ['capacity', 'parameters', 'persons', 'categories', 'tokens'];
+    const tabs: Tab[] = ['capacity', 'parameters', 'persons', 'categories', 'conditions', 'tokens'];
     return (
         <section className="settings">
             <div className="tabs" role="tablist">
@@ -317,6 +393,7 @@ export function SettingsScreen() {
             {tab === 'parameters' && settings && <ParametersTab settings={settings} onSave={save} />}
             {tab === 'persons' && <PersonsTab />}
             {tab === 'categories' && <CategoriesTab />}
+            {tab === 'conditions' && <ConditionsTab />}
             {tab === 'tokens' && <TokensTab />}
         </section>
     );

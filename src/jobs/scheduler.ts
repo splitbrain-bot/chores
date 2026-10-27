@@ -80,7 +80,7 @@ export class Scheduler {
         this.timers.set(job.name, setTimeout(() => void this.tick(job), job.interval(settings)));
     }
 
-    /** Reads the daily forecast and clears the cached forecast template results. */
+    /** Reads the daily forecast and clears the cached forecast condition results. */
     async refreshForecast(): Promise<void> {
         const { db, ha } = this.deps;
         const settings = await getSettings(db);

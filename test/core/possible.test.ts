@@ -115,7 +115,7 @@ describe('other filters', () => {
     });
 
     it('blocks by the condition result', () => {
-        const chore = makeChore({ conditionTemplate: '{{ x }}' });
+        const chore = makeChore({ conditionId: 1 });
         expect(baseBlocks({ ...chore, conditionResult: 1 }, ctx(p1, states))).toEqual([]);
         expect(baseBlocks({ ...chore, conditionResult: 0 }, ctx(p1, states))).toContain('condition');
         expect(baseBlocks({ ...chore, conditionResult: null }, ctx(p1, states))).toContain('condition');

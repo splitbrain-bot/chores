@@ -58,8 +58,9 @@ describe('MCP endpoint', () => {
         const list = await t.app.request('/mcp', { method: 'POST', headers: { ...headers, 'mcp-protocol-version': '2025-11-25' },
             body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' }) });
         const text = await list.text();
-        for (const name of ['list_persons', 'list_categories', 'create_category', 'list_chores', 'get_chore', 'create_chore',
-            'update_chore', 'delete_chore', 'mark_done', 'postpone', 'get_suggestions', 'get_lookahead', 'get_overview']) {
+        for (const name of ['list_persons', 'list_categories', 'create_category', 'list_conditions', 'create_condition',
+            'update_condition', 'delete_condition', 'list_chores', 'get_chore', 'create_chore', 'update_chore', 'delete_chore',
+            'mark_done', 'postpone', 'get_suggestions', 'get_lookahead', 'get_overview']) {
             expect(text).toContain(`"name":"${name}"`);
         }
         expect(text).toContain('"durationMin"');
@@ -73,9 +74,14 @@ describe('MCP endpoint', () => {
         const { category } = (await tool('create_category', { name: 'Küche' })).structuredContent as { category: { id: number } };
         expect((await tool('list_categories')).structuredContent).toEqual({ categories: [{ id: category.id, name: 'Küche', sort: 0 }] });
 
+        const { condition } = (await tool('create_condition', { name: 'Trocken', kind: 'state', template: '{{ a }}' }))
+            .structuredContent as { condition: { id: number } };
+        expect((await tool('update_condition', { id: condition.id, template: '{{ b }}' })).structuredContent)
+            .toMatchObject({ condition: { name: 'Trocken', template: '{{ b }}' } });
+
         const created = await tool('create_chore', { name: 'Fußboden wischen', groupKey: 'fussboden-wischen', kind: 'recurring',
             growth: 'usage', interval: 7, importance: 'normal', durationMin: 15, effort: 2, assignment: 'any',
-            categoryIds: [category.id], lastDoneAt: t.clock.t - 3 * DAY });
+            categoryIds: [category.id], lastDoneAt: t.clock.t - 3 * DAY, conditionId: condition.id });
         const choreId = (created.structuredContent as { chore: { id: number } }).chore.id;
         expect(created.structuredContent).toMatchObject({ chore: { intervalMin: 0.875, intervalMax: 28 } });
 
@@ -101,7 +107,11 @@ describe('MCP endpoint', () => {
         expect((await tool('get_lookahead')).structuredContent).toEqual({ hints: [], forecastAge: null });
         expect((await tool('get_overview')).structuredContent).toHaveProperty('counts.byKind.recurring', 1);
 
+        expect((await tool('list_conditions')).structuredContent).toMatchObject({ conditions: [{ choreIds: [choreId] }] });
+        expect((await tool('delete_condition', { id: condition.id })).isError).toBe(true);
+
         expect((await tool('delete_chore', { id: choreId })).structuredContent).toEqual({ ok: true });
+        expect((await tool('delete_condition', { id: condition.id })).structuredContent).toEqual({ ok: true });
         expect((await tool('get_chore', { id: 999 })).isError).toBe(true);
     });
 });

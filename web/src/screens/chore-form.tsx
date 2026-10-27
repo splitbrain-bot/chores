@@ -2,10 +2,11 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { api } from '../api.ts';
 import { CategoryPicker } from '../components/category-picker.tsx';
 import { useApp } from '../context.ts';
+import { conditionStatusText } from '../format.ts';
 import { hasKey, num, t, time } from '../i18n.ts';
 import { navigate } from '../router.ts';
 import type { ChoreInput } from '../../../src/schemas/chore.ts';
-import type { ChoreEvent, ChoreWithNeed, Person } from '../types.ts';
+import type { ChoreEvent, ChoreWithNeed, ConditionStatus, Person } from '../types.ts';
 
 /** Values of the form. Text inputs hold strings, empty strings stand for no value. */
 interface FormState {
@@ -21,9 +22,9 @@ interface FormState {
     deadlineMd: string;
     deadlineAt: string;
     deadlineLeadDays: string;
-    conditionTemplate: string;
-    boostTemplate: string;
-    forecastTemplate: string;
+    conditionId: string;
+    boostId: string;
+    forecastId: string;
     durationMin: string;
     effort: string;
     assignment: ChoreInput['assignment'];
@@ -39,7 +40,7 @@ interface FormState {
 const EMPTY: FormState = {
     name: '', groupKey: '', kind: 'recurring', growth: 'usage', interval: '7', intervalMin: '', intervalMax: '',
     counterEntity: '', importance: 'normal', deadlineMd: '', deadlineAt: '', deadlineLeadDays: '14',
-    conditionTemplate: '', boostTemplate: '', forecastTemplate: '', durationMin: '15', effort: '2', assignment: 'any',
+    conditionId: '', boostId: '', forecastId: '', durationMin: '15', effort: '2', assignment: 'any',
     personIds: [], categoryIds: [], seasonFrom: '', seasonTo: '', noisy: false, notes: '', lastDoneAt: '',
 };
 
@@ -65,8 +66,8 @@ function toForm(c: ChoreWithNeed): FormState {
         intervalMin: s(c.intervalMin), intervalMax: s(c.intervalMax), counterEntity: s(c.counterEntity),
         importance: c.importance, deadlineMd: s(c.deadlineMd),
         deadlineAt: c.deadlineAt === null ? '' : toLocalInput(c.deadlineAt).slice(0, 10),
-        deadlineLeadDays: String(c.deadlineLeadDays), conditionTemplate: s(c.conditionTemplate),
-        boostTemplate: s(c.boostTemplate), forecastTemplate: s(c.forecastTemplate), durationMin: String(c.durationMin),
+        deadlineLeadDays: String(c.deadlineLeadDays), conditionId: s(c.conditionId), boostId: s(c.boostId),
+        forecastId: s(c.forecastId), durationMin: String(c.durationMin),
         effort: String(c.effort), assignment: c.assignment, personIds: c.personIds, categoryIds: c.categoryIds,
         seasonFrom: s(c.seasonFrom), seasonTo: s(c.seasonTo), noisy: c.noisy, notes: s(c.notes),
         lastDoneAt: toLocalInput(c.lastDoneAt),
@@ -88,9 +89,8 @@ function toInput(f: FormState): ChoreInput {
         counterEntity: f.growth === 'counter' ? text(f.counterEntity) : null, importance: f.importance,
         deadlineMd: text(f.deadlineMd),
         deadlineAt: f.deadlineAt ? new Date(`${f.deadlineAt}T23:59:59`).getTime() : null,
-        deadlineLeadDays: Number(f.deadlineLeadDays), conditionTemplate: text(f.conditionTemplate),
-        boostTemplate: text(f.boostTemplate), forecastTemplate: text(f.forecastTemplate),
-        durationMin: Number(f.durationMin), effort: Number(f.effort), assignment: f.assignment,
+        deadlineLeadDays: Number(f.deadlineLeadDays), conditionId: number(f.conditionId), boostId: number(f.boostId),
+        forecastId: number(f.forecastId), durationMin: Number(f.durationMin), effort: Number(f.effort), assignment: f.assignment,
         personIds: f.personIds, categoryIds: f.categoryIds, seasonFrom: number(f.seasonFrom), seasonTo: number(f.seasonTo),
         noisy: f.noisy, notes: text(f.notes), lastDoneAt: f.lastDoneAt ? new Date(f.lastDoneAt).getTime() : undefined,
     };
@@ -109,16 +109,6 @@ function Field({ label, group = false, children }: { label: string; group?: bool
 }
 
 /**
- * Formats a template result.
- *
- * @param result 1, 0 or null
- */
-function resultText(result: number | null): string {
-    if (result === null) return '–';
-    return result === 1 ? t('common.yes') : t('common.no');
-}
-
-/**
  * The form for a new or an existing chore.
  *
  * @param props.id the chore id, or null for a new chore
@@ -129,10 +119,12 @@ export function ChoreForm({ id }: { id: number | null }) {
     const [chore, setChore] = useState<ChoreWithNeed | null>(null);
     const [events, setEvents] = useState<ChoreEvent[]>([]);
     const [persons, setPersons] = useState<Person[]>([]);
+    const [conditions, setConditions] = useState<ConditionStatus[]>([]);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         api<{ persons: Person[] }>('GET', '/persons').then((r) => setPersons(r.persons), () => undefined);
+        api<{ conditions: ConditionStatus[] }>('GET', '/conditions').then((r) => setConditions(r.conditions), () => undefined);
         if (id === null) return;
         api<{ chore: ChoreWithNeed; events: ChoreEvent[] }>('GET', `/chores/${id}`).then((r) => {
             setChore(r.chore);
@@ -219,18 +211,22 @@ export function ChoreForm({ id }: { id: number | null }) {
             </div>
             <Field label={t('form.groupKey')}>{input('groupKey')}</Field>
 
-            {(['conditionTemplate', 'boostTemplate', 'forecastTemplate'] as const).map((key) => (
-                <Field key={key} label={t(`form.${key}`)}>
-                    <textarea name={key} rows={2} value={form[key]} onChange={(e) => set(key, e.target.value)} />
-                    {chore && key !== 'forecastTemplate' && chore[key] && (
-                        <small className="template-result">
-                            {t('form.templateResult', { result: resultText(key === 'conditionTemplate' ? chore.conditionResult
-                                : chore.boostResult) })}
-                            {chore.templateError && <span className="error"> {chore.templateError}</span>}
-                        </small>
-                    )}
-                </Field>
-            ))}
+            {(['conditionId', 'boostId', 'forecastId'] as const).map((key) => {
+                const selected = conditions.find((c) => String(c.id) === form[key]);
+                return (
+                    <Field key={key} label={t(`form.${key}`)}>
+                        <select name={key} value={form[key]} onChange={(e) => set(key, e.target.value)}>
+                            <option value="">–</option>
+                            {conditions.filter((c) => c.kind === (key === 'forecastId' ? 'forecast' : 'state'))
+                                .map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                        {selected && <small className="template-result">
+                            {conditionStatusText(selected)}
+                            {selected.error && <span className="error"> {selected.error}</span>}
+                        </small>}
+                    </Field>
+                );
+            })}
             <Field label={t('form.notes')}>
                 <textarea name="notes" rows={3} value={form.notes} onChange={(e) => set('notes', e.target.value)} />
             </Field>

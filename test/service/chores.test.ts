@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DAY } from '../../src/core/types.ts';
 import { createCategory, createPerson } from '../../src/service/admin.ts';
 import { createChore, deleteChore, getChore, listChores, updateChore } from '../../src/service/chores.ts';
+import { createCondition } from '../../src/service/conditions.ts';
 import type { ChoreInput } from '../../src/schemas/chore.ts';
 import { Clock, makeDeps } from './helpers.ts';
 
@@ -29,6 +30,10 @@ describe('chore service', () => {
         await expect(createChore(deps, { ...base, growth: 'counter' })).rejects.toMatchObject({ status: 400 });
         await expect(createChore(deps, { ...base, seasonFrom: 4 })).rejects.toMatchObject({ status: 400 });
         await expect(createChore(deps, { ...base, categoryIds: [9] })).rejects.toMatchObject({ status: 400 });
+        await expect(createChore(deps, { ...base, conditionId: 9 })).rejects.toMatchObject({ status: 400 });
+        const forecast = await createCondition(deps, { name: 'Trocken', kind: 'forecast', template: '{{ day.dry }}' });
+        await expect(createChore(deps, { ...base, conditionId: forecast.id })).rejects.toMatchObject({ status: 400 });
+        expect(await createChore(deps, { ...base, forecastId: forecast.id })).toMatchObject({ forecastId: forecast.id });
         const task = await createChore(deps, { ...base, kind: 'one_time' });
         expect(task).toMatchObject({ interval: null, intervalMin: null });
     });
@@ -36,13 +41,15 @@ describe('chore service', () => {
     it('updates, lists, gets and deletes', async () => {
         const clock = new Clock('2026-10-26T20:00:00+01:00');
         const deps = await makeDeps(clock);
-        const chore = await createChore(deps, { ...base, conditionTemplate: '{{ a }}', lastDoneAt: clock.t - 4 * DAY });
+        const a = await createCondition(deps, { name: 'A', kind: 'state', template: '{{ a }}' });
+        const b = await createCondition(deps, { name: 'B', kind: 'state', template: '{{ b }}' });
+        const chore = await createChore(deps, { ...base, conditionId: a.id, lastDoneAt: clock.t - 4 * DAY });
         await createChore(deps, { ...base, name: 'Fenster', kind: 'one_time' });
-        const updated = await updateChore(deps, chore.id, { interval: 4, conditionTemplate: '{{ b }}' });
-        expect(updated).toMatchObject({ interval: 4, intervalMin: 0.5, intervalMax: 16, conditionResult: null });
+        const updated = await updateChore(deps, chore.id, { interval: 4, conditionId: b.id });
+        expect(updated).toMatchObject({ interval: 4, intervalMin: 0.5, intervalMax: 16, conditionId: b.id });
         expect(updated.need).toBeCloseTo(1);
-        const cleared = await updateChore(deps, chore.id, { conditionTemplate: null, intervalMin: null, intervalMax: 10 });
-        expect(cleared).toMatchObject({ conditionTemplate: null, intervalMin: 0.5, intervalMax: 10 });
+        const cleared = await updateChore(deps, chore.id, { conditionId: null, intervalMin: null, intervalMax: 10 });
+        expect(cleared).toMatchObject({ conditionId: null, intervalMin: 0.5, intervalMax: 10 });
 
         expect((await listChores(deps, shared, { q: 'fen' })).map((c) => c.name)).toEqual(['Fenster']);
         expect((await listChores(deps, shared, { kind: 'recurring' })).map((c) => c.name)).toEqual(['Boden']);

@@ -3,6 +3,7 @@ import { HomeAssistant } from '../../src/ha/connection.ts';
 import { renderOnce, TemplateManager } from '../../src/ha/templates.ts';
 import { Watcher } from '../../src/ha/watcher.ts';
 import { createChore, getChore } from '../../src/db/chores.ts';
+import { createCondition, getCondition } from '../../src/db/conditions.ts';
 import { insertStates, listStates } from '../../src/db/ha_state.ts';
 import { listOccupancy } from '../../src/db/occupancy.ts';
 import type { Database } from '../../src/db/database.ts';
@@ -80,26 +81,29 @@ describe('Home Assistant connector', () => {
 
     it('stores template results and errors', async () => {
         await ha.start();
-        const chore = await createChore(db, newChore({ conditionTemplate: '{{ is_state("sun.sun", "above_horizon") }}',
-            boostTemplate: '{{ false }}' }));
+        const cond = await createCondition(db, { name: 'Sonne', kind: 'state',
+            template: '{{ is_state("sun.sun", "above_horizon") }}' });
+        const boost = await createCondition(db, { name: 'Nie', kind: 'state', template: '{{ false }}' });
+        const forecast = await createCondition(db, { name: 'Trocken', kind: 'forecast', template: '{{ day.dry }}' });
+        const chore = await createChore(db, newChore({ conditionId: cond.id, boostId: boost.id }));
         const templates = new TemplateManager(db, ha);
-        await templates.sync([chore]);
+        await templates.sync([cond, boost, forecast]);
         expect(templates.size).toBe(2);
         const subs = fake.commands.filter((c) => c.type === 'render_template');
-        const cond = subs.find((c) => String(c.template).includes('sun'))!;
-        const boost = subs.find((c) => c !== cond)!;
-        expect(cond.report_errors).toBe(true);
+        const condSub = subs.find((c) => String(c.template).includes('sun'))!;
+        const boostSub = subs.find((c) => c !== condSub)!;
+        expect(condSub.report_errors).toBe(true);
 
-        fake.push(cond.id, { result: true, listeners: {} });
-        fake.push(boost.id, { result: 'False', listeners: {} });
+        fake.push(condSub.id, { result: true, listeners: {} });
+        fake.push(boostSub.id, { result: 'False', listeners: {} });
         await until(async () => (await getChore(db, chore.id))?.conditionResult === 1);
         await until(async () => (await getChore(db, chore.id))?.boostResult === 0);
 
-        fake.push(cond.id, { error: 'UndefinedError: x', level: 'ERROR' });
-        await until(async () => (await getChore(db, chore.id))?.templateError === 'UndefinedError: x');
-        expect((await getChore(db, chore.id))?.conditionResult).toBeNull();
+        fake.push(condSub.id, { error: 'UndefinedError: x', level: 'ERROR' });
+        await until(async () => (await getCondition(db, cond.id))?.error === 'UndefinedError: x');
+        expect((await getChore(db, chore.id))).toMatchObject({ conditionResult: null, templateError: 'UndefinedError: x' });
 
-        await templates.sync([{ ...chore, boostTemplate: null }]);
+        await templates.sync([cond]);
         expect(templates.size).toBe(1);
         await fake.waitFor('unsubscribe_events');
     });
@@ -107,9 +111,9 @@ describe('Home Assistant connector', () => {
     it('stores the error of a template that Home Assistant rejects', async () => {
         await ha.start();
         fake.handlers.set('render_template', () => { throw new Error('TemplateSyntaxError'); });
-        const chore = await createChore(db, newChore({ conditionTemplate: '{{ broken' }));
-        await new TemplateManager(db, ha).sync([chore]);
-        expect((await getChore(db, chore.id))?.templateError).toContain('TemplateSyntaxError');
+        const cond = await createCondition(db, { name: 'Kaputt', kind: 'state', template: '{{ broken' });
+        await new TemplateManager(db, ha).sync([cond]);
+        expect((await getCondition(db, cond.id))?.error).toContain('TemplateSyntaxError');
     });
 
     it('renders a template once with variables', async () => {

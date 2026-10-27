@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DAY, HOUR, MINUTE } from '../../src/core/types.ts';
 import { getCache, setCache } from '../../src/db/cache.ts';
 import { getChore } from '../../src/db/chores.ts';
+import { createCondition } from '../../src/db/conditions.ts';
 import { Scheduler, hintLine } from '../../src/jobs/scheduler.ts';
 import { createPerson } from '../../src/service/admin.ts';
 import { createChore } from '../../src/service/chores.ts';
@@ -99,9 +100,11 @@ describe('scheduler', () => {
         await setCache(deps.db, FORECAST_KEY, [
             { datetime: '2026-11-07T11:00:00+00:00', condition: 'sunny', temperature: 12, precipitation: 0 },
         ], Date.now());
+        const dry = await createCondition(deps.db, { name: 'Trocken', kind: 'forecast',
+            template: '{{ day.precipitation == 0 }}' });
         await createChore(deps, { name: 'Dachrinne', kind: 'recurring', growth: 'time', interval: 180, importance: 'normal',
             durationMin: 60, effort: 4, assignment: 'any', personIds: [1], lastDoneAt: Date.now() - 200 * DAY,
-            forecastTemplate: '{{ day.precipitation == 0 }}' });
+            forecastId: dry.id });
         fake.responses.delete('weather.get_forecasts');
         await scheduler.sendNotifications();
         await scheduler.sendNotifications();

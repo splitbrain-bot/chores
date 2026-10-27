@@ -1,6 +1,6 @@
-import type { Chore } from '../core/types.ts';
+import type { Condition } from '../core/types.ts';
+import { setConditionResult } from '../db/conditions.ts';
 import type { Database } from '../db/database.ts';
-import { setTemplateResult } from '../db/chores.ts';
 import type { HaApi } from './connection.ts';
 
 /** An event of a render_template subscription. */
@@ -25,7 +25,7 @@ export function toFlag(result: unknown): 0 | 1 {
     return 0;
 }
 
-/** Keeps one render_template subscription per condition and boost template of the active chores. */
+/** Keeps one render_template subscription per state condition. */
 export class TemplateManager {
     private readonly db: Database;
     private readonly ha: HaApi;
@@ -43,20 +43,12 @@ export class TemplateManager {
     /**
      * Opens the subscriptions for new or changed templates and closes the ones that are gone.
      *
-     * @param chores the active chores
+     * @param conditions all conditions
      */
-    async sync(chores: readonly Chore[]): Promise<void> {
-        const wanted = new Map<string, { id: number; which: 'condition' | 'boost'; template: string }>();
-        for (const chore of chores) {
-            if (chore.deletedAt !== null) continue;
-            if (chore.conditionTemplate) {
-                wanted.set(key(chore.id, 'condition', chore.conditionTemplate),
-                    { id: chore.id, which: 'condition', template: chore.conditionTemplate });
-            }
-            if (chore.boostTemplate) {
-                wanted.set(key(chore.id, 'boost', chore.boostTemplate),
-                    { id: chore.id, which: 'boost', template: chore.boostTemplate });
-            }
+    async sync(conditions: readonly Condition[]): Promise<void> {
+        const wanted = new Map<string, Condition>();
+        for (const condition of conditions) {
+            if (condition.kind === 'state') wanted.set(key(condition.id, condition.template), condition);
         }
 
         for (const [k, sub] of this.subscriptions) {
@@ -65,8 +57,8 @@ export class TemplateManager {
             const unsubscribe = await sub;
             await unsubscribe?.().catch(() => undefined);
         }
-        for (const [k, w] of wanted) {
-            if (!this.subscriptions.has(k)) this.subscriptions.set(k, this.open(w.id, w.which, w.template));
+        for (const [k, c] of wanted) {
+            if (!this.subscriptions.has(k)) this.subscriptions.set(k, this.open(c.id, c.template));
         }
         await Promise.all(this.subscriptions.values());
     }
@@ -79,14 +71,13 @@ export class TemplateManager {
     /**
      * Opens one subscription. A template that Home Assistant rejects at once gets a null result and the error text.
      *
-     * @param id the chore id
-     * @param which the template
+     * @param id the condition id
      * @param template the template source
      * @returns the function that closes the subscription, or null after an error
      */
-    private async open(id: number, which: 'condition' | 'boost', template: string): Promise<(() => Promise<void>) | null> {
+    private async open(id: number, template: string): Promise<(() => Promise<void>) | null> {
         const store = (result: number | null, error: string | null) =>
-            setTemplateResult(this.db, id, which, result, error).catch((err) => console.error('Template store failed', err));
+            setConditionResult(this.db, id, result, error).catch((err) => console.error('Template store failed', err));
         try {
             return await this.ha.subscribe<RenderEvent>(
                 { type: 'render_template', template, report_errors: true },
@@ -132,12 +123,11 @@ export async function renderOnce(ha: HaApi, template: string, variables: object)
 /**
  * Builds the subscription key of a template.
  *
- * @param id the chore id
- * @param which the template
+ * @param id the condition id
  * @param template the template source
  */
-function key(id: number, which: string, template: string): string {
-    return `${id}\u0000${which}\u0000${template}`;
+function key(id: number, template: string): string {
+    return `${id}\u0000${template}`;
 }
 
 /**

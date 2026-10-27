@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createCategory } from '../../src/db/categories.ts';
-import { createChore, getChore, listChores, setTemplateResult, updateChore } from '../../src/db/chores.ts';
+import { createChore, getChore, listChores, updateChore } from '../../src/db/chores.ts';
+import { createCondition, setConditionResult } from '../../src/db/conditions.ts';
 import { createPerson } from '../../src/db/persons.ts';
 import { newChore } from './fixtures.ts';
 import { memoryDb } from './helpers.ts';
@@ -39,12 +40,16 @@ describe('chores', () => {
         expect(await listChores(db, { ids: [] })).toEqual([]);
     });
 
-    it('stores template results', async () => {
+    it('reads the results of the linked conditions', async () => {
         const db = await memoryDb();
-        const chore = await createChore(db, newChore({ conditionTemplate: '{{ x }}' }));
-        await setTemplateResult(db, chore.id, 'condition', 1, null);
-        expect(await getChore(db, chore.id)).toMatchObject({ conditionResult: 1, templateError: null });
-        await setTemplateResult(db, chore.id, 'boost', null, 'UndefinedError');
-        expect(await getChore(db, chore.id)).toMatchObject({ boostResult: null, templateError: 'UndefinedError' });
+        const cond = await createCondition(db, { name: 'Trocken', kind: 'state', template: '{{ x }}' });
+        const boost = await createCondition(db, { name: 'Besuch', kind: 'state', template: '{{ y }}' });
+        const chore = await createChore(db, newChore({ conditionId: cond.id, boostId: boost.id }));
+        expect(chore).toMatchObject({ conditionResult: null, boostResult: null, templateError: null });
+        await setConditionResult(db, cond.id, 1, null);
+        await setConditionResult(db, boost.id, null, 'UndefinedError');
+        expect(await getChore(db, chore.id)).toMatchObject({ conditionResult: 1, boostResult: null,
+            templateError: 'UndefinedError' });
+        expect((await listChores(db))[0]).toMatchObject({ conditionResult: 1, templateError: 'UndefinedError' });
     });
 });

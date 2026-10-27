@@ -35,6 +35,22 @@ export interface Category {
     sort: number;
 }
 
+/** Kind of a condition. A state condition has a current result, a forecast condition has a result per forecast day. */
+export type ConditionKind = 'state' | 'forecast';
+
+/** A Home Assistant template that many chores can use. */
+export interface Condition {
+    id: number;
+    name: string;
+    kind: ConditionKind;
+    /** Template source. A forecast condition gets the forecast of one day as the variable day. */
+    template: string;
+    /** Last result of a state condition: 1, 0 or null for no result or a render error. */
+    result: number | null;
+    /** Error text of the last rendering. */
+    error: string | null;
+}
+
 /** A unit of work with all stored attributes. */
 export interface Chore {
     id: number;
@@ -54,12 +70,17 @@ export interface Chore {
     deadlineMd: string | null;
     deadlineAt: number | null;
     deadlineLeadDays: number;
-    conditionTemplate: string | null;
-    boostTemplate: string | null;
-    forecastTemplate: string | null;
-    /** Last template result: 1, 0 or null for no result or a render error. */
+    /** State condition that must be true for the chore. */
+    conditionId: number | null;
+    /** State condition that makes the chore urgent. */
+    boostId: number | null;
+    /** Forecast condition for the look-ahead. */
+    forecastId: number | null;
+    /** Current result of the condition: 1, 0 or null for no result or a render error. */
     conditionResult: number | null;
+    /** Current result of the boost condition. */
     boostResult: number | null;
+    /** Error text of the condition or of the boost condition. */
     templateError: string | null;
     durationMin: number;
     effort: number;

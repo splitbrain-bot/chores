@@ -5,6 +5,7 @@ import type { Viewer } from '../core/types.ts';
 import { createCategory, listCategories } from '../service/admin.ts';
 import type { Identity } from '../service/auth.ts';
 import { createChore, deleteChore, getChore, listChores, updateChore } from '../service/chores.ts';
+import { createCondition, deleteCondition, listConditions, updateCondition } from '../service/conditions.ts';
 import type { Deps } from '../service/deps.ts';
 import { markDone, postpone } from '../service/feedback.ts';
 import { getLookahead } from '../service/lookahead.ts';
@@ -13,6 +14,7 @@ import { listPresence } from '../service/presence.ts';
 import { getSuggestions } from '../service/suggestions.ts';
 import { categorySchema } from '../schemas/admin.ts';
 import { choreInputSchema, choreUpdateSchema } from '../schemas/chore.ts';
+import { conditionSchema, conditionUpdateSchema } from '../schemas/condition.ts';
 import { postponeSchema } from '../schemas/feedback.ts';
 import { bearer } from './auth.ts';
 import type { AppEnv } from './env.ts';
@@ -51,6 +53,31 @@ export function createMcpServer(deps: Deps, version: string, identity: Identity)
         description: 'Creates a category.',
         inputSchema: categorySchema,
     }, async ({ name, sort }) => result({ category: await createCategory(deps, name, sort) }));
+
+    server.registerTool('list_conditions', {
+        description: 'Lists the conditions with their status. A state condition has the current result 1 or 0, or '
+            + 'null with an error. A forecast condition has a result per day of the look-ahead. choreIds names the '
+            + 'chores that use the condition.',
+    }, async () => result({ conditions: await listConditions(deps) }));
+
+    server.registerTool('create_condition', {
+        description: 'Creates a condition. A chore uses a state condition as conditionId or boostId and a forecast '
+            + 'condition as forecastId.',
+        inputSchema: conditionSchema,
+    }, async (args) => result({ condition: await createCondition(deps, args) }));
+
+    server.registerTool('update_condition', {
+        description: 'Changes the name or the template of a condition. All chores that use it get the change.',
+        inputSchema: conditionUpdateSchema.extend({ id }),
+    }, async ({ id: conditionId, ...values }) => result({ condition: await updateCondition(deps, conditionId, values) }));
+
+    server.registerTool('delete_condition', {
+        description: 'Deletes a condition. A condition that chores use cannot be deleted.',
+        inputSchema: z.object({ id }),
+    }, async (args) => {
+        await deleteCondition(deps, args.id);
+        return result({ ok: true });
+    });
 
     server.registerTool('list_chores', {
         description: 'Lists the chores with their need level. A need level of 1 means the interval is over. '

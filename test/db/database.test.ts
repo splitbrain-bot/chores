@@ -12,7 +12,7 @@ describe('database', () => {
         const again = await createDatabase(path);
         const tables = await again.introspection.getTables();
         expect(tables.map((t) => t.name).sort()).toEqual(['cache', 'category', 'chore', 'chore_category', 'chore_person',
-            'event', 'ha_state', 'occupancy', 'person', 'setting', 'token']);
+            'condition', 'event', 'ha_state', 'occupancy', 'person', 'setting', 'token']);
         await again.destroy();
     });
 });
@@ -57,6 +57,54 @@ describe('migration slot-weekdays', () => {
             { days: [1, 2, 3, 4], from: '17:00', to: '21:00', minutes: 30, energy: 3 },
             { days: [5, 6, 0], from: '08:00', to: '12:00', minutes: 90, energy: 5 },
         ]);
+        await db.destroy();
+    });
+});
+
+describe('migration templates-to-conditions', () => {
+    it('moves the templates of the chores to shared conditions and back', async () => {
+        const { openDatabase } = await import('../../src/db/database.ts');
+        const { Migrator } = await import('kysely/migration');
+        const { sql } = await import('kysely');
+        const initial = await import('../../src/db/migrations/2026-10-27-initial.ts');
+        const conditions = await import('../../src/db/migrations/2026-10-27-templates-to-conditions.ts');
+        const db = openDatabase(':memory:');
+        await new Migrator({ db, provider: { getMigrations: async () => ({ '2026-10-27-initial': initial }) } }).migrateToLatest();
+        const chore = (name: string, condition: string | null, boost: string | null, forecast: string | null) =>
+            sql`INSERT INTO chore (name, kind, growth, importance, duration_min, effort, assignment, last_done_at,
+                created_at, updated_at, condition_template, boost_template, forecast_template)
+                VALUES (${name}, 'recurring', 'time', 'normal', 10, 1, 'any', 0, 0, 0, ${condition}, ${boost}, ${forecast})`
+                .execute(db);
+        await chore('Rasen', '{{ dry }}', '{{ guests }}', '{{ day.sun }}');
+        await chore('Hecke', '{{ dry }}', null, null);
+        await chore('Rasen', null, '{{ dry }}', null);
+        await db.insertInto('category').values({ name: 'Garten' }).execute();
+        await db.insertInto('choreCategory').values({ choreId: 2, categoryId: 1 }).execute();
+        await db.insertInto('cache').values({ key: 'forecast_template:1:2026-10-30', value: 'true', fetchedAt: 0 }).execute();
+
+        await conditions.up(db as never);
+        expect(await db.selectFrom('condition').select(['id', 'name', 'kind', 'template']).orderBy('id').execute()).toEqual([
+            { id: 1, name: 'Rasen', kind: 'state', template: '{{ dry }}' },
+            { id: 2, name: 'Rasen (2)', kind: 'state', template: '{{ guests }}' },
+            { id: 3, name: 'Rasen (3)', kind: 'forecast', template: '{{ day.sun }}' },
+        ]);
+        expect(await db.selectFrom('chore').select(['conditionId', 'boostId', 'forecastId']).orderBy('id').execute()).toEqual([
+            { conditionId: 1, boostId: 2, forecastId: 3 },
+            { conditionId: 1, boostId: null, forecastId: null },
+            { conditionId: null, boostId: 1, forecastId: null },
+        ]);
+        expect(await db.selectFrom('cache').selectAll().execute()).toEqual([]);
+
+        await conditions.down(db as never);
+        const rows = await sql<Record<string, unknown>>`SELECT condition_template, boost_template, forecast_template
+            FROM chore ORDER BY id`.execute(db);
+        expect(rows.rows).toEqual([
+            { conditionTemplate: '{{ dry }}', boostTemplate: '{{ guests }}', forecastTemplate: '{{ day.sun }}' },
+            { conditionTemplate: '{{ dry }}', boostTemplate: null, forecastTemplate: null },
+            { conditionTemplate: null, boostTemplate: '{{ dry }}', forecastTemplate: null },
+        ]);
+        expect((await db.introspection.getTables()).map((t) => t.name)).not.toContain('condition');
+        expect(await db.selectFrom('choreCategory').selectAll().execute()).toEqual([{ choreId: 2, categoryId: 1 }]);
         await db.destroy();
     });
 });

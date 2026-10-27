@@ -444,7 +444,7 @@ tr.revoked {
     color: var(--muted);
 }
 
-.person {
+.person, .condition {
     border: 1px solid var(--line);
     border-radius: var(--radius);
     padding: var(--gap);

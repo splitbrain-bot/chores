@@ -1,10 +1,11 @@
 import { isLookaheadCandidate, lookahead } from '../core/lookahead.ts';
 import { addDays, localDate } from '../core/time.ts';
-import type { ChoreWithNeed, ForecastDay, Hint } from '../core/types.ts';
+import type { Condition, ForecastDay, Hint, Settings } from '../core/types.ts';
 import { getCache, setCache } from '../db/cache.ts';
+import { listConditions } from '../db/conditions.ts';
 import { renderOnce, toFlag } from '../ha/templates.ts';
 import type { Deps } from './deps.ts';
-import { evaluate, FORECAST_KEY, type EvalState } from './evaluate.ts';
+import { evaluate, FORECAST_KEY } from './evaluate.ts';
 
 /** The look-ahead hints with the age of the forecast. */
 export interface LookaheadResult {
@@ -13,7 +14,7 @@ export interface LookaheadResult {
     forecastAge: number | null;
 }
 
-/** Cache key prefix of the forecast template results. */
+/** Cache key prefix of the forecast condition results. */
 export const FORECAST_TEMPLATE_PREFIX = 'forecast_template:';
 
 /**
@@ -22,7 +23,8 @@ export const FORECAST_TEMPLATE_PREFIX = 'forecast_template:';
  * @param deps the dependencies
  * @param timeZone IANA time zone
  */
-async function loadForecast(deps: Deps, timeZone: string): Promise<{ days: Map<string, ForecastDay>; fetchedAt: number | null }> {
+export async function loadForecast(deps: Deps, timeZone: string):
+    Promise<{ days: Map<string, ForecastDay>; fetchedAt: number | null }> {
     const cached = await getCache<ForecastDay[]>(deps.db, FORECAST_KEY);
     const days = new Map<string, ForecastDay>();
     for (const day of cached?.value ?? []) {
@@ -33,26 +35,26 @@ async function loadForecast(deps: Deps, timeZone: string): Promise<{ days: Map<s
 }
 
 /**
- * Returns the forecast template results per chore and date. Missing results are rendered by Home Assistant and
- * cached until the next forecast refresh.
+ * Returns the results of forecast conditions per condition id and local date for the look-ahead days. Missing
+ * results are rendered by Home Assistant and cached until the next forecast refresh.
  *
  * @param deps the dependencies
- * @param chores the evaluated chores
+ * @param conditions the forecast conditions
  * @param days the forecast by local date
- * @param state the evaluation state
+ * @param now milliseconds since the epoch
+ * @param settings the settings
  */
-async function forecastResults(deps: Deps, chores: readonly ChoreWithNeed[], days: ReadonlyMap<string, ForecastDay>,
-    state: EvalState): Promise<Map<number, Map<string, boolean | null>>> {
-    const today = localDate(state.now, state.settings.time_zone);
+export async function forecastResults(deps: Deps, conditions: readonly Condition[],
+    days: ReadonlyMap<string, ForecastDay>, now: number, settings: Settings): Promise<Map<number, Map<string, boolean | null>>> {
+    const today = localDate(now, settings.time_zone);
     const result = new Map<number, Map<string, boolean | null>>();
-    for (const chore of chores) {
-        if (!chore.forecastTemplate || chore.deletedAt !== null) continue;
+    for (const condition of conditions) {
         const perDay = new Map<string, boolean | null>();
-        for (let i = 1; i <= state.settings.lookahead_days; i++) {
+        for (let i = 1; i <= settings.lookahead_days; i++) {
             const date = addDays(today, i);
             const day = days.get(date);
             if (!day) continue;
-            const key = `${FORECAST_TEMPLATE_PREFIX}${chore.id}:${date}`;
+            const key = `${FORECAST_TEMPLATE_PREFIX}${condition.id}:${date}`;
             const cached = await getCache<boolean | null>(deps.db, key);
             if (cached) {
                 perDay.set(date, cached.value);
@@ -61,14 +63,14 @@ async function forecastResults(deps: Deps, chores: readonly ChoreWithNeed[], day
             if (!deps.ha?.connected) continue;
             let value: boolean | null;
             try {
-                value = toFlag(await renderOnce(deps.ha, chore.forecastTemplate, { day })) === 1;
+                value = toFlag(await renderOnce(deps.ha, condition.template, { day })) === 1;
             } catch {
                 value = null;
             }
-            await setCache(deps.db, key, value, state.now);
+            await setCache(deps.db, key, value, now);
             perDay.set(date, value);
         }
-        result.set(chore.id, perDay);
+        result.set(condition.id, perDay);
     }
     return result;
 }
@@ -83,6 +85,9 @@ export async function getLookahead(deps: Deps): Promise<LookaheadResult> {
     const personIds = state.persons.map((p) => p.id);
     const candidates = chores.filter((c) => isLookaheadCandidate(c, personIds));
     const forecast = await loadForecast(deps, state.settings.time_zone);
+    const used = new Set(candidates.map((c) => c.forecastId));
+    const conditions = (await listConditions(deps.db)).filter((c) => c.kind === 'forecast' && used.has(c.id));
+    const results = await forecastResults(deps, conditions, forecast.days, state.now, state.settings);
     const hints = lookahead(candidates, {
         now: state.now,
         settings: state.settings,
@@ -90,7 +95,8 @@ export async function getLookahead(deps: Deps): Promise<LookaheadResult> {
         holidays: state.holidays,
         calendars: state.calendars,
         forecast: forecast.days,
-        forecastResults: await forecastResults(deps, candidates, forecast.days, state),
+        forecastResults: new Map(candidates.filter((c) => c.forecastId !== null)
+            .map((c) => [c.id, results.get(c.forecastId!) ?? new Map()])),
     });
     return { hints, forecastAge: forecast.fetchedAt === null ? null : state.now - forecast.fetchedAt };
 }

@@ -1,5 +1,6 @@
-import type { Chore, ChoreEvent, ChoreWithNeed, Kind, Viewer } from '../core/types.ts';
+import type { ChoreEvent, ChoreWithNeed, Kind, Viewer } from '../core/types.ts';
 import { listCategories } from '../db/categories.ts';
+import { listConditions } from '../db/conditions.ts';
 import { createChore as insertChore, getChore as loadChore, updateChore as storeChore, type NewChore } from '../db/chores.ts';
 import { listChoreEvents } from '../db/events.ts';
 import { listPersons } from '../db/persons.ts';
@@ -49,6 +50,22 @@ async function checkLinks(deps: Deps, personIds: readonly number[], categoryIds:
 }
 
 /**
+ * Checks that the linked conditions exist and have the right kind.
+ *
+ * @param deps the dependencies
+ * @param c the values
+ * @throws ServiceError for an unknown condition or a wrong kind
+ */
+async function checkConditions(deps: Deps, c: NewChore): Promise<void> {
+    const kinds = new Map((await listConditions(deps.db)).map((cond) => [cond.id, cond.kind]));
+    for (const [id, kind] of [[c.conditionId, 'state'], [c.boostId, 'state'], [c.forecastId, 'forecast']] as const) {
+        if (id === null) continue;
+        if (!kinds.has(id)) throw new ServiceError(400, 'Unknown condition');
+        if (kinds.get(id) !== kind) throw new ServiceError(400, `The condition ${id} is not a ${kind} condition`);
+    }
+}
+
+/**
  * Applies input values to chore values. The interval limits of a recurring chore default to an eighth and four times
  * the interval when they are empty or when the input sets the interval without them.
  *
@@ -69,7 +86,7 @@ function merge(base: NewChore, input: ChoreUpdate): NewChore {
         if (next.intervalMax == null || (input.interval && input.intervalMax === undefined)) next.intervalMax = next.interval * 4;
     }
     for (const key of ['groupKey', 'intervalMin', 'intervalMax', 'counterEntity', 'deadlineMd', 'deadlineAt',
-        'conditionTemplate', 'boostTemplate', 'forecastTemplate', 'seasonFrom', 'seasonTo', 'notes'] as const) {
+        'conditionId', 'boostId', 'forecastId', 'seasonFrom', 'seasonTo', 'notes'] as const) {
         if (next[key] === undefined) (next as unknown as Record<string, unknown>)[key] = null;
     }
     return next;
@@ -86,8 +103,8 @@ export async function createChore(deps: Deps, input: ChoreInput): Promise<ChoreW
     const empty: NewChore = {
         name: '', groupKey: null, kind: 'recurring', growth: 'time', interval: null, intervalMin: null,
         intervalMax: null, learnStep: 0.15, learnDirection: 0, counterEntity: null, importance: 'normal',
-        deadlineMd: null, deadlineAt: null, deadlineLeadDays: 14, conditionTemplate: null, boostTemplate: null,
-        forecastTemplate: null, conditionResult: null, boostResult: null, templateError: null, durationMin: 10,
+        deadlineMd: null, deadlineAt: null, deadlineLeadDays: 14, conditionId: null, boostId: null,
+        forecastId: null, conditionResult: null, boostResult: null, templateError: null, durationMin: 10,
         effort: 1, assignment: 'any', seasonFrom: null, seasonTo: null, noisy: false, notes: null, lastDoneAt: now,
         snoozedUntil: null, notYetCount: 0, lastNotifiedAt: null, createdAt: now, updatedAt: now, deletedAt: null,
         personIds: [], categoryIds: [],
@@ -96,13 +113,14 @@ export async function createChore(deps: Deps, input: ChoreInput): Promise<ChoreW
     if (values.kind === 'one_time') values.lastDoneAt = now;
     check(values);
     await checkLinks(deps, values.personIds, values.categoryIds);
+    await checkConditions(deps, values);
     const chore = await insertChore(deps.db, values);
     deps.onChoresChanged?.();
     return evaluatedChore(deps, { kind: 'shared' }, chore.id);
 }
 
 /**
- * Changes a chore. A changed template clears its last result.
+ * Changes a chore.
  *
  * @param deps the dependencies
  * @param id the chore id
@@ -115,13 +133,8 @@ export async function updateChore(deps: Deps, id: number, input: ChoreUpdate): P
     const values = merge(base, input);
     check(values);
     await checkLinks(deps, values.personIds, values.categoryIds);
-    const update: Partial<Chore> = { ...values, updatedAt: deps.now() };
-    if (values.conditionTemplate !== current.conditionTemplate) update.conditionResult = null;
-    if (values.boostTemplate !== current.boostTemplate) update.boostResult = null;
-    if (values.conditionTemplate !== current.conditionTemplate || values.boostTemplate !== current.boostTemplate) {
-        update.templateError = null;
-    }
-    await storeChore(deps.db, id, update);
+    await checkConditions(deps, values);
+    await storeChore(deps.db, id, { ...values, updatedAt: deps.now() });
     deps.onChoresChanged?.();
     return evaluatedChore(deps, { kind: 'shared' }, id);
 }

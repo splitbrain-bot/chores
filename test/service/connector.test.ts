@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { HOUR } from '../../src/core/types.ts';
 import { getChore as loadChore } from '../../src/db/chores.ts';
+import { listConditions } from '../../src/db/conditions.ts';
 import { insertStates, listStates } from '../../src/db/ha_state.ts';
 import { listOccupancy } from '../../src/db/occupancy.ts';
 import { createPerson, updatePerson } from '../../src/db/persons.ts';
 import { TemplateManager } from '../../src/ha/templates.ts';
 import { Watcher } from '../../src/ha/watcher.ts';
 import { createChore } from '../../src/service/chores.ts';
+import { createCondition } from '../../src/service/conditions.ts';
 import { listPresence, watchList } from '../../src/service/presence.ts';
 import { Clock, FakeApi, makeDeps } from './helpers.ts';
 
@@ -131,10 +133,11 @@ describe('template results', () => {
         const clock = new Clock('2026-10-26T20:00:00+01:00');
         const deps = await makeDeps(clock);
         const fake = deps.fake as FakeApi;
+        const dry = await createCondition(deps, { name: 'Trocken', kind: 'state', template: '{{ dry }}' });
         const chore = await createChore(deps, { name: 'Rasen', kind: 'recurring', growth: 'time', interval: 7,
-            importance: 'normal', durationMin: 30, effort: 3, assignment: 'any', conditionTemplate: '{{ dry }}' });
+            importance: 'normal', durationMin: 30, effort: 3, assignment: 'any', conditionId: dry.id });
         const templates = new TemplateManager(deps.db, fake);
-        await templates.sync([await loadChore(deps.db, chore.id)].filter((c) => c !== undefined));
+        await templates.sync(await listConditions(deps.db));
         const sub = fake.subscriptions.find((s) => s.message.type === 'render_template')!;
         sub.callback({ result: true });
         await new Promise((r) => setTimeout(r, 10));

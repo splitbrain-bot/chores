@@ -148,7 +148,7 @@ export function computeNeed(chore: Chore, ctx: NeedContext): NeedResult {
         }
     }
 
-    if (chore.boostTemplate !== null && chore.boostResult === 1) {
+    if (chore.boostId !== null && chore.boostResult === 1) {
         urgent = true;
         if (DEADLINE_LEVEL > need) {
             need = DEADLINE_LEVEL;

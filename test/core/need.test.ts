@@ -128,7 +128,7 @@ describe('one-time task', () => {
 });
 
 describe('boost', () => {
-    const chore = makeChore({ boostTemplate: '{{ true }}', lastDoneAt: now - DAY });
+    const chore = makeChore({ boostId: 1, lastDoneAt: now - DAY });
 
     it('raises the need to 10 with result 1', () => {
         const result = computeNeed({ ...chore, boostResult: 1 }, ctx());

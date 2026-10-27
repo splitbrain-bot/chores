@@ -40,6 +40,25 @@ describe('HTTP API', () => {
         expect(await (await t.call('GET', '/api/chores', null)).json()).toEqual({ error: 'Missing or invalid token' });
     });
 
+    it('manages conditions', async () => {
+        const created = await t.call('POST', '/api/conditions', t.person, { name: 'Trocken', kind: 'state', template: '{{ a }}' });
+        expect(created.status).toBe(201);
+        const { condition } = await created.json() as { condition: { id: number } };
+        expect((await t.call('POST', '/api/conditions', t.person, { name: 'x', kind: 'other', template: '{{ a }}' })).status)
+            .toBe(400);
+        expect((await t.call('POST', '/api/conditions', t.shared, { name: 'x', kind: 'state', template: '{{ a }}' })).status)
+            .toBe(403);
+        await t.call('POST', '/api/chores', t.person, { ...chore, conditionId: condition.id });
+
+        expect(await (await t.call('GET', '/api/conditions', t.shared)).json()).toMatchObject({
+            conditions: [{ id: condition.id, name: 'Trocken', choreIds: [1] }] });
+        expect(await (await t.call('PATCH', `/api/conditions/${condition.id}`, t.person, { name: 'Draußen trocken' })).json())
+            .toMatchObject({ condition: { name: 'Draußen trocken' } });
+        expect((await t.call('DELETE', `/api/conditions/${condition.id}`)).status).toBe(409);
+        await t.call('DELETE', '/api/chores/1');
+        expect((await t.call('DELETE', `/api/conditions/${condition.id}`)).status).toBe(200);
+    });
+
     it('manages chores and gives feedback', async () => {
         const created = await t.call('POST', '/api/chores', t.person, { ...chore, lastDoneAt: t.clock.t - 10 * DAY });
         expect(created.status).toBe(201);
