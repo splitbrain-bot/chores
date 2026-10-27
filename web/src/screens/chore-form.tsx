@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { api } from '../api.ts';
 import { CategoryPicker } from '../components/category-picker.tsx';
 import { EffortPicker } from '../components/effort-picker.tsx';
+import { SeasonPicker } from '../components/season-picker.tsx';
 import { useApp } from '../context.ts';
 import { conditionStatusText } from '../format.ts';
 import { hasKey, num, t, time } from '../i18n.ts';
@@ -193,10 +194,13 @@ export function ChoreForm({ id }: { id: number | null }) {
                 </div>
                 <small className="hint">{t('form.personsHint')}</small>
             </Field>
-            <div className="row">
-                <Field label={t('form.seasonFrom')}>{input('seasonFrom', 'number', { min: 1, max: 12 })}</Field>
-                <Field label={t('form.seasonTo')}>{input('seasonTo', 'number', { min: 1, max: 12 })}</Field>
-            </div>
+            <Field label={t('form.season')} group>
+                <SeasonPicker from={form.seasonFrom ? Number(form.seasonFrom) : null}
+                    to={form.seasonTo ? Number(form.seasonTo) : null} onChange={(from, to) => {
+                        set('seasonFrom', from === null ? '' : String(from));
+                        set('seasonTo', to === null ? '' : String(to));
+                    }} />
+            </Field>
             <label className="check">
                 <input type="checkbox" name="noisy" checked={form.noisy} onChange={(e) => set('noisy', e.target.checked)} />
                 {t('form.noisy')}

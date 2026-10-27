@@ -400,6 +400,32 @@ input[type="checkbox"] {
     background: var(--accent);
 }
 
+/* twelve months in one row, two rows on narrow screens */
+.season-picker {
+    container-type: inline-size;
+}
+
+.months {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 4px;
+}
+
+.months .chip {
+    padding: 0.35em 0;
+    text-align: center;
+}
+
+@container (max-width: 520px) {
+    .months {
+        grid-template-columns: repeat(6, 1fr);
+    }
+}
+
+.season-picker .hint .link {
+    margin-left: 0.5em;
+}
+
 /* larger circles that are easy to tap */
 .effort-picker {
     gap: 10px;

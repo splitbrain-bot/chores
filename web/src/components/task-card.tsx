@@ -99,8 +99,8 @@ export function TaskCard({ chore, related, onDone, onLater }:
     const flags = [
         deadline && <Flag key="deadline" icon={<Icon path={mdiCalendarAlert} />} text={deadline}
             urgent={chore.reason.code === 'deadline'} />,
-        (chore.seasonFrom !== null || chore.seasonTo !== null) && <Flag key="season" icon={<Icon path={mdiSprout} />}
-            text={t('suggestions.season', { from: monthName(chore.seasonFrom ?? 1), to: monthName(chore.seasonTo ?? 12) })} />,
+        chore.seasonFrom !== null && chore.seasonTo !== null && <Flag key="season" icon={<Icon path={mdiSprout} />}
+            text={t('suggestions.season', { from: monthName(chore.seasonFrom), to: monthName(chore.seasonTo) })} />,
         ...(['conditionId', 'boostId', 'forecastId'] as const).map((key) => {
             const condition = conditions.find((c) => c.id === chore[key]);
             if (!condition) return null;
