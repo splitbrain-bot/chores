@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { api } from '../api.ts';
 import { CategoryPicker } from '../components/category-picker.tsx';
+import { EffortPicker } from '../components/effort-picker.tsx';
 import { useApp } from '../context.ts';
 import { conditionStatusText } from '../format.ts';
 import { hasKey, num, t, time } from '../i18n.ts';
@@ -175,7 +176,9 @@ export function ChoreForm({ id }: { id: number | null }) {
             )}
             <div className="row">
                 <Field label={t('form.durationMin')}>{input('durationMin', 'number', { min: 1, required: true })}</Field>
-                <Field label={t('form.effort')}>{input('effort', 'number', { min: 1, max: 5, required: true })}</Field>
+                <Field label={t('form.effort')} group>
+                    <EffortPicker value={Number(form.effort)} label={t('form.effort')} onChange={(n) => set('effort', String(n))} />
+                </Field>
             </div>
             <Field label={t('form.persons')} group>
                 <div className="chips">

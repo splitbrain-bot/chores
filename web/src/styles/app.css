@@ -400,6 +400,19 @@ input[type="checkbox"] {
     background: var(--accent);
 }
 
+/* larger circles that are easy to tap */
+.effort-picker {
+    gap: 10px;
+}
+
+.effort-picker .dot {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-width: 2px;
+    border-radius: 50%;
+}
+
 .compact {
     container-type: inline-size;
     margin-bottom: var(--gap);

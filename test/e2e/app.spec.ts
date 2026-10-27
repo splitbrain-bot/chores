@@ -132,7 +132,7 @@ test('creates and edits a chore in the form', async ({ page }) => {
     await page.getByLabel('Growth').selectOption('time');
     await page.getByLabel('Interval (days)').fill('60');
     await page.getByLabel('Duration (minutes)').fill('45');
-    await page.getByLabel('Effort (1 to 5)').fill('4');
+    await page.getByRole('radio', { name: 'Effort 4 of 5' }).click();
     await page.getByRole('button', { name: 'Save' }).click();
 
     await expect(page).toHaveURL(/\/chores$/);
@@ -143,6 +143,7 @@ test('creates and edits a chore in the form', async ({ page }) => {
     await row.getByRole('link', { name: 'Backofen reinigen' }).click();
     await expect(page.getByRole('heading', { name: 'Edit chore' })).toBeVisible();
     await expect(page.getByLabel('Minimum interval')).toHaveValue('7.5');
+    await expect(page.getByRole('radio', { name: 'Effort 4 of 5' })).toHaveAttribute('aria-checked', 'true');
     await page.getByLabel('Name').fill('Backofen gründlich reinigen');
     await page.getByRole('button', { name: 'Kaddi' }).click();
     await page.getByRole('button', { name: 'Save' }).click();

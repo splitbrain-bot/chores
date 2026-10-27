@@ -111,7 +111,7 @@ export const en = {
     'form.boostId': 'Boost condition',
     'form.forecastId': 'Forecast condition',
     'form.durationMin': 'Duration (minutes)',
-    'form.effort': 'Effort (1 to 5)',
+    'form.effort': 'Effort',
     'form.persons': 'Persons',
     'form.personsHint': 'No person: anybody. One person: only this person. More persons: all of them together.',
     'form.categories': 'Categories',

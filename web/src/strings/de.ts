@@ -113,7 +113,7 @@ export const de: Record<StringKey, string> = {
     'form.boostId': 'Boost-Bedingung',
     'form.forecastId': 'Vorhersage-Bedingung',
     'form.durationMin': 'Dauer (Minuten)',
-    'form.effort': 'Aufwand (1 bis 5)',
+    'form.effort': 'Aufwand',
     'form.persons': 'Personen',
     'form.personsHint': 'Keine Person: alle. Eine Person: nur diese Person. Mehrere Personen: alle zusammen.',
     'form.categories': 'Kategorien',
