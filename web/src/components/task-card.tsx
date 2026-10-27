@@ -111,6 +111,8 @@ export function TaskCard({ chore, related, onDone, onLater }:
     ].filter(Boolean);
 
     const status = [...blockedText(chore), ...(chore.templateError ? [t('chores.templateError')] : [])];
+    const relatedText = (r: ChoreWithNeed) => (r.categoryIds.length > 0
+        ? `${r.name} (${rooms(r).map((c) => c.name).join(', ')})` : r.name);
     const [firstLine, ...moreLines] = (chore.notes ?? '').split('\n');
 
     return (
@@ -146,15 +148,16 @@ export function TaskCard({ chore, related, onDone, onLater }:
             <div className="sub">
                 {status.length > 0 && <span className="blocked-by">{status.map((s) => <span key={s}>{s}</span>)}</span>}
                 {related.length > 0 && (
-                    <div className="related" title={related.map((r) => r.name).join(', ')}>
+                    <div className="related" title={related.map(relatedText).join(', ')}>
                         <Icon path={mdiLinkVariant} />
                         <span className="label">{t('suggestions.also')}: </span>
                         <ul>
                             {related.map((r) => (
-                                <li key={r.id}>
-                                    {r.name}
+                                // the compact layout shows only the categories when the title is the same
+                                <li key={r.id} className={r.name === chore.name && r.categoryIds.length > 0 ? 'same-name' : undefined}>
+                                    <span className="name">{r.name}</span>
                                     {r.categoryIds.length > 0 && (
-                                        <span className="categories"> ({rooms(r).map((c) => c.name).join(', ')})</span>
+                                        <span className="categories">{rooms(r).map((c) => c.name).join(', ')}</span>
                                     )}
                                 </li>
                             ))}

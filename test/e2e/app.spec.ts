@@ -33,6 +33,7 @@ test('logs in and shows the suggestions', async ({ page }) => {
     await expect(page.getByText('up to 120 min, energy 5')).toBeVisible();
     await expect(page.locator('.task h2')).toHaveText(['Kühlschrank auswischen', 'Spiegel putzen', 'Fußboden wischen']);
     await expect(page.locator('.task').nth(2).getByText('Also possible')).toBeVisible();
+    await expect(page.locator('.task').nth(2).locator('.related .name')).toBeVisible();
 });
 
 test('marks a suggestion as done and taps necessary earlier', async ({ page, request }) => {
@@ -123,7 +124,10 @@ test('groups the chore list by category or by group key', async ({ page }) => {
     await page.getByLabel('Grouping').selectOption('groupKey');
     await expect(page.locator('.chores > section > h2')).toHaveText(['fussboden-wischen', 'Without group key']);
     await expect(page.locator('.chores section').first().locator('.task h2')).toHaveText(['Fußboden wischen', 'Fußboden wischen']);
-    await expect(page.locator('.chores section').first().locator('.related').first()).toContainText('Fußboden wischen (Bad)');
+    const related = page.locator('.chores section').first().locator('.related').first();
+    await expect(related).toHaveAttribute('title', 'Fußboden wischen (Bad)');
+    await expect(related.locator('.name')).toBeHidden();
+    await expect(related.locator('.categories')).toHaveText('Bad');
 });
 
 test('creates and edits a chore in the form', async ({ page }) => {

@@ -358,6 +358,23 @@ input[type="checkbox"] {
     content: ", ";
 }
 
+.task .related .categories::before {
+    content: " (";
+}
+
+.task .related .categories::after {
+    content: ")";
+}
+
+.compact .task .related .same-name .name {
+    display: none;
+}
+
+.compact .task .related .same-name .categories::before,
+.compact .task .related .same-name .categories::after {
+    content: none;
+}
+
 .task .notes {
     margin: 0;
     color: var(--muted);
