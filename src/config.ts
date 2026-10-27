@@ -7,9 +7,6 @@ const envSchema = z.object({
     STATIC_DIR: z.string().default('web/dist'),
     HA_URL: z.url().optional(),
     HA_TOKEN: z.string().optional(),
-    INITIAL_PERSON: z.string().optional(),
-    INITIAL_PASSWORD: z.string().optional(),
-    INITIAL_PERSON_ENTITY: z.string().optional(),
 });
 
 /** Validated configuration of the process. */

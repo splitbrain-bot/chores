@@ -12,6 +12,7 @@
     "dev:web": "vite",
     "build": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json --noEmit && tsc -p test/e2e/tsconfig.json --noEmit && vite build",
     "start": "node src/server.ts",
+    "cli": "node src/cli.ts",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "lint": "eslint .",

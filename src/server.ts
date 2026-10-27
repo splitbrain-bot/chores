@@ -9,7 +9,6 @@ import { Watcher } from './ha/watcher.ts';
 import { Scheduler } from './jobs/scheduler.ts';
 import { createApp } from './http/app.ts';
 import { addMcpRoute } from './http/mcp.ts';
-import { ensureInitialPerson } from './service/auth.ts';
 import type { Deps } from './service/deps.ts';
 import { watchList } from './service/presence.ts';
 
@@ -18,13 +17,6 @@ const { version } = JSON.parse(readFileSync(new URL('../package.json', import.me
 const db = await createDatabase(config.DATABASE_PATH);
 const ha = config.HA_URL && config.HA_TOKEN ? new HomeAssistant(config.HA_URL, config.HA_TOKEN) : null;
 const deps: Deps = { db, ha, now: Date.now };
-
-if (config.INITIAL_PERSON && config.INITIAL_PASSWORD) {
-    const entity = config.INITIAL_PERSON_ENTITY ?? `person.${config.INITIAL_PERSON.toLowerCase().replace(/\W+/g, '_')}`;
-    if (await ensureInitialPerson(deps, config.INITIAL_PERSON, config.INITIAL_PASSWORD, entity)) {
-        console.log(`Created the person ${config.INITIAL_PERSON}`);
-    }
-}
 
 let watcher: Watcher | null = null;
 

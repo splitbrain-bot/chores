@@ -23,6 +23,7 @@ The server listens on port 3000. Vite serves the web app on port 5173 and sends 
 | `npm run lint`     | ESLint                                      |
 | `npm run sim`      | Simulation of one year, see below           |
 | `npm run migrate`  | Database migrations                         |
+| `npm run cli`      | Command line tool, see below                |
 
 ## Environment
 
@@ -33,9 +34,6 @@ The server listens on port 3000. Vite serves the web app on port 5173 and sends 
 | `STATIC_DIR`       | `web/dist`           | Built web app                                             |
 | `HA_URL`           |                      | Home Assistant URL, for example `http://192.168.1.10:8123` |
 | `HA_TOKEN`         |                      | Long-lived access token of Home Assistant                 |
-| `INITIAL_PERSON`   |                      | Name of the first person, used when no person exists      |
-| `INITIAL_PASSWORD` |                      | Password of the first person                              |
-| `INITIAL_PERSON_ENTITY` | `person.<name>` | Home Assistant person entity of the first person          |
 
 ## Docker
 
@@ -51,6 +49,18 @@ docker compose up -d --build
 
 The container runs as the user `node` with the uid 1000. The directory `data` on the host must be writable for this
 uid.
+
+## Persons
+
+The command line tool creates a person with a password, for example the first person after the installation:
+
+```
+docker exec -it chores chores add-person Andi person.andreas_gohr
+```
+
+The tool asks for the password twice. Without a terminal it reads the password from the first two lines of the
+standard input. The server reads the watched Home Assistant entities at the start, so the container needs a restart
+after a new person. Logged-in persons can add more persons in the settings screen.
 
 ## MCP
 

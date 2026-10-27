@@ -1,7 +1,7 @@
 import { createHash, randomBytes, scrypt as scryptCb, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import { HOUR, type Person, type Viewer } from '../core/types.ts';
-import { countPersons, createPerson, getPerson, getPersonWithHash } from '../db/persons.ts';
+import { getPerson, getPersonWithHash } from '../db/persons.ts';
 import { createToken as insertToken, findActiveToken, touchToken, type Token } from '../db/tokens.ts';
 import type { Deps } from './deps.ts';
 import { ServiceError } from './errors.ts';
@@ -128,19 +128,4 @@ export function can(kind: TokenKind, right: Right): boolean {
     if (right === 'read') return true;
     if (right === 'feedback') return true;
     return kind === 'person' || kind === 'mcp';
-}
-
-/**
- * Creates the first person when no person exists.
- *
- * @param deps the dependencies
- * @param name the name
- * @param password the password
- * @param haEntity the person entity in Home Assistant
- * @returns true when the person was created
- */
-export async function ensureInitialPerson(deps: Deps, name: string, password: string, haEntity: string): Promise<boolean> {
-    if ((await countPersons(deps.db)) > 0) return false;
-    await createPerson(deps.db, { name, haEntity, passwordHash: await hashPassword(password) });
-    return true;
 }

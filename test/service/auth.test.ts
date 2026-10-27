@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { HOUR } from '../../src/core/types.ts';
 import { listTokens } from '../../src/db/tokens.ts';
 import { createPerson } from '../../src/service/admin.ts';
-import { authenticate, can, createToken, ensureInitialPerson, hashPassword, login, verifyPassword } from '../../src/service/auth.ts';
+import { authenticate, can, createToken, hashPassword, login, verifyPassword } from '../../src/service/auth.ts';
 import { revokeToken } from '../../src/service/admin.ts';
 import { Clock, makeDeps } from './helpers.ts';
 
@@ -65,12 +65,5 @@ describe('tokens', () => {
         expect(['person', 'shared', 'mcp'].map((k) => can(k as never, 'manage'))).toEqual([true, false, true]);
         expect(['person', 'shared', 'mcp'].map((k) => can(k as never, 'feedback'))).toEqual([true, true, true]);
         expect(can('shared', 'read')).toBe(true);
-    });
-
-    it('creates the initial person only once', async () => {
-        const deps = await makeDeps(new Clock('2026-10-26T20:00:00+01:00'));
-        expect(await ensureInitialPerson(deps, 'Andi', 'geheim', 'person.a')).toBe(true);
-        expect(await ensureInitialPerson(deps, 'Kaddi', 'geheim', 'person.k')).toBe(false);
-        expect((await login(deps, 'Andi', 'geheim')).person.name).toBe('Andi');
     });
 });

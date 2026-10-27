@@ -9,5 +9,3 @@ services:
     environment:
       HA_URL: ${HA_URL}
       HA_TOKEN: ${HA_TOKEN}
-      INITIAL_PERSON: ${INITIAL_PERSON:-}
-      INITIAL_PASSWORD: ${INITIAL_PASSWORD:-}
