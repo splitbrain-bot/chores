@@ -47,14 +47,24 @@ export async function getPerson(db: Database, id: number): Promise<Person | unde
 }
 
 /**
- * Returns a person with the password hash for the login.
+ * Returns a person with the password hash for the login. The name is compared without regard to case.
  *
  * @param db the database
  * @param name the name of the person
  */
 export async function getPersonWithHash(db: Database, name: string): Promise<{ person: Person; passwordHash: string | null } | undefined> {
-    const row = await db.selectFrom('person').selectAll().where('name', '=', name).executeTakeFirst();
+    const row = (await db.selectFrom('person').selectAll().execute()).find((r) => sameName(r.name, name));
     return row && { person: toPerson(row), passwordHash: row.passwordHash };
+}
+
+/**
+ * Tells if two person names are the same without regard to case.
+ *
+ * @param a the first name
+ * @param b the second name
+ */
+export function sameName(a: string, b: string): boolean {
+    return a.trim().toLowerCase() === b.trim().toLowerCase();
 }
 
 /**

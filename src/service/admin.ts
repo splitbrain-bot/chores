@@ -28,6 +28,19 @@ function isUniqueError(err: unknown): boolean {
 }
 
 /**
+ * Checks that no other person has the same name without regard to case.
+ *
+ * @param deps the dependencies
+ * @param name the new name
+ * @param id the id of the changed person, null for a new person
+ * @throws ServiceError 409 when the name exists already
+ */
+async function checkName(deps: Deps, name: string, id: number | null): Promise<void> {
+    const others = (await persons.listPersons(deps.db)).filter((p) => p.id !== id);
+    if (others.some((p) => persons.sameName(p.name, name))) throw new ServiceError(409, 'The name exists already');
+}
+
+/**
  * Converts person input to stored values.
  *
  * @param input the input
@@ -55,6 +68,7 @@ export function listPersons(deps: Deps): Promise<Person[]> {
  * @param input the values
  */
 export async function createPerson(deps: Deps, input: PersonInput): Promise<Person> {
+    await checkName(deps, input.name, null);
     try {
         const person = await persons.createPerson(deps.db, (await personValues(input)) as persons.NewPerson);
         deps.onPersonsChanged?.();
@@ -73,6 +87,7 @@ export async function createPerson(deps: Deps, input: PersonInput): Promise<Pers
  * @param input the changed values
  */
 export async function updatePerson(deps: Deps, id: number, input: Partial<PersonInput>): Promise<Person> {
+    if (input.name !== undefined) await checkName(deps, input.name, id);
     try {
         const person = await persons.updatePerson(deps.db, id, await personValues(input));
         if (!person) throw notFound('Person');

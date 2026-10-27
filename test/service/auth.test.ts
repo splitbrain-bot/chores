@@ -23,6 +23,9 @@ describe('tokens', () => {
         await createPerson(deps, { name: 'Andi', haEntity: 'person.a', password: 'geheim' });
         await expect(login(deps, 'Andi', 'falsch')).rejects.toMatchObject({ status: 401 });
         await expect(login(deps, 'Nobody', 'geheim')).rejects.toMatchObject({ status: 401 });
+        expect((await login(deps, 'andi', 'geheim')).person.name).toBe('Andi');
+        expect((await login(deps, ' ANDI ', 'geheim')).person.name).toBe('Andi');
+        await expect(createPerson(deps, { name: 'ANDI', haEntity: 'person.x' })).rejects.toMatchObject({ status: 409 });
         const { token, person } = await login(deps, 'Andi', 'geheim');
         const id = await authenticate(deps, token);
         expect(id).toMatchObject({ kind: 'person', person: { id: person.id }, viewer: { kind: 'person', personId: person.id } });
