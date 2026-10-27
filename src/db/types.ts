@@ -10,6 +10,7 @@ export interface PersonTable {
     haNotifyAction: string | null;
     passwordHash: string | null;
     sort: Generated<number>;
+    color: Generated<string>;
 }
 
 /** Table category. */
@@ -17,6 +18,7 @@ export interface CategoryTable {
     id: Generated<number>;
     name: string;
     sort: Generated<number>;
+    icon: string | null;
 }
 
 /** Table condition. */
@@ -27,6 +29,7 @@ export interface ConditionTable {
     template: string;
     result: number | null;
     error: string | null;
+    icon: string | null;
 }
 
 /** Table chore. */

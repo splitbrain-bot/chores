@@ -26,8 +26,8 @@ describe('condition service', () => {
 
         expect(await listConditions(deps)).toEqual([
             { id: sun.id, name: 'Sonnig', kind: 'forecast', template: '{{ day.precipitation == 0 }}', result: null,
-                error: null, choreIds: [rasen.id], forecast: [{ date: '2026-10-30', result: true }] },
-            { id: dry.id, name: 'Trocken', kind: 'state', template: '{{ dry }}', result: 1, error: null,
+                error: null, icon: null, choreIds: [rasen.id], forecast: [{ date: '2026-10-30', result: true }] },
+            { id: dry.id, name: 'Trocken', kind: 'state', template: '{{ dry }}', result: 1, error: null, icon: null,
                 choreIds: [rasen.id], forecast: [] },
         ]);
         await expect(createCondition(deps, { name: 'Trocken', kind: 'state', template: '{{ x }}' }))

@@ -11,6 +11,7 @@ export interface NewPerson {
     notifyAction?: string | null;
     passwordHash?: string | null;
     sort?: number;
+    color?: string;
 }
 
 /**
@@ -21,7 +22,7 @@ export interface NewPerson {
 function toPerson(row: PersonRow): Person {
     return {
         id: row.id, name: row.name, haEntity: row.haEntity, distanceEntity: row.haDistanceEntity,
-        calendarEntity: row.haCalendarEntity, notifyAction: row.haNotifyAction, sort: row.sort,
+        calendarEntity: row.haCalendarEntity, notifyAction: row.haNotifyAction, sort: row.sort, color: row.color,
     };
 }
 
@@ -87,7 +88,7 @@ export async function createPerson(db: Database, p: NewPerson): Promise<Person> 
     const row = await db.insertInto('person').values({
         name: p.name, haEntity: p.haEntity ?? null, haDistanceEntity: p.distanceEntity ?? null,
         haCalendarEntity: p.calendarEntity ?? null, haNotifyAction: p.notifyAction ?? null,
-        passwordHash: p.passwordHash ?? null, sort: p.sort ?? 0,
+        passwordHash: p.passwordHash ?? null, sort: p.sort ?? 0, color: p.color,
     }).returningAll().executeTakeFirstOrThrow();
     return toPerson(row);
 }
@@ -103,7 +104,7 @@ export async function createPerson(db: Database, p: NewPerson): Promise<Person> 
 export async function updatePerson(db: Database, id: number, p: Partial<NewPerson>): Promise<Person | undefined> {
     const values = {
         name: p.name, haEntity: p.haEntity, haDistanceEntity: p.distanceEntity, haCalendarEntity: p.calendarEntity,
-        haNotifyAction: p.notifyAction, passwordHash: p.passwordHash, sort: p.sort,
+        haNotifyAction: p.notifyAction, passwordHash: p.passwordHash, sort: p.sort, color: p.color,
     };
     const set = Object.fromEntries(Object.entries(values).filter(([, v]) => v !== undefined));
     if (Object.keys(set).length > 0) await db.updateTable('person').set(set).where('id', '=', id).execute();

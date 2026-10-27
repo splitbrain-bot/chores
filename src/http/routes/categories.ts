@@ -14,8 +14,8 @@ export function categoryRoutes(deps: Deps): Hono<AppEnv> {
     const app = new Hono<AppEnv>();
     app.get('/categories', requires('read'), async (c) => c.json({ categories: await listCategories(deps) }));
     app.post('/categories', requires('manage'), async (c) => {
-        const { name, sort } = await body(c, categorySchema);
-        return c.json({ category: await createCategory(deps, name, sort) }, 201);
+        const { name, sort, icon } = await body(c, categorySchema);
+        return c.json({ category: await createCategory(deps, name, sort, icon) }, 201);
     });
     app.patch('/categories/:id', requires('manage'), async (c) => {
         const id = idParam(c);

@@ -10,7 +10,9 @@ describe('categories', () => {
         const kitchen = await createCategory(db, 'Küche', 1);
         await createCategory(db, 'Bad');
         expect((await listCategories(db)).map((c) => c.name)).toEqual(['Bad', 'Küche']);
-        expect(await updateCategory(db, kitchen.id, { name: 'Kitchen' })).toEqual({ id: kitchen.id, name: 'Kitchen', sort: 1 });
+        expect(await updateCategory(db, kitchen.id, { name: 'Kitchen' })).toEqual({ id: kitchen.id, name: 'Kitchen', sort: 1,
+            icon: null });
+        expect(await updateCategory(db, kitchen.id, { icon: 'stove' })).toMatchObject({ name: 'Kitchen', icon: 'stove' });
         expect(await getCategory(db, kitchen.id)).toMatchObject({ name: 'Kitchen' });
 
         const chore = await createChore(db, newChore({ categoryIds: [kitchen.id] }));

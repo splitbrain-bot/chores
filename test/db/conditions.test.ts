@@ -19,6 +19,7 @@ describe('conditions', () => {
             .toMatchObject({ name: 'Draußen trocken', template: '{{ a }}', result: 1 });
         expect(await updateCondition(db, b.id, { template: '{{ a }}' })).toMatchObject({ result: 1 });
         expect(await updateCondition(db, b.id, { template: '{{ c }}' })).toMatchObject({ template: '{{ c }}', result: null });
+        expect(await updateCondition(db, b.id, { icon: 'weather-sunny' })).toMatchObject({ icon: 'weather-sunny', result: null });
         expect(await updateCondition(db, 99, { name: 'x' })).toBeUndefined();
     });
 

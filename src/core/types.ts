@@ -26,6 +26,8 @@ export interface Person {
     calendarEntity: string | null;
     notifyAction: string | null;
     sort: number;
+    /** Color of the person as #rrggbb. */
+    color: string;
 }
 
 /** A label for chores, for example a room. */
@@ -33,6 +35,8 @@ export interface Category {
     id: number;
     name: string;
     sort: number;
+    /** Name of a Material Design icon. */
+    icon: string | null;
 }
 
 /** Kind of a condition. A state condition has a current result, a forecast condition has a result per forecast day. */
@@ -49,6 +53,8 @@ export interface Condition {
     result: number | null;
     /** Error text of the last rendering. */
     error: string | null;
+    /** Name of a Material Design icon. */
+    icon: string | null;
 }
 
 /** A unit of work with all stored attributes. */

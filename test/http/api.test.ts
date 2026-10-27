@@ -101,7 +101,10 @@ describe('HTTP API', () => {
         const { category } = await res.json() as { category: { id: number } };
         expect((await t.call('POST', '/api/categories', t.person, { name: 'Küche' })).status).toBe(409);
         expect(await (await t.call('PATCH', `/api/categories/${category.id}`, t.person, { sort: 3 })).json())
-            .toEqual({ category: { id: category.id, name: 'Küche', sort: 3 } });
+            .toEqual({ category: { id: category.id, name: 'Küche', sort: 3, icon: null } });
+        expect(await (await t.call('PATCH', `/api/categories/${category.id}`, t.person, { icon: 'stove' })).json())
+            .toMatchObject({ category: { name: 'Küche', icon: 'stove' } });
+        expect((await t.call('PATCH', `/api/categories/${category.id}`, t.person, { icon: '../x' })).status).toBe(400);
         expect(await (await t.call('GET', '/api/categories', t.shared)).json()).toMatchObject({ categories: [{ name: 'Küche' }] });
         expect((await t.call('DELETE', `/api/categories/${category.id}`)).status).toBe(200);
         expect((await t.call('DELETE', `/api/categories/${category.id}`)).status).toBe(404);
@@ -111,8 +114,12 @@ describe('HTTP API', () => {
         const res = await t.call('POST', '/api/persons', t.person, { name: 'Kaddi', haEntity: 'person.k', password: 'pw',
             notifyAction: 'notify.mobile_app_cronk' });
         expect(res.status).toBe(201);
-        const { person } = await res.json() as { person: { id: number } };
+        const { person } = await res.json() as { person: { id: number; color: string } };
+        expect(person.color).toMatch(/^#[0-9a-f]{6}$/);
         expect(JSON.stringify(await (await t.call('GET', '/api/persons')).json())).not.toContain('password');
+        expect(await (await t.call('PATCH', `/api/persons/${person.id}`, t.person, { color: '#336699' })).json())
+            .toMatchObject({ person: { color: '#336699' } });
+        expect((await t.call('PATCH', `/api/persons/${person.id}`, t.person, { color: 'blue' })).status).toBe(400);
         expect(await (await t.call('PATCH', `/api/persons/${person.id}`, t.person, { calendarEntity: 'calendar.k' })).json())
             .toMatchObject({ person: { calendarEntity: 'calendar.k' } });
         expect((await t.call('PATCH', '/api/persons/99', t.person, { sort: 1 })).status).toBe(404);
@@ -157,7 +164,6 @@ describe('HTTP API', () => {
             ['POST', '/api/categories', { name: 'x' }],
             ['PATCH', '/api/categories/1', { name: 'x' }],
             ['DELETE', '/api/categories/1'],
-            ['GET', '/api/persons'],
             ['POST', '/api/persons', { name: 'x', haEntity: 'person.x' }],
             ['PATCH', '/api/persons/1', { name: 'x' }],
             ['GET', '/api/settings'],
@@ -174,6 +180,8 @@ describe('HTTP API', () => {
             '/api/lookahead']) {
             expect([path, (await t.call('GET', path, t.shared)).status]).toEqual([path, 200]);
         }
+        const { persons } = await (await t.call('GET', '/api/persons', t.shared)).json() as { persons: object[] };
+        expect(persons.map((p) => Object.keys(p).sort())).toEqual([['color', 'id', 'name', 'sort']]);
     });
 
     it('returns 404 for unknown API paths', async () => {

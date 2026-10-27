@@ -24,9 +24,10 @@ export async function getCondition(db: Database, id: number): Promise<Condition 
  * Creates a condition without a result.
  *
  * @param db the database
- * @param values the unique name, the kind and the template
+ * @param values the unique name, the kind, the template and the icon
  */
-export async function createCondition(db: Database, values: { name: string; kind: ConditionKind; template: string }):
+export async function createCondition(db: Database,
+    values: { name: string; kind: ConditionKind; template: string; icon?: string | null }):
     Promise<Condition> {
     return db.insertInto('condition').values(values).returningAll().executeTakeFirstOrThrow();
 }
@@ -39,12 +40,14 @@ export async function createCondition(db: Database, values: { name: string; kind
  * @param values the changed values
  * @returns the condition, or undefined when it does not exist
  */
-export async function updateCondition(db: Database, id: number, values: { name?: string; template?: string }):
+export async function updateCondition(db: Database, id: number,
+    values: { name?: string; template?: string; icon?: string | null }):
     Promise<Condition | undefined> {
     const current = await getCondition(db, id);
     if (!current) return undefined;
     const update: Partial<Condition> = {};
     if (values.name !== undefined) update.name = values.name;
+    if (values.icon !== undefined) update.icon = values.icon;
     if (values.template !== undefined && values.template !== current.template) {
         Object.assign(update, { template: values.template, result: null, error: null });
     }

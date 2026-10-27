@@ -108,3 +108,26 @@ describe('migration templates-to-conditions', () => {
         await db.destroy();
     });
 });
+
+describe('migration visual-icons-and-colors', () => {
+    it('gives each existing person a random color and adds the icons', async () => {
+        const { openDatabase, migrate } = await import('../../src/db/database.ts');
+        const { Migrator } = await import('kysely/migration');
+        const initial = await import('../../src/db/migrations/2026-10-27-initial.ts');
+        const visual = await import('../../src/db/migrations/2026-10-27-visual-icons-and-colors.ts');
+        const db = openDatabase(':memory:');
+        await new Migrator({ db, provider: { getMigrations: async () => ({ '2026-10-27-initial': initial }) } }).migrateToLatest();
+        await db.insertInto('person').values({ name: 'Andi', haEntity: 'person.a' }).execute();
+        await db.insertInto('category').values({ name: 'Küche' }).execute();
+
+        await migrate(db);
+        const person = await db.selectFrom('person').select('color').executeTakeFirstOrThrow();
+        expect(person.color).toMatch(/^#[0-9a-f]{6}$/);
+        expect(await db.selectFrom('category').select('icon').execute()).toEqual([{ icon: null }]);
+
+        await visual.down(db as never);
+        expect((await db.introspection.getTables()).find((t) => t.name === 'person')?.columns.map((c) => c.name))
+            .not.toContain('color');
+        await db.destroy();
+    });
+});

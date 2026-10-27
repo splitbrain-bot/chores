@@ -82,7 +82,7 @@ export function createMcpServer(deps: Deps, version: string, identity: Identity)
     server.registerTool('create_category', {
         description: 'Creates a category.',
         inputSchema: categorySchema,
-    }, async ({ name, sort }) => result({ category: await createCategory(deps, name, sort) }));
+    }, async ({ name, sort, icon }) => result({ category: await createCategory(deps, name, sort, icon) }));
 
     server.registerTool('list_conditions', {
         description: 'Lists the conditions with their status. A state condition has the current result 1 or 0, or '
@@ -97,7 +97,7 @@ export function createMcpServer(deps: Deps, version: string, identity: Identity)
     }, async (args) => result({ condition: await createCondition(deps, args) }));
 
     server.registerTool('update_condition', {
-        description: 'Changes the name or the template of a condition. All chores that use it get the change.',
+        description: 'Changes the name, the template or the icon of a condition. All chores that use it get the change.',
         inputSchema: conditionUpdateSchema.extend({ id }),
     }, async ({ id: conditionId, ...values }) => result({ condition: await updateCondition(deps, conditionId, values) }));
 

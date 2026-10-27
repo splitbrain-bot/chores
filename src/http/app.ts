@@ -11,6 +11,7 @@ import { authRoutes } from './routes/auth.ts';
 import { categoryRoutes } from './routes/categories.ts';
 import { choreRoutes } from './routes/chores.ts';
 import { conditionRoutes } from './routes/conditions.ts';
+import { iconRoutes } from './routes/icons.ts';
 import { personRoutes } from './routes/persons.ts';
 import { settingsRoutes } from './routes/settings.ts';
 import { suggestionRoutes } from './routes/suggestions.ts';
@@ -59,6 +60,8 @@ export function createApp(deps: Deps, options: AppOptions): Hono<AppEnv> {
     }
     app.route('/api', api);
     app.all('/api/*', (c) => c.json({ error: 'Not found' }, 404));
+
+    app.route('/mdi', iconRoutes());
 
     options.mcp?.(app);
 

@@ -26,9 +26,10 @@ export async function getCategory(db: Database, id: number): Promise<Category | 
  * @param db the database
  * @param name the unique name
  * @param sort the sort position
+ * @param icon the name of a Material Design icon
  */
-export async function createCategory(db: Database, name: string, sort = 0): Promise<Category> {
-    return db.insertInto('category').values({ name, sort }).returningAll().executeTakeFirstOrThrow();
+export async function createCategory(db: Database, name: string, sort = 0, icon: string | null = null): Promise<Category> {
+    return db.insertInto('category').values({ name, sort, icon }).returningAll().executeTakeFirstOrThrow();
 }
 
 /**
@@ -39,10 +40,10 @@ export async function createCategory(db: Database, name: string, sort = 0): Prom
  * @param values the changed values
  * @returns the category, or undefined when it does not exist
  */
-export async function updateCategory(db: Database, id: number, values: { name?: string; sort?: number }): Promise<Category | undefined> {
-    if (values.name !== undefined || values.sort !== undefined) {
-        await db.updateTable('category').set(values).where('id', '=', id).execute();
-    }
+export async function updateCategory(db: Database, id: number,
+    values: { name?: string; sort?: number; icon?: string | null }): Promise<Category | undefined> {
+    const set = Object.fromEntries(Object.entries(values).filter(([, v]) => v !== undefined));
+    if (Object.keys(set).length > 0) await db.updateTable('category').set(set).where('id', '=', id).execute();
     return getCategory(db, id);
 }
 

@@ -16,6 +16,22 @@ export interface PersonInput {
     notifyAction?: string | null;
     password?: string | null;
     sort?: number;
+    color?: string;
+}
+
+/**
+ * Returns a random color with a medium saturation and lightness as #rrggbb.
+ */
+export function randomColor(): string {
+    const h = Math.random() * 360;
+    const s = 0.65;
+    const l = 0.5;
+    const f = (n: number) => {
+        const k = (n + h / 30) % 12;
+        const v = l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+        return Math.round(v * 255).toString(16).padStart(2, '0');
+    };
+    return `#${f(0)}${f(8)}${f(4)}`;
 }
 
 /**
@@ -62,7 +78,7 @@ export function listPersons(deps: Deps): Promise<Person[]> {
 }
 
 /**
- * Creates a person.
+ * Creates a person. A person without a color gets a random color.
  *
  * @param deps the dependencies
  * @param input the values
@@ -70,7 +86,8 @@ export function listPersons(deps: Deps): Promise<Person[]> {
 export async function createPerson(deps: Deps, input: PersonInput): Promise<Person> {
     await checkName(deps, input.name, null);
     try {
-        const person = await persons.createPerson(deps.db, (await personValues(input)) as persons.NewPerson);
+        const values = await personValues({ ...input, color: input.color ?? randomColor() });
+        const person = await persons.createPerson(deps.db, values as persons.NewPerson);
         deps.onPersonsChanged?.();
         return person;
     } catch (err) {
@@ -114,10 +131,11 @@ export function listCategories(deps: Deps): Promise<Category[]> {
  * @param deps the dependencies
  * @param name the name
  * @param sort the sort position
+ * @param icon the name of a Material Design icon
  */
-export async function createCategory(deps: Deps, name: string, sort = 0): Promise<Category> {
+export async function createCategory(deps: Deps, name: string, sort = 0, icon: string | null = null): Promise<Category> {
     try {
-        return await categories.createCategory(deps.db, name, sort);
+        return await categories.createCategory(deps.db, name, sort, icon);
     } catch (err) {
         if (isUniqueError(err)) throw new ServiceError(409, 'The name exists already');
         throw err;
@@ -131,7 +149,8 @@ export async function createCategory(deps: Deps, name: string, sort = 0): Promis
  * @param id the category id
  * @param values the changed values
  */
-export async function updateCategory(deps: Deps, id: number, values: { name?: string; sort?: number }): Promise<Category> {
+export async function updateCategory(deps: Deps, id: number, values: { name?: string; sort?: number; icon?: string | null }):
+    Promise<Category> {
     try {
         const category = await categories.updateCategory(deps.db, id, values);
         if (!category) throw notFound('Category');

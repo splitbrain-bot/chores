@@ -40,6 +40,7 @@ export default defineConfig({
         proxy: {
             '/api': 'http://localhost:3000',
             '/mcp': 'http://localhost:3000',
+            '/mdi': 'http://localhost:3000',
         },
     },
 });

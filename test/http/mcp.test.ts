@@ -70,8 +70,8 @@ describe('MCP endpoint', () => {
 
     it('configures the persons and the settings', async () => {
         expect((await tool('list_persons')).structuredContent).toEqual({ persons: [{ id: 1, personId: 1, name: 'Andi',
-            haEntity: 'person.a', distanceEntity: null, calendarEntity: null, notifyAction: null, sort: 0, home: false,
-            since: null, distanceKm: null }] });
+            haEntity: 'person.a', distanceEntity: null, calendarEntity: null, notifyAction: null, sort: 0,
+            color: expect.stringMatching(/^#[0-9a-f]{6}$/), home: false, since: null, distanceKm: null }] });
         expect((await tool('update_person', { id: 1, calendarEntity: 'calendar.andi', haEntity: null })).structuredContent)
             .toMatchObject({ person: { name: 'Andi', haEntity: null, calendarEntity: 'calendar.andi' } });
         const withPassword = await tool('update_person', { id: 1, password: 'neu' });
@@ -98,8 +98,10 @@ describe('MCP endpoint', () => {
         expect(persons.structuredContent).toMatchObject({ persons: [{ name: 'Andi', home: false }] });
         expect(JSON.parse(persons.content[0]!.text)).toEqual(persons.structuredContent);
 
-        const { category } = (await tool('create_category', { name: 'Küche' })).structuredContent as { category: { id: number } };
-        expect((await tool('list_categories')).structuredContent).toEqual({ categories: [{ id: category.id, name: 'Küche', sort: 0 }] });
+        const { category } = (await tool('create_category', { name: 'Küche', icon: 'stove' })).structuredContent as
+            { category: { id: number } };
+        expect((await tool('list_categories')).structuredContent).toEqual({ categories: [{ id: category.id, name: 'Küche', sort: 0,
+            icon: 'stove' }] });
 
         const { condition } = (await tool('create_condition', { name: 'Trocken', kind: 'state', template: '{{ a }}' }))
             .structuredContent as { condition: { id: number } };
