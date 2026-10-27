@@ -28,7 +28,8 @@ test('logs in and shows the suggestions', async ({ page }) => {
     await page.getByLabel('Password').fill('andi-pw');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.locator('.badge')).toHaveText(['Andi', 'Kaddi']);
+    await expect(page.locator('.badge')).toHaveText(['Andi']);
+    await expect(page.locator('.badge')).toHaveCSS('background-color', 'rgb(47, 111, 219)');
     await expect(page.getByText('up to 120 min, energy 5')).toBeVisible();
     await expect(page.locator('.task h2')).toHaveText(['Kühlschrank auswischen', 'Spiegel putzen', 'Fußboden wischen']);
     await expect(page.locator('.task').nth(2).getByText('Also possible')).toBeVisible();
@@ -97,6 +98,8 @@ test('opens the tablet mode with the shared token URL', async ({ page }) => {
     await expect(page).toHaveURL(/\/$/);
     expect(page.url()).not.toContain('token');
     await expect(page.locator('html')).toHaveClass(/tablet/);
+    await expect(page.locator('.badge')).toHaveText(['Andi', 'Kaddi']);
+    await expect(page.locator('.badge').last()).toHaveCSS('background-color', 'rgb(224, 123, 26)');
     await expect(page.locator('.nav a')).toHaveText(['Now', 'Chores']);
     await expect(page.getByRole('button', { name: 'Log out' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Edit chore' })).toHaveCount(0);
