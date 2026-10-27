@@ -58,12 +58,38 @@ describe('MCP endpoint', () => {
         const list = await t.app.request('/mcp', { method: 'POST', headers: { ...headers, 'mcp-protocol-version': '2025-11-25' },
             body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' }) });
         const text = await list.text();
-        for (const name of ['list_persons', 'list_categories', 'create_category', 'list_conditions', 'create_condition',
+        for (const name of ['list_persons', 'update_person', 'get_settings', 'update_settings', 'set_capacity_slots',
+            'list_categories', 'create_category', 'list_conditions', 'create_condition',
             'update_condition', 'delete_condition', 'list_chores', 'get_chore', 'create_chore', 'update_chore', 'delete_chore',
             'mark_done', 'postpone', 'get_suggestions', 'get_lookahead', 'get_overview']) {
             expect(text).toContain(`"name":"${name}"`);
         }
         expect(text).toContain('"durationMin"');
+    });
+
+    it('configures the persons and the settings', async () => {
+        expect((await tool('list_persons')).structuredContent).toEqual({ persons: [{ id: 1, personId: 1, name: 'Andi',
+            haEntity: 'person.a', distanceEntity: null, calendarEntity: null, notifyAction: null, sort: 0, home: false,
+            since: null, distanceKm: null }] });
+        expect((await tool('update_person', { id: 1, calendarEntity: 'calendar.andi', haEntity: null })).structuredContent)
+            .toMatchObject({ person: { name: 'Andi', haEntity: null, calendarEntity: 'calendar.andi' } });
+        const withPassword = await tool('update_person', { id: 1, password: 'neu' });
+        expect((await t.call('POST', '/api/auth/login', null, { name: 'Andi', password: 'geheim' })).status).toBe(200);
+        expect(withPassword.structuredContent).toMatchObject({ person: { name: 'Andi' } });
+        expect((await tool('update_person', { id: 9, name: 'x' })).isError).toBe(true);
+
+        const { settings } = (await tool('get_settings')).structuredContent as { settings: Record<string, unknown> };
+        expect(settings).toMatchObject({ suggestion_count: 3, capacity_slots: expect.any(Array) });
+        expect((await tool('update_settings', { suggestion_count: 5, 'slope.normal': 1.5 })).structuredContent)
+            .toMatchObject({ settings: { suggestion_count: 5, 'slope.normal': 1.5, time_zone: 'Europe/Berlin',
+                capacity_slots: settings.capacity_slots } });
+        expect((await tool('update_settings', { suggestion_count: 50 })).isError).toBe(true);
+
+        const slots = [{ days: [6, 0], from: '09:00', to: '12:00', minutes: 90, energy: 4 }];
+        expect((await tool('set_capacity_slots', { slots })).structuredContent).toEqual({ slots });
+        expect((await tool('get_settings')).structuredContent).toMatchObject({ settings: { suggestion_count: 5,
+            capacity_slots: slots } });
+        expect((await tool('set_capacity_slots', { slots: [{ ...slots[0], from: '13:00' }] })).isError).toBe(true);
     });
 
     it('runs every tool', async () => {

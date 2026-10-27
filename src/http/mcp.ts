@@ -2,7 +2,7 @@ import type { Hono } from 'hono';
 import { createMcpHandler, McpServer, type AuthInfo } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import type { Viewer } from '../core/types.ts';
-import { createCategory, listCategories } from '../service/admin.ts';
+import { createCategory, getSettings, listCategories, listPersons, setSettings, updatePerson } from '../service/admin.ts';
 import type { Identity } from '../service/auth.ts';
 import { createChore, deleteChore, getChore, listChores, updateChore } from '../service/chores.ts';
 import { createCondition, deleteCondition, listConditions, updateCondition } from '../service/conditions.ts';
@@ -12,10 +12,11 @@ import { getLookahead } from '../service/lookahead.ts';
 import { getOverview } from '../service/overview.ts';
 import { listPresence } from '../service/presence.ts';
 import { getSuggestions } from '../service/suggestions.ts';
-import { categorySchema } from '../schemas/admin.ts';
+import { categorySchema, personUpdateSchema } from '../schemas/admin.ts';
 import { choreInputSchema, choreUpdateSchema } from '../schemas/chore.ts';
 import { conditionSchema, conditionUpdateSchema } from '../schemas/condition.ts';
 import { postponeSchema } from '../schemas/feedback.ts';
+import { settingsSchema, slotSchema } from '../schemas/settings.ts';
 import { bearer } from './auth.ts';
 import type { AppEnv } from './env.ts';
 
@@ -42,8 +43,37 @@ export function createMcpServer(deps: Deps, version: string, identity: Identity)
     const viewer = identity.viewer;
 
     server.registerTool('list_persons', {
-        description: 'Lists the household members with their presence at home and the distance from home in km.',
-    }, async () => result({ persons: await listPresence(deps) }));
+        description: 'Lists the household members with their Home Assistant entities, their presence at home and the '
+            + 'distance from home in km.',
+    }, async () => {
+        const presence = await listPresence(deps);
+        const persons = (await listPersons(deps)).map((p) => ({ ...p, ...presence.find((s) => s.personId === p.id) }));
+        return result({ persons });
+    });
+
+    server.registerTool('update_person', {
+        description: 'Changes the given values of a person. A person without a person entity counts as always at home.',
+        inputSchema: personUpdateSchema.omit({ password: true }).extend({ id }),
+    }, async ({ id: personId, ...values }) => result({ person: await updatePerson(deps, personId, values) }));
+
+    server.registerTool('get_settings', {
+        description: 'Returns all settings: the parameters and the capacity slots.',
+    }, async () => result({ settings: await getSettings(deps) }));
+
+    server.registerTool('update_settings', {
+        description: 'Changes the given parameters. The capacity slots have their own tool.',
+        inputSchema: settingsSchema.omit({ capacity_slots: true }).partial(),
+    }, async (values) => result({ settings: await setSettings(deps, { ...(await getSettings(deps)), ...values }) }));
+
+    server.registerTool('set_capacity_slots', {
+        description: 'Replaces all capacity slots. A slot gives the free minutes and the energy from 0 to 5 of each '
+            + 'person in a time window on some weekdays. Public holidays use the slots of Sunday. Outside of all slots '
+            + 'the capacity is zero.',
+        inputSchema: z.object({ slots: z.array(slotSchema) }),
+    }, async ({ slots }) => {
+        const settings = await setSettings(deps, { ...(await getSettings(deps)), capacity_slots: slots });
+        return result({ slots: settings.capacity_slots });
+    });
 
     server.registerTool('list_categories', {
         description: 'Lists the categories of the chores, for example the rooms.',
