@@ -39,9 +39,15 @@ The server listens on port 3000. Vite serves the web app on port 5173 and sends 
 
 ## Docker
 
+The CI workflow publishes the image `ghcr.io/splitbrain/chores` for `linux/amd64` and `linux/arm64` after the tests
+pass. A push to `main` updates the tag `latest`, and a tag `v1.2.3` publishes the tags `1.2.3` and `1.2`.
+
 ```
 docker compose up -d --build
 ```
+
+`compose.yaml` builds the image from the source. To use the published image, replace `build: .` with
+`image: ghcr.io/splitbrain/chores:latest`.
 
 The container runs as the user `node` with the uid 1000. The directory `data` on the host must be writable for this
 uid.
