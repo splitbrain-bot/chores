@@ -23,17 +23,19 @@ A chore has a name, rooms, an interval in days, a duration and an effort. All ot
 
 The need level of a chore is the elapsed time divided by the interval. A chore with a need level of 0.9 or more is a
 candidate for the suggestions. A seasonal chore counts the time outside its season at most one interval, so it is
-due at the start of the season. A one-time task reaches the need level 1 after the reference days and stays there.
-At most one one-time task is in the suggestions while a recurring chore is possible.
+due at the start of the season. A recurring chore without a known last done date counts from half an interval before
+its creation, so it starts at the need level 0.5. A one-time task reaches the need level 1 after the reference days
+and stays there. At most one one-time task is in the suggestions while a recurring chore is possible.
 
 A deadline or a trigger makes a chore urgent. A trigger applies when its condition became true after the last done
 event and at least half of the interval has passed. A done tap ends the urgency.
 
 Two taps correct the interval. "Was necessary earlier" after a done tap moves the interval toward the elapsed time
 minus the margin. "Not necessary yet" in the dialog Later moves it toward the elapsed time plus the margin. One tap
-applies half of the change, a second tap in the same direction applies the whole change. The reasons "No time" and
-"No energy" lower the capacity of the person for the rest of the slot, so the next suggestions are shorter or
-lighter.
+applies half of the change, a second tap in the same direction applies the whole change. Both taps need a known last
+done date. For a recurring chore without one, "Not necessary yet" is not possible, and its first done tap gives no
+question "Was necessary earlier". The reasons "No time" and "No energy" lower the capacity of the person for the rest
+of the slot, so the next suggestions are shorter or lighter.
 
 ## Development
 

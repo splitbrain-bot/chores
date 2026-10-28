@@ -11,6 +11,7 @@ import * as visualIconsAndColors from './migrations/2026-10-27-visual-icons-and-
 import * as withoutAssignment from './migrations/2026-10-27-without-assignment.ts';
 import * as withoutSeasonRange from './migrations/2026-10-27-without-season-range.ts';
 import * as simplerChores from './migrations/2026-10-28-simpler-chores.ts';
+import * as unknownLastDone from './migrations/2026-10-28-unknown-last-done.ts';
 import type { DB } from './types.ts';
 
 /** The database handle of the application. */
@@ -26,6 +27,7 @@ const migrations: Record<string, Migration> = {
     '2026-10-27-without-assignment': withoutAssignment,
     '2026-10-27-without-season-range': withoutSeasonRange,
     '2026-10-28-simpler-chores': simplerChores,
+    '2026-10-28-unknown-last-done': unknownLastDone,
 };
 
 /**

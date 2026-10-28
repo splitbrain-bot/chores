@@ -89,7 +89,8 @@ async function lastLearn(deps: Deps, choreId: number): Promise<Direction | null>
  * @param deps the dependencies
  * @param viewer the viewer
  * @param eventId the done event
- * @throws ServiceError 404 for an unknown event or chore, 409 when the event is not the last done event or was late
+ * @throws ServiceError 404 for an unknown event or chore, 409 when the event is not the last done event, was late or
+ *     had no known start
  */
 export async function markEarlier(deps: Deps, viewer: Viewer, eventId: number): Promise<ChoreWithNeed> {
     const event = await getEvent(deps.db, eventId);
@@ -101,7 +102,8 @@ export async function markEarlier(deps: Deps, viewer: Viewer, eventId: number): 
         deps.now(), personOf(viewer), state.settings);
     if (result && 'error' in result) {
         const messages = { not_done: 'The event is not a done event', stale: 'The chore has a newer event',
-            overdue: 'The chore was done too late for this tap' };
+            overdue: 'The chore was done too late for this tap',
+            unknown_start: 'The chore had no known last done date' };
         throw new ServiceError(409, messages[result.error]);
     }
     if (result) {
@@ -120,11 +122,16 @@ export async function markEarlier(deps: Deps, viewer: Viewer, eventId: number): 
  * @param viewer the viewer
  * @param choreId the chore
  * @param reason the reason
+ * @throws ServiceError 404 for an unknown chore, 409 for not_yet on a recurring chore without a known last done date
  */
 export async function postpone(deps: Deps, viewer: Viewer, choreId: number, reason: PostponeReason): Promise<ChoreWithNeed> {
     const { state, chores } = await evaluate(deps, viewer, { ids: [choreId] });
     const chore = chores[0];
     if (!chore) throw notFound('Chore');
+    // not_yet learns from the elapsed time, which needs a known start
+    if (reason === 'not_yet' && chore.kind === 'recurring' && chore.lastDoneAt === null) {
+        throw new ServiceError(409, 'The chore has no known last done date');
+    }
     const change = corePostpone(chore, reason, {
         now: state.now,
         need: chore.need,

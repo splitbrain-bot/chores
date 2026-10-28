@@ -36,6 +36,30 @@ describe('raw need', () => {
     });
 });
 
+describe('unknown start', () => {
+    it('starts at half of the interval at the creation', () => {
+        const chore = makeChore({ interval: 10, lastDoneAt: null, createdAt: now });
+        expect(computeNeed(chore, ctx()).need).toBeCloseTo(0.5);
+        expect(computeNeed({ ...chore, createdAt: now - 2 * DAY }, ctx()).need).toBeCloseTo(0.7);
+    });
+
+    it('counts the presence clock from the effective start', () => {
+        const chore = makeChore({ pausesWhenAway: true, interval: 10, lastDoneAt: null, createdAt: now });
+        const occupancy = [
+            { startAt: now - 3 * DAY, endAt: null, clockStart: 0 },
+        ];
+        const result = computeNeed(chore, ctx({ occupancy, firstRecordAt: now - 4 * DAY }));
+        expect(result.elapsed).toBeCloseTo(4);
+    });
+
+    it('applies the season rules to the effective start', () => {
+        const chore = makeChore({ interval: 10, lastDoneAt: null, seasonMonths: [11],
+            createdAt: at('2026-11-02T12:00+01:00') });
+        const result = computeNeed(chore, ctx({ now: at('2026-11-02T12:00+01:00') }));
+        expect(result.elapsed).toBeCloseTo(5);
+    });
+});
+
 describe('season', () => {
     it('counts the time outside the season up to one interval', () => {
         // last mowed on 20 October, the season is April to October: 12 days in season plus 14 of the 151 days outside
@@ -103,12 +127,16 @@ describe('deadline', () => {
         expect(result.need).toBeLessThan(1);
     });
 
-    it('applies to a chore that was created in the lead period', () => {
+    it('applies to a chore that was created in the lead period without a done date', () => {
         const created = deadline - 5 * DAY;
-        const chore = makeChore({ ...base, createdAt: created, lastDoneAt: created });
+        const chore = makeChore({ ...base, createdAt: created, lastDoneAt: null });
         expect(computeNeed(chore, ctx({ now: deadline - 3 * DAY })).urgent).toBe(true);
+    });
+
+    it('is gone for a done date in the lead period that was entered at the creation', () => {
+        const created = deadline - 5 * DAY;
         const imported = makeChore({ ...base, createdAt: created, lastDoneAt: created - 2 * DAY });
-        expect(computeNeed(imported, ctx({ now: deadline - 3 * DAY })).urgent).toBe(true);
+        expect(computeNeed(imported, ctx({ now: deadline - 3 * DAY })).urgent).toBe(false);
     });
 
     it('applies to a fixed deadline of a one-time task', () => {
@@ -147,6 +175,11 @@ describe('trigger', () => {
         const fresh = { ...chore, lastDoneAt: now - DAY, triggerSinceAt: now - HOUR };
         expect(computeNeed(fresh, ctx()).urgent).toBe(false);
         expect(computeNeed(fresh, ctx({ settings: { ...settings, trigger_min_need: 0.1 } })).need).toBe(10);
+    });
+
+    it('applies to a chore with an unknown start when the condition became true before the creation', () => {
+        const created = { ...chore, lastDoneAt: null, createdAt: now - HOUR, triggerSinceAt: now - DAY };
+        expect(computeNeed(created, ctx())).toMatchObject({ need: 10, urgent: true });
     });
 
     it('does nothing with result 0, null or without a time since true', () => {

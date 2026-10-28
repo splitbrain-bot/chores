@@ -165,8 +165,9 @@ export function createMcpServer(deps: Deps, version: string, identity: Identity)
     }, async (args) => result({ events: await markDone(deps, viewer, args.id, args.also ?? [], args.at) }));
 
     server.registerTool('postpone', {
-        description: 'Postpones a chore. The reason not_yet makes the interval longer. The reasons no_time and '
-            + 'no_energy lower the capacity of the person for the rest of the slot.',
+        description: 'Postpones a chore. The reason not_yet makes the interval longer. It is not possible for a '
+            + 'recurring chore without a known last done date. The reasons no_time and no_energy lower the capacity '
+            + 'of the person for the rest of the slot.',
         inputSchema: postponeSchema.extend({ id }),
     }, async (args) => result({ chore: await postpone(deps, viewer, args.id, args.reason) }));
 

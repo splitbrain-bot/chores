@@ -89,7 +89,7 @@ function generateChores(start: number): SimChore[] {
             id, name, kind, interval, pausesWhenAway, deadlineMd: null, deadlineAt: null, requiresId: null,
             triggerId: null, requiresResult: null, triggerResult: null, triggerSinceAt: null, templateError: null,
             durationMin: pick([5, 10, 15, 30, 45, 60]), effort: 1 + Math.floor(random() * 4), seasonMonths: [],
-            noisy: false, notes: null, lastDoneAt: interval === null ? start : start - random() * interval * DAY,
+            noisy: false, notes: null, lastDoneAt: interval === null ? null : start - random() * interval * DAY,
             snoozedUntil: null, notYetCount: 0, lastNotifiedAt: null, createdAt: start, updatedAt: start,
             deletedAt: null, personIds: [], categoryIds: [], ...extra,
             trueInterval: trueInterval ?? (() => (interval ?? settings.one_time_reference_days) * factor),

@@ -18,7 +18,7 @@ function event(from: string, to: string, allDay = false): CalendarEvent {
  */
 function doneEvent(iso: string, effort: number, personId: number | null): ChoreEvent {
     return { id: 1, choreId: 1, type: 'done', reason: null, at: at(iso), personId, needLevel: 1, intervalBefore: 7,
-        intervalAfter: 7, durationMin: 10, effort };
+        intervalAfter: 7, durationMin: 10, effort, startKnown: true };
 }
 
 /**
@@ -27,7 +27,7 @@ function doneEvent(iso: string, effort: number, personId: number | null): ChoreE
 function postponeEvent(iso: string, reason: PostponeReason, durationMin: number, effort: number,
     personId: number | null): ChoreEvent {
     return { id: 2, choreId: 1, type: 'postpone', reason, at: at(iso), personId, needLevel: 1, intervalBefore: 7,
-        intervalAfter: 7, durationMin, effort };
+        intervalAfter: 7, durationMin, effort, startKnown: true };
 }
 
 describe('capacityCaps', () => {

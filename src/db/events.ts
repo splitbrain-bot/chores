@@ -1,9 +1,19 @@
 import type { ChoreEvent } from '../core/types.ts';
 import type { Database } from './database.ts';
+import type { EventRow } from './types.ts';
 
 /** An event with the name of its chore. */
 export interface EventWithChore extends ChoreEvent {
     choreName: string;
+}
+
+/**
+ * Converts a row to an event.
+ *
+ * @param row the row
+ */
+function toEvent<T extends EventRow>(row: T): Omit<T, 'startKnown'> & { startKnown: boolean } {
+    return { ...row, startKnown: row.startKnown === 1 };
 }
 
 /**
@@ -14,7 +24,8 @@ export interface EventWithChore extends ChoreEvent {
  * @returns the new event id
  */
 export async function insertEvent(db: Database, event: Omit<ChoreEvent, 'id'>): Promise<number> {
-    const row = await db.insertInto('event').values(event).returning('id').executeTakeFirstOrThrow();
+    const row = await db.insertInto('event').values({ ...event, startKnown: event.startKnown ? 1 : 0 })
+        .returning('id').executeTakeFirstOrThrow();
     return row.id;
 }
 
@@ -25,7 +36,8 @@ export async function insertEvent(db: Database, event: Omit<ChoreEvent, 'id'>): 
  * @param id the event id
  */
 export async function getEvent(db: Database, id: number): Promise<ChoreEvent | undefined> {
-    return db.selectFrom('event').selectAll().where('id', '=', id).executeTakeFirst();
+    const row = await db.selectFrom('event').selectAll().where('id', '=', id).executeTakeFirst();
+    return row && toEvent(row);
 }
 
 /**
@@ -36,8 +48,9 @@ export async function getEvent(db: Database, id: number): Promise<ChoreEvent | u
  * @param limit the maximum number of events
  */
 export async function listChoreEvents(db: Database, choreId: number, limit = 20): Promise<ChoreEvent[]> {
-    return db.selectFrom('event').selectAll().where('choreId', '=', choreId)
+    const rows = await db.selectFrom('event').selectAll().where('choreId', '=', choreId)
         .orderBy('at', 'desc').orderBy('id', 'desc').limit(limit).execute();
+    return rows.map(toEvent);
 }
 
 /**
@@ -47,9 +60,10 @@ export async function listChoreEvents(db: Database, choreId: number, limit = 20)
  * @param limit the maximum number of events
  */
 export async function listRecentEvents(db: Database, limit = 30): Promise<EventWithChore[]> {
-    return db.selectFrom('event').innerJoin('chore', 'chore.id', 'event.choreId')
+    const rows = await db.selectFrom('event').innerJoin('chore', 'chore.id', 'event.choreId')
         .selectAll('event').select('chore.name as choreName')
         .orderBy('event.at', 'desc').orderBy('event.id', 'desc').limit(limit).execute();
+    return rows.map(toEvent);
 }
 
 /**
@@ -59,7 +73,9 @@ export async function listRecentEvents(db: Database, limit = 30): Promise<EventW
  * @param since milliseconds since the epoch
  */
 export async function listEventsSince(db: Database, since: number): Promise<ChoreEvent[]> {
-    return db.selectFrom('event').selectAll().where('at', '>=', since).orderBy('at').orderBy('id').execute();
+    const rows = await db.selectFrom('event').selectAll().where('at', '>=', since).orderBy('at').orderBy('id')
+        .execute();
+    return rows.map(toEvent);
 }
 
 /**
@@ -79,7 +95,8 @@ export async function lastEvent(db: Database, choreId: number): Promise<ChoreEve
  * @param choreId the chore id
  */
 export async function lastLearnEvent(db: Database, choreId: number): Promise<ChoreEvent | undefined> {
-    return db.selectFrom('event').selectAll().where('choreId', '=', choreId)
+    const row = await db.selectFrom('event').selectAll().where('choreId', '=', choreId)
         .where((eb) => eb.or([eb('type', '=', 'earlier'), eb('reason', '=', 'not_yet')]))
         .orderBy('at', 'desc').orderBy('id', 'desc').executeTakeFirst();
+    return row && toEvent(row);
 }

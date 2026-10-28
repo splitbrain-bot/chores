@@ -15,7 +15,7 @@ export interface FeedbackResult {
 }
 
 /** Error of an earlier call. */
-export type EarlierError = 'not_done' | 'stale' | 'overdue';
+export type EarlierError = 'not_done' | 'stale' | 'overdue' | 'unknown_start';
 
 /**
  * Returns the direction of a learning event, or null for an event without learning.
@@ -44,7 +44,7 @@ export function done(chore: Chore, now: number, need: number, personId: number |
         event: {
             choreId: chore.id, type: 'done', reason: null, at: now, personId, needLevel: need,
             intervalBefore: chore.interval, intervalAfter: chore.interval, durationMin: chore.durationMin,
-            effort: chore.effort,
+            effort: chore.effort, startKnown: chore.lastDoneAt !== null,
         },
     };
 }
@@ -65,16 +65,17 @@ function elapsedOf(doneEvent: Pick<ChoreEvent, 'needLevel' | 'intervalBefore'>):
 /**
  * Tells if a done event allows the tap "the chore was necessary earlier". The tap is possible while it can shorten
  * the interval. A chore that was done late, for example because of the capacity, gives no information. An urgent
- * chore gives no information either, because the deadline or the trigger set the time of the done tap.
+ * chore gives no information either, because the deadline or the trigger set the time of the done tap. A done event
+ * without a known start gives no information, because its elapsed time counts from an assumed start.
  *
  * @param chore the chore
- * @param doneEvent the done event, or its need level and interval
+ * @param doneEvent the done event, or its need level, interval and start flag
  * @param settings the settings
  */
-export function earlierAllowed(chore: Chore, doneEvent: Pick<ChoreEvent, 'needLevel' | 'intervalBefore'>,
-    settings: Settings): boolean {
+export function earlierAllowed(chore: Chore,
+    doneEvent: Pick<ChoreEvent, 'needLevel' | 'intervalBefore' | 'startKnown'>, settings: Settings): boolean {
     const elapsed = elapsedOf(doneEvent);
-    if (chore.kind !== 'recurring' || elapsed === null) return false;
+    if (chore.kind !== 'recurring' || elapsed === null || !doneEvent.startKnown) return false;
     return canLearn(doneEvent.intervalBefore!, elapsed, -1, settings.learn_margin);
 }
 
@@ -96,6 +97,7 @@ export function earlier(chore: Chore, doneEvent: ChoreEvent, lastEvent: ChoreEve
     if (doneEvent.type !== 'done' || doneEvent.choreId !== chore.id) return { error: 'not_done' };
     if (lastEvent?.id !== doneEvent.id) return { error: 'stale' };
     if (chore.kind === 'one_time') return null;
+    if (!doneEvent.startKnown) return { error: 'unknown_start' };
     if (!earlierAllowed(chore, doneEvent, settings)) return { error: 'overdue' };
 
     const interval = learn(chore.interval!, elapsedOf(doneEvent)!, -1, lastLearn === -1, settings);
@@ -104,7 +106,7 @@ export function earlier(chore: Chore, doneEvent: ChoreEvent, lastEvent: ChoreEve
         event: {
             choreId: chore.id, type: 'earlier', reason: null, at: now, personId, needLevel: doneEvent.needLevel,
             intervalBefore: chore.interval, intervalAfter: interval, durationMin: chore.durationMin,
-            effort: chore.effort,
+            effort: chore.effort, startKnown: true,
         },
     };
 }
@@ -152,6 +154,7 @@ export function postpone(chore: Chore, reason: PostponeReason, ctx: PostponeCont
         event: {
             choreId: chore.id, type: 'postpone', reason, at: now, personId: ctx.personId, needLevel: ctx.need,
             intervalBefore: chore.interval, intervalAfter, durationMin: chore.durationMin, effort: chore.effort,
+            startKnown: true,
         },
     };
 }

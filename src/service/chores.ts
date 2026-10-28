@@ -66,7 +66,7 @@ async function checkConditions(deps: Deps, c: NewChore): Promise<void> {
 
 /**
  * Applies input values to chore values. A deadline string sets the yearly date, a deadline number sets the fixed
- * date.
+ * date. A one-time task has no interval and no last done time.
  *
  * @param base the current values
  * @param input the input values
@@ -77,7 +77,10 @@ function merge(base: NewChore, input: ChoreUpdate): NewChore {
     for (const [key, value] of Object.entries(rest)) {
         if (value !== undefined) (next as unknown as Record<string, unknown>)[key] = value;
     }
-    if (next.kind === 'one_time') next.interval = null;
+    if (next.kind === 'one_time') {
+        next.interval = null;
+        next.lastDoneAt = null;
+    }
     if (deadline !== undefined) {
         next.deadlineMd = typeof deadline === 'string' ? deadline : null;
         next.deadlineAt = typeof deadline === 'number' ? deadline : null;
@@ -102,12 +105,11 @@ export async function createChore(deps: Deps, input: ChoreInput): Promise<ChoreW
     const empty: NewChore = {
         name: '', kind: 'recurring', interval: null, pausesWhenAway: true, deadlineMd: null, deadlineAt: null,
         requiresId: null, triggerId: null, requiresResult: null, triggerResult: null, triggerSinceAt: null,
-        templateError: null, durationMin: 15, effort: 2, seasonMonths: [], noisy: false, notes: null, lastDoneAt: now,
+        templateError: null, durationMin: 15, effort: 2, seasonMonths: [], noisy: false, notes: null, lastDoneAt: null,
         snoozedUntil: null, notYetCount: 0, lastNotifiedAt: null, createdAt: now, updatedAt: now, deletedAt: null,
         personIds: [], categoryIds: [],
     };
     const values = merge(empty, input);
-    if (values.kind === 'one_time') values.lastDoneAt = now;
     check(values);
     await checkLinks(deps, values.personIds, values.categoryIds);
     await checkConditions(deps, values);

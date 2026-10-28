@@ -50,7 +50,8 @@ export interface ChoreTable {
     seasonMonths: Generated<number>;
     noisy: Generated<number>;
     notes: string | null;
-    lastDoneAt: number;
+    /** Null when the start is unknown. */
+    lastDoneAt: number | null;
     snoozedUntil: number | null;
     notYetCount: Generated<number>;
     lastNotifiedAt: number | null;
@@ -84,6 +85,8 @@ export interface EventTable {
     intervalAfter: number | null;
     durationMin: Generated<number>;
     effort: number;
+    /** 0 for a done event of a chore without a known last done time. */
+    startKnown: Generated<number>;
 }
 
 /** Table ha_state. */
@@ -151,6 +154,9 @@ export type NewChoreRow = Insertable<ChoreTable>;
 
 /** A chore row for an update. */
 export type ChoreRowUpdate = Updateable<ChoreTable>;
+
+/** A selected event row. */
+export type EventRow = Selectable<EventTable>;
 
 /** A selected condition row. */
 export type ConditionRow = Selectable<ConditionTable>;

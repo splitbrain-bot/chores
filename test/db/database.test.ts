@@ -288,3 +288,52 @@ describe('migration simpler-chores', () => {
         await db.destroy();
     });
 });
+
+describe('migration unknown-last-done', () => {
+    it('clears the last done time without a real done event and adds the start flag, and back', async () => {
+        const { openDatabase, migrate } = await import('../../src/db/database.ts');
+        const { Migrator } = await import('kysely/migration');
+        const { sql } = await import('kysely');
+        const names = ['2026-10-27-initial', '2026-10-27-person-entity-optional', '2026-10-27-slot-weekdays',
+            '2026-10-27-templates-to-conditions', '2026-10-27-visual-icons-and-colors', '2026-10-27-without-assignment',
+            '2026-10-27-without-season-range', '2026-10-28-simpler-chores'];
+        const migrations = Object.fromEntries(await Promise.all(names.map(async (name) =>
+            [name, await import(`../../src/db/migrations/${name}.ts`)])));
+        const unknown = await import('../../src/db/migrations/2026-10-28-unknown-last-done.ts');
+        const db = openDatabase(':memory:');
+        await new Migrator({ db, provider: { getMigrations: async () => migrations } }).migrateToLatest();
+        const chore = (name: string, kind: string, lastDoneAt: number) =>
+            sql`INSERT INTO chore (name, kind, interval, duration_min, effort, last_done_at, created_at, updated_at)
+                VALUES (${name}, ${kind}, 7, 10, 1, ${lastDoneAt}, 100, 100)`.execute(db);
+        await chore('Projekt', 'one_time', 100);
+        await chore('Neu', 'recurring', 100);
+        await chore('Erledigt', 'recurring', 200);
+        await chore('Importiert', 'recurring', 50);
+        await db.insertInto('category').values({ name: 'Garten' }).execute();
+        await db.insertInto('choreCategory').values({ choreId: 3, categoryId: 1 }).execute();
+        await sql`INSERT INTO event (chore_id, type, at, need_level, effort) VALUES (3, 'done', 200, 1, 1)`.execute(db);
+
+        await migrate(db);
+        expect(await db.selectFrom('chore').select(['id', 'lastDoneAt']).orderBy('id').execute()).toEqual([
+            { id: 1, lastDoneAt: null },
+            { id: 2, lastDoneAt: null },
+            { id: 3, lastDoneAt: 200 },
+            { id: 4, lastDoneAt: 50 },
+        ]);
+        expect(await db.selectFrom('event').select(['choreId', 'startKnown']).execute()).toEqual([{ choreId: 3, startKnown: 1 }]);
+        expect(await db.selectFrom('choreCategory').selectAll().execute()).toEqual([{ choreId: 3, categoryId: 1 }]);
+
+        await unknown.down(db as never);
+        expect(await db.selectFrom('chore').select(['id', 'lastDoneAt']).orderBy('id').execute()).toEqual([
+            { id: 1, lastDoneAt: 100 },
+            { id: 2, lastDoneAt: 100 },
+            { id: 3, lastDoneAt: 200 },
+            { id: 4, lastDoneAt: 50 },
+        ]);
+        await expect(sql`INSERT INTO chore (name, kind, duration_min, effort, created_at, updated_at)
+            VALUES ('x', 'recurring', 1, 1, 0, 0)`.execute(db)).rejects.toThrow(/NOT NULL/);
+        expect((await db.introspection.getTables()).find((t) => t.name === 'event')!.columns.map((c) => c.name))
+            .not.toContain('start_known');
+        await db.destroy();
+    });
+});

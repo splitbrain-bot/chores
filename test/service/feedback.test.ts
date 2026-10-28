@@ -95,6 +95,31 @@ describe('done flow', () => {
         expect((await markEarlier(deps, andi, done!.eventId)).interval).toBeCloseTo(5.75);
     });
 
+    it('refuses earlier for the first done event of a chore without a known start', async () => {
+        const chore = await createChore(deps, base);
+        clock.advance(2 * DAY);
+        const [first] = await markDone(deps, andi, chore.id);
+        expect(first!.earlier).toBe(false);
+        expect((await listChoreEvents(deps.db, chore.id))[0]).toMatchObject({ type: 'done', startKnown: false });
+        await expect(markEarlier(deps, andi, first!.eventId)).rejects.toMatchObject({ status: 409 });
+        expect((await getChore(deps, chore.id)).chore.interval).toBe(7);
+
+        clock.advance(6 * DAY);
+        const [second] = await markDone(deps, andi, chore.id);
+        expect(second!.earlier).toBe(true);
+        expect((await markEarlier(deps, andi, second!.eventId)).interval).toBeLessThan(7);
+    });
+
+    it('refuses not yet for a recurring chore without a known start', async () => {
+        const chore = await createChore(deps, base);
+        await expect(postpone(deps, andi, chore.id, 'not_yet')).rejects.toMatchObject({ status: 409 });
+        expect((await postpone(deps, andi, chore.id, 'no_time')).blockedBy).toContain('snoozed');
+        expect(await postpone(deps, andi, chore.id, 'no_energy')).toMatchObject({ interval: 7 });
+
+        const task = await createChore(deps, { ...base, kind: 'one_time', interval: undefined });
+        expect((await postpone(deps, andi, task.id, 'not_yet')).snoozedUntil).toBe(clock.t + 7 * DAY);
+    });
+
     it('deletes a done one-time task', async () => {
         const task = await createChore(deps, { ...base, kind: 'one_time', interval: undefined });
         const [event] = await markDone(deps, andi, task.id);

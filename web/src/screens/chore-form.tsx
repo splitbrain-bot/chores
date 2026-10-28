@@ -59,7 +59,7 @@ function toForm(c: ChoreWithNeed): FormState {
         requiresId: s(c.requiresId), triggerId: s(c.triggerId), durationMin: String(c.durationMin),
         effort: String(c.effort), personIds: c.personIds, categoryIds: c.categoryIds,
         seasonMonths: c.seasonMonths, noisy: c.noisy, notes: s(c.notes),
-        lastDoneAt: toLocalInput(c.lastDoneAt),
+        lastDoneAt: c.lastDoneAt === null ? '' : toLocalInput(c.lastDoneAt),
     };
 }
 
@@ -80,7 +80,8 @@ function toInput(f: FormState): ChoreInput {
         requiresId: number(f.requiresId), triggerId: number(f.triggerId),
         durationMin: Number(f.durationMin), effort: Number(f.effort),
         personIds: f.personIds, categoryIds: f.categoryIds, seasonMonths: f.seasonMonths,
-        noisy: f.noisy, notes: text(f.notes), lastDoneAt: f.lastDoneAt ? new Date(f.lastDoneAt).getTime() : undefined,
+        noisy: f.noisy, notes: text(f.notes),
+        lastDoneAt: f.kind === 'recurring' && f.lastDoneAt ? new Date(f.lastDoneAt).getTime() : null,
     };
 }
 
@@ -214,7 +215,7 @@ export function ChoreForm({ id }: { id: number | null }) {
             <Field label={t('form.notes')}>
                 <textarea name="notes" rows={3} value={form.notes} onChange={(e) => set('notes', e.target.value)} />
             </Field>
-            <Field label={t('form.lastDoneAt')}>{input('lastDoneAt', 'datetime-local')}</Field>
+            {form.kind === 'recurring' && <Field label={t('form.lastDoneAt')}>{input('lastDoneAt', 'datetime-local')}</Field>}
 
             <div className="actions">
                 <button type="submit" className="primary">{t('common.save')}</button>

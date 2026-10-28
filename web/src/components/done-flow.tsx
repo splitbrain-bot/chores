@@ -130,7 +130,8 @@ function DoneDialog({ chore, related, onClose }: { chore: ChoreWithNeed; related
 }
 
 /**
- * The dialog after a tap on Later with the three postpone reasons.
+ * The dialog after a tap on Later with the postpone reasons. A recurring chore without a known last done date has no
+ * reason "not necessary yet", because the interval learning needs a known start.
  *
  * @param props.chore the chore
  * @param props.onClose called when the dialog is over
@@ -145,7 +146,9 @@ function LaterDialog({ chore, onClose }: { chore: ChoreWithNeed; onClose: () => 
             <div className="reasons">
                 <button type="button" onClick={() => send('no_time')}>{t('suggestions.noTime')}</button>
                 <button type="button" onClick={() => send('no_energy')}>{t('suggestions.noEnergy')}</button>
-                <button type="button" onClick={() => send('not_yet')}>{t('suggestions.notYet')}</button>
+                {(chore.kind === 'one_time' || chore.lastDoneAt !== null) && (
+                    <button type="button" onClick={() => send('not_yet')}>{t('suggestions.notYet')}</button>
+                )}
                 <button type="button" className="link" onClick={onClose}>{t('common.cancel')}</button>
             </div>
         </Modal>

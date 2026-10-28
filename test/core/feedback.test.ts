@@ -10,7 +10,7 @@ const now = at('2026-10-26T18:00+01:00');
  */
 function stored(choreId: number, needLevel = 1): ChoreEvent {
     return { id: 9, choreId, type: 'done', reason: null, at: now - 30_000, personId: 1, needLevel, intervalBefore: 10,
-        intervalAfter: 10, durationMin: 10, effort: 2 };
+        intervalAfter: 10, durationMin: 10, effort: 2, startKnown: true };
 }
 
 /**
@@ -29,6 +29,11 @@ describe('done', () => {
         expect(result.event).toMatchObject({ type: 'done', needLevel: 1.2, personId: 1, durationMin: 10, effort: 2 });
     });
 
+    it('records if the start of the chore was known', () => {
+        expect(done(makeChore(), now, 1, 1).event.startKnown).toBe(true);
+        expect(done(makeChore({ lastDoneAt: null }), now, 1, 1).event.startKnown).toBe(false);
+    });
+
     it('deletes a one-time task', () => {
         expect(done(makeChore({ kind: 'one_time' }), now, 1, null).update.deletedAt).toBe(now);
     });
@@ -37,14 +42,21 @@ describe('done', () => {
 describe('earlierAllowed', () => {
     it('allows the tap while it can shorten the interval', () => {
         const chore = makeChore({ interval: 10 });
-        expect(earlierAllowed(chore, { needLevel: 1.3, intervalBefore: 10 }, settings)).toBe(true);
-        expect(earlierAllowed(chore, { needLevel: 1.4, intervalBefore: 10 }, settings)).toBe(false);
-        expect(earlierAllowed(makeChore({ kind: 'one_time' }), { needLevel: 0.5, intervalBefore: null }, settings)).toBe(false);
+        expect(earlierAllowed(chore, { needLevel: 1.3, intervalBefore: 10, startKnown: true }, settings)).toBe(true);
+        expect(earlierAllowed(chore, { needLevel: 1.4, intervalBefore: 10, startKnown: true }, settings)).toBe(false);
+        expect(earlierAllowed(makeChore({ kind: 'one_time' }), { needLevel: 0.5, intervalBefore: null, startKnown: true }, settings)).toBe(false);
+    });
+
+    it('refuses the tap for a done event without a known start', () => {
+        const chore = makeChore({ interval: 10 });
+        expect(earlierAllowed(chore, { needLevel: 1, intervalBefore: 10, startKnown: false }, settings)).toBe(false);
+        const event = { ...stored(1), startKnown: false };
+        expect(earlier(chore, event, event, null, now, 1, settings)).toEqual({ error: 'unknown_start' });
     });
 
     it('refuses the tap for an urgent chore, because its need level has no elapsed time', () => {
         const chore = makeChore({ interval: 10 });
-        expect(earlierAllowed(chore, { needLevel: 10, intervalBefore: 10 }, settings)).toBe(false);
+        expect(earlierAllowed(chore, { needLevel: 10, intervalBefore: 10, startKnown: true }, settings)).toBe(false);
     });
 });
 

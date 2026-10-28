@@ -83,6 +83,7 @@ test('postpones a suggestion with a reason', async ({ page }) => {
     await login(page);
     const card = page.locator('.task').filter({ hasText: 'Kühlschrank auswischen' });
     await card.getByRole('button', { name: 'Later' }).click();
+    await expect(page.getByRole('dialog').getByRole('button', { name: 'Not necessary yet' })).toBeVisible();
     await page.getByRole('dialog').getByRole('button', { name: 'No energy' }).click();
     // the energy is below the effort 2 of the postponed chore now, only the effort 1 chore fits
     await expect(page.locator('.task h2')).toHaveText(['Spiegel putzen']);
@@ -155,6 +156,10 @@ test('creates and edits a chore in the form', async ({ page }) => {
     await page.getByLabel('Duration (minutes)').fill('45');
     await page.getByRole('radio', { name: 'Effort 4 of 5' }).click();
     await page.getByLabel('Yearly deadline (MM-DD)').fill('12-01');
+    await expect(page.getByLabel('Last done')).toHaveValue('');
+    await page.getByLabel('Kind').selectOption('one_time');
+    await expect(page.getByLabel('Last done')).toHaveCount(0);
+    await page.getByLabel('Kind').selectOption('recurring');
     await page.getByRole('button', { name: 'Save' }).click();
 
     await expect(page).toHaveURL(/\/chores$/);
@@ -163,6 +168,10 @@ test('creates and edits a chore in the form', async ({ page }) => {
     await expect(row).toBeVisible();
 
     await expect(row.locator('.flag[title="Due by 12/1"]')).toBeVisible();
+    await row.getByRole('button', { name: 'Later' }).click();
+    await expect(page.getByRole('dialog').getByRole('button', { name: 'No time' })).toBeVisible();
+    await expect(page.getByRole('dialog').getByRole('button', { name: 'Not necessary yet' })).toHaveCount(0);
+    await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
 
     await row.getByRole('link', { name: 'Backofen reinigen' }).click();
     await expect(page.getByRole('heading', { name: 'Edit chore' })).toBeVisible();

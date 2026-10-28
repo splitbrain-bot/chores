@@ -18,8 +18,20 @@ describe('chore service', () => {
         const p = await createPerson(deps, { name: 'Andi', haEntity: 'person.a' });
         const chore = await createChore(deps, { ...base, categoryIds: [cat.id], personIds: [p.id] });
         expect(chore).toMatchObject({ pausesWhenAway: true, deadlineMd: null, deadlineAt: null, requiresId: null,
-            triggerId: null, lastDoneAt: clock.t, createdAt: clock.t, categoryIds: [cat.id], personIds: [p.id], need: 0,
+            triggerId: null, lastDoneAt: null, createdAt: clock.t, categoryIds: [cat.id], personIds: [p.id], need: 0.5,
             noisy: false });
+    });
+
+    it('keeps no last done time for one-time tasks', async () => {
+        const clock = new Clock('2026-10-26T20:00:00+01:00');
+        const deps = await makeDeps(clock);
+        const task = await createChore(deps, { ...base, kind: 'one_time', interval: undefined, lastDoneAt: clock.t - DAY });
+        expect(task.lastDoneAt).toBeNull();
+        const chore = await createChore(deps, { ...base, lastDoneAt: clock.t - DAY });
+        expect(await updateChore(deps, chore.id, { kind: 'one_time' })).toMatchObject({ lastDoneAt: null, interval: null });
+        expect(await updateChore(deps, chore.id, { kind: 'recurring', interval: 8 })).toMatchObject({ lastDoneAt: null });
+        expect(await updateChore(deps, chore.id, { lastDoneAt: clock.t - DAY })).toMatchObject({ lastDoneAt: clock.t - DAY });
+        expect(await updateChore(deps, chore.id, { lastDoneAt: null })).toMatchObject({ lastDoneAt: null });
     });
 
     it('validates combinations and links', async () => {

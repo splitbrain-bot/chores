@@ -23,7 +23,8 @@ export const choreFields = {
         .describe('Months of the season, 1 is January. Empty or absent means the whole year'),
     noisy: z.boolean().optional(),
     notes: z.string().max(5000).nullish(),
-    lastDoneAt: z.number().int().optional().describe('Milliseconds since the epoch, default now'),
+    lastDoneAt: z.number().int().nullish().describe('Milliseconds since the epoch. Null or absent means unknown. '
+        + 'One-time tasks ignore it'),
 };
 
 /** Schema of a new chore. */

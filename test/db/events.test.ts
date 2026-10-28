@@ -12,7 +12,7 @@ import { memoryDb } from './helpers.ts';
  */
 function ev(over: Partial<ChoreEvent>): Omit<ChoreEvent, 'id'> {
     return { choreId: 1, type: 'done', reason: null, at: 0, personId: null, needLevel: 1, intervalBefore: 7,
-        intervalAfter: 7, durationMin: 10, effort: 2, ...over };
+        intervalAfter: 7, durationMin: 10, effort: 2, startKnown: true, ...over };
 }
 
 describe('events', () => {

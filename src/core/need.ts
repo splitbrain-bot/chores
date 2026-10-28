@@ -34,7 +34,18 @@ export function effectiveInterval(chore: Chore, settings: Settings): number {
 }
 
 /**
- * Returns the elapsed days of a chore since the last done event.
+ * Returns the start of the elapsed time of a chore. The start is the last done time, or half an interval before the
+ * creation when the last done time is unknown, so such a chore begins at the need 0.5.
+ *
+ * @param chore the chore
+ * @param settings the settings
+ */
+export function startAt(chore: Chore, settings: Settings): number {
+    return chore.lastDoneAt ?? chore.createdAt - effectiveInterval(chore, settings) * DAY / 2;
+}
+
+/**
+ * Returns the elapsed days of a chore since its start.
  *
  * One-time tasks count wall-clock days since their creation. A chore that pauses when nobody is at home counts the
  * presence clock. A seasonal chore counts the time in its months fully and the time outside at most one interval,
@@ -48,10 +59,11 @@ export function elapsed(chore: Chore, ctx: NeedContext): number {
     const clock = (a: number, b: number) => (chore.pausesWhenAway
         ? presenceBetween(a, b, ctx.occupancy, ctx.firstRecordAt)
         : b - a);
-    const total = clock(chore.lastDoneAt, ctx.now);
+    const start = startAt(chore, ctx.settings);
+    const total = clock(start, ctx.now);
     if (chore.seasonMonths.length === 0) return total / DAY;
     let inSeason = 0;
-    for (const [a, b] of seasonParts(chore.lastDoneAt, ctx.now, ctx.settings.time_zone, chore.seasonMonths)) {
+    for (const [a, b] of seasonParts(start, ctx.now, ctx.settings.time_zone, chore.seasonMonths)) {
         inSeason += clock(a, b);
     }
     const outside = Math.min(total - inSeason, effectiveInterval(chore, ctx.settings) * DAY);
@@ -80,7 +92,7 @@ export function deadlines(chore: Chore, now: number, timeZone: string): number[]
 
 /**
  * Returns the need level that a deadline adds, or null when the deadline does not apply. A deadline before the
- * creation of the chore never applies. A done time counts for the lead period only when it is after the creation.
+ * creation of the chore never applies. A known done time of a recurring chore in the lead period cancels the deadline.
  *
  * @param chore the chore
  * @param deadline the deadline timestamp
@@ -91,15 +103,14 @@ export function deadlineNeed(chore: Chore, deadline: number, now: number, leadDa
     const lead = leadDays * DAY;
     const leadStart = deadline - lead;
     if (deadline < chore.createdAt) return null;
-    // a done one-time task is deleted, and a done time from the creation is no real done event
-    const doneInPeriod = chore.kind === 'recurring' && chore.lastDoneAt > chore.createdAt && chore.lastDoneAt >= leadStart;
+    const doneInPeriod = chore.kind === 'recurring' && chore.lastDoneAt !== null && chore.lastDoneAt >= leadStart;
     if (doneInPeriod || now < leadStart) return null;
     if (now <= deadline) return DEADLINE_LEVEL + (lead > 0 ? (now - leadStart) / lead : 1);
     return DEADLINE_LEVEL + 1 + (now - deadline) / DAY;
 }
 
 /**
- * Tells if the trigger of a chore applies: the condition is true, it became true after the last done event, and
+ * Tells if the trigger of a chore applies: the condition is true, it became true after the start of the chore, and
  * at least the minimum need has built up. The minimum need keeps a condition that changes often from making the
  * chore urgent again directly after a done tap.
  *
@@ -109,7 +120,7 @@ export function deadlineNeed(chore: Chore, deadline: number, now: number, leadDa
  */
 export function triggerApplies(chore: Chore, rawNeed: number, settings: Settings): boolean {
     if (chore.triggerId === null || chore.triggerResult !== 1 || chore.triggerSinceAt === null) return false;
-    return chore.lastDoneAt < chore.triggerSinceAt && rawNeed >= settings.trigger_min_need;
+    return startAt(chore, settings) < chore.triggerSinceAt && rawNeed >= settings.trigger_min_need;
 }
 
 /**

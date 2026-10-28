@@ -79,7 +79,8 @@ export interface Chore {
     seasonMonths: number[];
     noisy: boolean;
     notes: string | null;
-    lastDoneAt: number;
+    /** Time of the last done event. Null when the start is unknown. */
+    lastDoneAt: number | null;
     snoozedUntil: number | null;
     notYetCount: number;
     lastNotifiedAt: number | null;
@@ -104,6 +105,11 @@ export interface ChoreEvent {
     intervalAfter: number | null;
     durationMin: number;
     effort: number;
+    /**
+     * False for a done event of a chore without a known last done time. Such an event allows no tap "necessary
+     * earlier".
+     */
+    startKnown: boolean;
 }
 
 /** A period in which at least one person is at home. */
