@@ -1,30 +1,47 @@
 import { describe, expect, it } from 'vitest';
-import { learn } from '../../src/core/learn.ts';
-import { makeChore } from './fixtures.ts';
+import { canLearn, learn, learnTarget, MAX_INTERVAL, MIN_INTERVAL } from '../../src/core/learn.ts';
+import { settings } from './fixtures.ts';
+
+describe('learnTarget', () => {
+    it('aims below the elapsed time for earlier and above it for not yet', () => {
+        expect(learnTarget(14, 12, -1, 0.25)).toBe(9);
+        expect(learnTarget(14, 12, 1, 0.25)).toBe(15);
+    });
+
+    it('never moves the interval against the signal', () => {
+        expect(learnTarget(14, 20, -1, 0.25)).toBe(14);
+        expect(learnTarget(14, 8, 1, 0.25)).toBe(14);
+        expect(canLearn(14, 20, -1, 0.25)).toBe(false);
+        expect(canLearn(14, 12, -1, 0.25)).toBe(true);
+    });
+});
 
 describe('learn', () => {
-    it('goes from 7 days to 1 day in five earlier taps with the default limits', () => {
-        let chore = makeChore({ interval: 7, intervalMin: 7 / 8, intervalMax: 28 });
-        const path = [chore.interval!];
-        while (chore.interval! > 1) {
-            chore = { ...chore, ...learn(chore, -1) };
-            path.push(chore.interval!);
-        }
-        expect(path.map((v) => Number(v.toFixed(2)))).toEqual([7, 5.95, 4.61, 3.05, 1.53, 0.88]);
+    it.each([
+        [14, -1, 12.25],
+        [6, -1, 9.25],
+        [12.6, 1, 14.875],
+        [25, 1, 22.625],
+    ] as [number, -1 | 1, number][])('moves 14 days by half of the distance for elapsed %s and direction %s', (elapsed, direction, expected) => {
+        expect(learn(14, elapsed, direction, false, settings)).toBeCloseTo(expected);
     });
 
-    it('halves the step on a direction change', () => {
-        const chore = makeChore({ interval: 10, learnStep: 0.3, learnDirection: -1 });
-        expect(learn(chore, 1)).toEqual({ interval: 11.5, learnStep: 0.15, learnDirection: 1 });
+    it('moves to the target at once for a repeated signal', () => {
+        expect(learn(14, 14, -1, true, settings)).toBeCloseTo(10.5);
+        expect(learn(14, 20, 1, true, settings)).toBeCloseTo(25);
     });
 
-    it('keeps the step within its range', () => {
-        expect(learn(makeChore({ learnStep: 0.4, learnDirection: 1 }), 1).learnStep).toBe(0.5);
-        expect(learn(makeChore({ learnStep: 0.06, learnDirection: 1 }), -1).learnStep).toBe(0.05);
+    it('uses the rate and the margin of the settings', () => {
+        expect(learn(14, 14, -1, false, { ...settings, learn_rate: 1, learn_margin: 0.5 })).toBeCloseTo(7);
     });
 
-    it('respects the limits', () => {
-        expect(learn(makeChore({ interval: 7, intervalMin: 6.5 }), -1).interval).toBe(6.5);
-        expect(learn(makeChore({ interval: 7, intervalMax: 7.5 }), 1).interval).toBe(7.5);
+    it('changes the interval at most by the factor 2 per signal', () => {
+        expect(learn(14, 1, -1, true, settings)).toBe(7);
+        expect(learn(14, 100, 1, true, settings)).toBe(28);
+    });
+
+    it('stays within the global limits', () => {
+        expect(learn(0.6, 0.1, -1, true, settings)).toBe(MIN_INTERVAL);
+        expect(learn(730, 2000, 1, true, settings)).toBe(MAX_INTERVAL);
     });
 });

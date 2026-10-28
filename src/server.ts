@@ -33,9 +33,6 @@ async function startHomeAssistant(conn: HomeAssistant): Promise<void> {
     const syncEntities = () => watchList(db).then((list) => w.setEntities(list));
     const log = (what: string) => (err: unknown) => console.error(`${what} failed`, err);
 
-    deps.onChoresChanged = () => {
-        syncEntities().catch(log('Entity sync'));
-    };
     deps.onConditionsChanged = () => {
         syncTemplates().catch(log('Template sync'));
     };

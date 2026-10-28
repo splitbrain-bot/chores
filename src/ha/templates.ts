@@ -25,19 +25,22 @@ export function toFlag(result: unknown): 0 | 1 {
     return 0;
 }
 
-/** Keeps one render_template subscription per state condition. */
+/** Keeps one render_template subscription per condition. */
 export class TemplateManager {
     private readonly db: Database;
     private readonly ha: HaApi;
+    private readonly now: () => number;
     private readonly subscriptions = new Map<string, Promise<(() => Promise<void>) | null>>();
 
     /**
      * @param db the database
      * @param ha the Home Assistant connection
+     * @param now returns the current time, for the time since a result is true
      */
-    constructor(db: Database, ha: HaApi) {
+    constructor(db: Database, ha: HaApi, now: () => number = Date.now) {
         this.db = db;
         this.ha = ha;
+        this.now = now;
     }
 
     /**
@@ -47,9 +50,7 @@ export class TemplateManager {
      */
     async sync(conditions: readonly Condition[]): Promise<void> {
         const wanted = new Map<string, Condition>();
-        for (const condition of conditions) {
-            if (condition.kind === 'state') wanted.set(key(condition.id, condition.template), condition);
-        }
+        for (const condition of conditions) wanted.set(key(condition.id, condition.template), condition);
 
         for (const [k, sub] of this.subscriptions) {
             if (wanted.has(k)) continue;
@@ -77,7 +78,8 @@ export class TemplateManager {
      */
     private async open(id: number, template: string): Promise<(() => Promise<void>) | null> {
         const store = (result: number | null, error: string | null) =>
-            setConditionResult(this.db, id, result, error).catch((err) => console.error('Template store failed', err));
+            setConditionResult(this.db, id, result, error, this.now())
+                .catch((err) => console.error('Template store failed', err));
         try {
             return await this.ha.subscribe<RenderEvent>(
                 { type: 'render_template', template, report_errors: true },

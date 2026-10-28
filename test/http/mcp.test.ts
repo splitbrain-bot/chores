@@ -65,6 +65,7 @@ describe('MCP endpoint', () => {
             expect(text).toContain(`"name":"${name}"`);
         }
         expect(text).toContain('"durationMin"');
+        expect(text).toContain('"triggerId"');
         expect(text).toContain('Lowest need level for a suggestion');
     });
 
@@ -81,8 +82,8 @@ describe('MCP endpoint', () => {
 
         const { settings } = (await tool('get_settings')).structuredContent as { settings: Record<string, unknown> };
         expect(settings).toMatchObject({ suggestion_count: 3, capacity_slots: expect.any(Array) });
-        expect((await tool('update_settings', { suggestion_count: 5, 'slope.normal': 1.5 })).structuredContent)
-            .toMatchObject({ settings: { suggestion_count: 5, 'slope.normal': 1.5, time_zone: 'Europe/Berlin',
+        expect((await tool('update_settings', { suggestion_count: 5, learn_margin: 0.3 })).structuredContent)
+            .toMatchObject({ settings: { suggestion_count: 5, learn_margin: 0.3, time_zone: 'Europe/Berlin',
                 capacity_slots: settings.capacity_slots } });
         expect((await tool('update_settings', { suggestion_count: 50 })).isError).toBe(true);
 
@@ -106,19 +107,19 @@ describe('MCP endpoint', () => {
             .toEqual({ category: { id: category.id, name: 'Küche', sort: 0, icon: 'fridge' } });
         expect((await tool('update_category', { id: 99, name: 'x' })).isError).toBe(true);
 
-        const { condition } = (await tool('create_condition', { name: 'Trocken', kind: 'state', template: '{{ a }}' }))
+        const { condition } = (await tool('create_condition', { name: 'Trocken', template: '{{ a }}' }))
             .structuredContent as { condition: { id: number } };
-        expect((await tool('update_condition', { id: condition.id, template: '{{ b }}' })).structuredContent)
-            .toMatchObject({ condition: { name: 'Trocken', template: '{{ b }}' } });
+        expect((await tool('update_condition', { id: condition.id, template: '{{ b }}', forecastTemplate: '{{ day.b }}' }))
+            .structuredContent).toMatchObject({ condition: { name: 'Trocken', template: '{{ b }}', forecastTemplate: '{{ day.b }}' } });
 
-        const created = await tool('create_chore', { name: 'Fußboden wischen', groupKey: 'fussboden-wischen', kind: 'recurring',
-            growth: 'usage', interval: 7, importance: 'normal', durationMin: 15, effort: 2,
-            categoryIds: [category.id], lastDoneAt: t.clock.t - 3 * DAY, conditionId: condition.id });
+        const created = await tool('create_chore', { name: 'Fußboden wischen', kind: 'recurring', pausesWhenAway: true,
+            interval: 7, durationMin: 15, effort: 2, categoryIds: [category.id], lastDoneAt: t.clock.t - 3 * DAY,
+            requiresId: condition.id, deadline: '12-24' });
         const choreId = (created.structuredContent as { chore: { id: number } }).chore.id;
-        expect(created.structuredContent).toMatchObject({ chore: { intervalMin: 0.875, intervalMax: 28 } });
+        expect(created.structuredContent).toMatchObject({ chore: { pausesWhenAway: true, requiresId: condition.id,
+            deadlineMd: '12-24', triggerId: null } });
 
-        const invalid = await tool('create_chore', { name: 'x', kind: 'recurring', growth: 'time', importance: 'normal',
-            durationMin: 5, effort: 1 });
+        const invalid = await tool('create_chore', { name: 'x', kind: 'recurring', durationMin: 5, effort: 1 });
         expect(invalid.isError).toBe(true);
         expect(invalid.content[0]!.text).toContain('interval');
 

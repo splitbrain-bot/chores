@@ -17,13 +17,22 @@ export function evaluateChores(chores: readonly Chore[], needCtx: NeedContext, p
             ...chore,
             need: n.need,
             elapsed: n.elapsed,
-            elapsedUnit: n.unit,
             urgent: n.urgent,
             possible: blockedBy.length === 0,
             blockedBy,
             reason: n.reason,
         };
     });
+}
+
+/**
+ * Compares two evaluated chores: the higher need first, then the longer elapsed time.
+ *
+ * @param a the first chore
+ * @param b the second chore
+ */
+export function byNeed(a: ChoreWithNeed, b: ChoreWithNeed): number {
+    return b.need - a.need || b.elapsed - a.elapsed;
 }
 
 /**
@@ -38,7 +47,8 @@ function alsoPossible(chore: ChoreWithNeed, settings: Settings): boolean {
 }
 
 /**
- * Selects the suggestions from the evaluated chores.
+ * Selects the suggestions from the evaluated chores. Chores with the same name form a group with one suggestion.
+ * At most one one-time task is in the suggestions while a recurring chore is possible.
  *
  * @param evaluated chores with their need level and filter result
  * @param settings the settings
@@ -47,21 +57,28 @@ function alsoPossible(chore: ChoreWithNeed, settings: Settings): boolean {
 export function selectSuggestions(evaluated: readonly ChoreWithNeed[], settings: Settings): Suggestion[] {
     const groups = new Map<string, ChoreWithNeed[]>();
     for (const chore of evaluated) {
-        const key = chore.groupKey ?? `#${chore.id}`;
-        const list = groups.get(key) ?? [];
+        const list = groups.get(chore.name) ?? [];
         list.push(chore);
-        groups.set(key, list);
+        groups.set(chore.name, list);
     }
 
     const suggestions: Suggestion[] = [];
     for (const members of groups.values()) {
-        const main = members.filter((c) => c.possible).sort((a, b) => b.need - a.need)[0];
+        const main = members.filter((c) => c.possible).sort(byNeed)[0];
         if (!main) continue;
-        const also = members
-            .filter((c) => c !== main && alsoPossible(c, settings))
-            .sort((a, b) => b.need - a.need);
+        const also = members.filter((c) => c !== main && alsoPossible(c, settings)).sort(byNeed);
         suggestions.push({ chore: main, also, need: main.need, reason: main.reason });
     }
+    suggestions.sort((a, b) => byNeed(a.chore, b.chore));
 
-    return suggestions.sort((a, b) => b.need - a.need).slice(0, settings.suggestion_count);
+    const hasRecurring = suggestions.some((s) => s.chore.kind === 'recurring');
+    const result: Suggestion[] = [];
+    let oneTime = 0;
+    for (const s of suggestions) {
+        if (result.length >= settings.suggestion_count) break;
+        if (s.chore.kind === 'one_time' && hasRecurring && oneTime >= 1) continue;
+        if (s.chore.kind === 'one_time') oneTime++;
+        result.push(s);
+    }
+    return result;
 }

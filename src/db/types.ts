@@ -25,10 +25,11 @@ export interface CategoryTable {
 export interface ConditionTable {
     id: Generated<number>;
     name: string;
-    kind: 'state' | 'forecast';
     template: string;
+    forecastTemplate: string | null;
     result: number | null;
     error: string | null;
+    sinceAt: number | null;
     icon: string | null;
 }
 
@@ -36,22 +37,13 @@ export interface ConditionTable {
 export interface ChoreTable {
     id: Generated<number>;
     name: string;
-    groupKey: string | null;
     kind: 'recurring' | 'one_time';
-    growth: 'usage' | 'time' | 'counter';
     interval: number | null;
-    intervalMin: number | null;
-    intervalMax: number | null;
-    learnStep: Generated<number>;
-    learnDirection: Generated<number>;
-    counterEntity: string | null;
-    importance: 'optional' | 'normal' | 'important' | 'critical';
+    pausesWhenAway: Generated<number>;
     deadlineMd: string | null;
     deadlineAt: number | null;
-    deadlineLeadDays: Generated<number>;
-    conditionId: number | null;
-    boostId: number | null;
-    forecastId: number | null;
+    requiresId: number | null;
+    triggerId: number | null;
     durationMin: number;
     effort: number;
     /** Months of the season as bits, bit 0 is January. 0 means the whole year. */
@@ -90,6 +82,7 @@ export interface EventTable {
     needLevel: number;
     intervalBefore: number | null;
     intervalAfter: number | null;
+    durationMin: Generated<number>;
     effort: number;
 }
 

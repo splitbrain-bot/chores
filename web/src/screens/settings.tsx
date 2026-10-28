@@ -222,28 +222,27 @@ function CategoriesTab() {
     );
 }
 
-/** Values of the condition form. */
-type ConditionForm = { name: string; kind: ConditionStatus['kind']; template: string; icon: string | null };
+/** Values of the condition form. An empty forecast template stands for none. */
+type ConditionForm = { name: string; template: string; forecastTemplate: string; icon: string | null };
 
 /**
- * The form of one condition with its status. The kind of an existing condition cannot change.
+ * The form of one condition with its status.
  *
  * @param props.condition the condition, or null for a new condition
  * @param props.onSaved called after a save or a delete
  */
 function ConditionEditor({ condition, onSaved }: { condition: ConditionStatus | null; onSaved: () => void }) {
     const [f, setF] = useState<ConditionForm>({
-        name: condition?.name ?? '', kind: condition?.kind ?? 'state', template: condition?.template ?? '',
-        icon: condition?.icon ?? null,
+        name: condition?.name ?? '', template: condition?.template ?? '',
+        forecastTemplate: condition?.forecastTemplate ?? '', icon: condition?.icon ?? null,
     });
     const [error, setError] = useState<string | null>(null);
     const send = (request: Promise<unknown>) => request.then(onSaved, (err: Error) => setError(err.message));
     return (
         <form className="condition" onSubmit={(e) => {
             e.preventDefault();
-            send(condition
-                ? api('PATCH', `/conditions/${condition.id}`, { name: f.name, template: f.template, icon: f.icon })
-                : api('POST', '/conditions', f));
+            const body = { ...f, forecastTemplate: f.forecastTemplate.trim() === '' ? null : f.forecastTemplate };
+            send(condition ? api('PATCH', `/conditions/${condition.id}`, body) : api('POST', '/conditions', body));
         }}>
             <div className="field name-icon">
                 <label>
@@ -256,18 +255,15 @@ function ConditionEditor({ condition, onSaved }: { condition: ConditionStatus | 
                 </div>
             </div>
             <label className="field">
-                <span>{t('settings.condition.kind')}</span>
-                <select value={f.kind} disabled={condition !== null}
-                    onChange={(e) => setF({ ...f, kind: e.target.value as ConditionForm['kind'] })}>
-                    <option value="state">{t('settings.condition.kind.state')}</option>
-                    <option value="forecast">{t('settings.condition.kind.forecast')}</option>
-                </select>
-            </label>
-            <label className="field">
                 <span>{t('settings.condition.template')}</span>
                 <textarea rows={2} value={f.template} required onChange={(e) => setF({ ...f, template: e.target.value })} />
             </label>
-            {f.kind === 'forecast' && <p className="hint">{t('settings.condition.forecastHint')}</p>}
+            <label className="field">
+                <span>{t('settings.condition.forecastTemplate')}</span>
+                <textarea rows={2} value={f.forecastTemplate}
+                    onChange={(e) => setF({ ...f, forecastTemplate: e.target.value })} />
+                <small className="hint">{t('settings.condition.forecastHint')}</small>
+            </label>
             {condition && (
                 <p className="template-result">
                     {conditionStatusText(condition)}
@@ -296,7 +292,8 @@ function ConditionsTab() {
     return (
         <div>
             {conditions.map((c) => (
-                <ConditionEditor key={`${c.id}-${c.name}-${c.template}-${c.icon}`} condition={c} onSaved={reloadConditions} />
+                <ConditionEditor key={`${c.id}-${c.name}-${c.template}-${c.forecastTemplate}-${c.icon}`} condition={c}
+                    onSaved={reloadConditions} />
             ))}
             <ConditionEditor key={`new-${conditions.length}`} condition={null} onSaved={reloadConditions} />
         </div>

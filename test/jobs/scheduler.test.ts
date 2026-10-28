@@ -2,11 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DAY, HOUR, MINUTE } from '../../src/core/types.ts';
 import { getCache, setCache } from '../../src/db/cache.ts';
 import { getChore } from '../../src/db/chores.ts';
-import { createCondition } from '../../src/db/conditions.ts';
+import { createCondition, setConditionResult } from '../../src/db/conditions.ts';
 import { Scheduler, hintLine } from '../../src/jobs/scheduler.ts';
 import { createPerson } from '../../src/service/admin.ts';
 import { createChore } from '../../src/service/chores.ts';
 import type { Deps } from '../../src/service/deps.ts';
+import { putSettings } from '../../src/db/settings.ts';
 import { calendarKey, FORECAST_KEY, HOLIDAYS_KEY } from '../../src/service/evaluate.ts';
 import { FakeApi } from '../service/helpers.ts';
 import { memoryDb } from '../db/helpers.ts';
@@ -72,17 +73,22 @@ describe('scheduler', () => {
         expect(count('weather.get_forecasts')).toBe(2);
     });
 
-    it('sends one deadline notification per day at the notify hour', async () => {
+    it('sends one deadline notification per day at the notify hour in the lead period', async () => {
         const chore = await createChore(deps, { name: 'Sprenger abgebaut und Wasser abgestellt', kind: 'recurring',
-            growth: 'time', interval: 365, importance: 'critical', durationMin: 30, effort: 3,
-            deadlineMd: '11-15', personIds: [2], lastDoneAt: Date.now() - 300 * DAY });
+            interval: 365, durationMin: 30, effort: 3, deadline: '11-15', personIds: [2],
+            lastDoneAt: Date.now() - 300 * DAY });
         const notifications = () => fake.calls.filter((c) => c.domain === 'notify');
 
+        // the lead period of 5 days starts on November 10
+        await putSettings(deps.db, { deadline_lead_days: 5 });
         scheduler.start();
         await advance(0);
         expect(notifications()).toEqual([]);
-
         await advance(HOUR);
+        expect(notifications()).toEqual([]);
+
+        await putSettings(deps.db, { deadline_lead_days: 14 });
+        await advance(DAY);
         expect(notifications()).toEqual([{ domain: 'notify', service: 'mobile_app_cronk',
             data: { title: 'Chores', message: 'Due by 15.11.: Sprenger abgebaut und Wasser abgestellt' }, target: undefined }]);
         expect((await getChore(deps.db, chore.id))?.lastNotifiedAt).toBe(Date.now());
@@ -95,16 +101,29 @@ describe('scheduler', () => {
         expect(notifications()).toHaveLength(2);
     });
 
+    it('sends a notification for a chore that a trigger made urgent', async () => {
+        const frost = await createCondition(deps.db, { name: 'Frost', template: '{{ frost }}' });
+        await setConditionResult(deps.db, frost.id, 1, null, Date.now() - HOUR);
+        await createChore(deps, { name: 'Sprenger', kind: 'recurring', interval: 365, durationMin: 30, effort: 3,
+            triggerId: frost.id, personIds: [2], lastDoneAt: Date.now() - 200 * DAY });
+        // half of the interval has not passed for this chore
+        await createChore(deps, { name: 'Rinne', kind: 'recurring', interval: 365, durationMin: 30, effort: 3,
+            triggerId: frost.id, personIds: [2], lastDoneAt: Date.now() - 100 * DAY });
+        scheduler.start();
+        await advance(HOUR);
+        expect(fake.calls.filter((c) => c.domain === 'notify')).toEqual([{ domain: 'notify', service: 'mobile_app_cronk',
+            data: { title: 'Chores', message: 'Now: Sprenger' }, target: undefined }]);
+    });
+
     it('sends the weekend hints on Thursday once', async () => {
         vi.setSystemTime(new Date('2026-11-05T09:10:00+01:00'));
         await setCache(deps.db, FORECAST_KEY, [
             { datetime: '2026-11-07T11:00:00+00:00', condition: 'sunny', temperature: 12, precipitation: 0 },
         ], Date.now());
-        const dry = await createCondition(deps.db, { name: 'Trocken', kind: 'forecast',
-            template: '{{ day.precipitation == 0 }}' });
-        await createChore(deps, { name: 'Dachrinne', kind: 'recurring', growth: 'time', interval: 180, importance: 'normal',
-            durationMin: 60, effort: 4, personIds: [1], lastDoneAt: Date.now() - 200 * DAY,
-            forecastId: dry.id });
+        const dry = await createCondition(deps.db, { name: 'Trocken', template: 'true',
+            forecastTemplate: '{{ day.precipitation == 0 }}' });
+        await createChore(deps, { name: 'Dachrinne', kind: 'recurring', interval: 180, durationMin: 60, effort: 4,
+            personIds: [1], lastDoneAt: Date.now() - 200 * DAY, requiresId: dry.id });
         fake.responses.delete('weather.get_forecasts');
         await scheduler.sendNotifications();
         await scheduler.sendNotifications();

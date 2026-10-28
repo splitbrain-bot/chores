@@ -10,6 +10,7 @@ import * as templatesToConditions from './migrations/2026-10-27-templates-to-con
 import * as visualIconsAndColors from './migrations/2026-10-27-visual-icons-and-colors.ts';
 import * as withoutAssignment from './migrations/2026-10-27-without-assignment.ts';
 import * as withoutSeasonRange from './migrations/2026-10-27-without-season-range.ts';
+import * as simplerChores from './migrations/2026-10-28-simpler-chores.ts';
 import type { DB } from './types.ts';
 
 /** The database handle of the application. */
@@ -24,6 +25,7 @@ const migrations: Record<string, Migration> = {
     '2026-10-27-visual-icons-and-colors': visualIconsAndColors,
     '2026-10-27-without-assignment': withoutAssignment,
     '2026-10-27-without-season-range': withoutSeasonRange,
+    '2026-10-28-simpler-chores': simplerChores,
 };
 
 /**

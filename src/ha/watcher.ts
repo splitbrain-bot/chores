@@ -22,7 +22,7 @@ interface TriggerEvent {
 export interface WatchList {
     /** Person entities. Their states drive the occupancy. */
     persons: string[];
-    /** Distance and counter entities. */
+    /** Distance entities. */
     others: string[];
 }
 

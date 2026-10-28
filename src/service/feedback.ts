@@ -1,8 +1,8 @@
-import { done, earlier, earlierAllowed, EARLIER_LIMIT, postpone as corePostpone } from '../core/feedback.ts';
+import { done, earlier, earlierAllowed, learnDirection, postpone as corePostpone } from '../core/feedback.ts';
+import type { Direction } from '../core/learn.ts';
 import type { ChoreWithNeed, PostponeReason, Viewer } from '../core/types.ts';
 import { updateChore } from '../db/chores.ts';
-import { getEvent, hasEarlierBetween, insertEvent } from '../db/events.ts';
-import { getSettings } from '../db/settings.ts';
+import { getEvent, insertEvent, lastEvent, lastLearnEvent } from '../db/events.ts';
 import type { Deps } from './deps.ts';
 import { notFound, ServiceError } from './errors.ts';
 import { evaluate } from './evaluate.ts';
@@ -64,32 +64,44 @@ export async function markDone(deps: Deps, viewer: Viewer, choreId: number, also
             const change = done(chore, when, chore.need, personOf(viewer));
             await updateChore(trx, id, change.update);
             const eventId = await insertEvent(trx, change.event);
-            result.push({ choreId: id, eventId, earlier: earlierAllowed(chore, chore.need, state.settings.earlier_max_need) });
+            result.push({ choreId: id, eventId, earlier: earlierAllowed(chore, change.event, state.settings) });
         }
         return result;
     });
-    if (chores.some((c) => c.kind === 'one_time')) deps.onChoresChanged?.();
     return events;
 }
 
 /**
- * Records that the chore of a done event was necessary earlier and shortens its interval.
+ * Returns the direction of the last learning event of a chore, or null.
+ *
+ * @param deps the dependencies
+ * @param choreId the chore id
+ */
+async function lastLearn(deps: Deps, choreId: number): Promise<Direction | null> {
+    const event = await lastLearnEvent(deps.db, choreId);
+    return event ? learnDirection(event) : null;
+}
+
+/**
+ * Records that the chore of a done event was necessary earlier and shortens its interval. The tap is possible
+ * while the done event is the last event of the chore.
  *
  * @param deps the dependencies
  * @param viewer the viewer
  * @param eventId the done event
- * @throws ServiceError 404 for an unknown event, 409 after the window, for a second call or for a late done event
+ * @throws ServiceError 404 for an unknown event or chore, 409 when the event is not the last done event or was late
  */
 export async function markEarlier(deps: Deps, viewer: Viewer, eventId: number): Promise<ChoreWithNeed> {
     const event = await getEvent(deps.db, eventId);
     if (!event) throw notFound('Event');
-    const chore = await evaluatedChore(deps, viewer, event.choreId, true);
-    const used = await hasEarlierBetween(deps.db, chore.id, event.at, event.at + EARLIER_LIMIT);
-    const { earlier_max_need: maxNeed } = await getSettings(deps.db);
-    const result = earlier(chore, event, used, deps.now(), personOf(viewer), maxNeed);
+    const { state, chores } = await evaluate(deps, viewer, { ids: [event.choreId], includeDeleted: true });
+    const chore = chores[0];
+    if (!chore) throw notFound('Chore');
+    const result = earlier(chore, event, await lastEvent(deps.db, chore.id), await lastLearn(deps, chore.id),
+        deps.now(), personOf(viewer), state.settings);
     if (result && 'error' in result) {
-        const messages = { not_done: 'The event is not a done event', window: 'The time for this tap is over',
-            already: 'The tap was already used', overdue: 'The chore was done too late for this tap' };
+        const messages = { not_done: 'The event is not a done event', stale: 'The chore has a newer event',
+            overdue: 'The chore was done too late for this tap' };
         throw new ServiceError(409, messages[result.error]);
     }
     if (result) {
@@ -118,7 +130,8 @@ export async function postpone(deps: Deps, viewer: Viewer, choreId: number, reas
         need: chore.need,
         elapsed: chore.elapsed,
         nextSlotAt: state.nextSlotAt,
-        oneTimeSnoozeDays: state.settings.one_time_snooze_days,
+        lastLearn: await lastLearn(deps, chore.id),
+        settings: state.settings,
         personId: personOf(viewer),
     });
     await deps.db.transaction().execute(async (trx) => {

@@ -8,49 +8,19 @@ export interface NeedContext {
     settings: Settings;
     occupancy: readonly OccupancyRow[];
     firstRecordAt: number | null;
-    /** Completed cycles since the last done event per chore id. */
-    cycles: ReadonlyMap<number, number>;
 }
 
 /** Result of the need computation of one chore. */
 export interface NeedResult {
     need: number;
     elapsed: number;
-    unit: 'days' | 'cycles';
-    /** True when an active deadline or boost raises the need level. */
+    /** True when an active deadline or trigger raises the need level. */
     urgent: boolean;
     reason: Reason;
 }
 
-/** Need level of an active deadline at the start of the lead period. */
+/** Lowest need level of an urgent chore. */
 export const DEADLINE_LEVEL = 10;
-
-/**
- * Counts the completed cycles in a state sequence. A cycle is a change from on to off. Other states are ignored.
- *
- * @param states the states in time order
- * @param initial the last valid state before the sequence
- */
-export function countCycles(states: readonly string[], initial: string | null = null): number {
-    let last = initial === 'on' || initial === 'off' ? initial : null;
-    let count = 0;
-    for (const state of states) {
-        if (state !== 'on' && state !== 'off') continue;
-        if (last === 'on' && state === 'off') count++;
-        last = state;
-    }
-    return count;
-}
-
-/**
- * Returns the slope of the need level after the interval for an importance.
- *
- * @param chore the chore
- * @param settings the settings with the slopes
- */
-function slope(chore: Chore, settings: Settings): number {
-    return settings[`slope.${chore.importance}`];
-}
 
 /**
  * Returns the interval of a chore. One-time tasks use the reference interval.
@@ -64,23 +34,28 @@ export function effectiveInterval(chore: Chore, settings: Settings): number {
 }
 
 /**
- * Returns the elapsed value of a chore since the last done event.
+ * Returns the elapsed days of a chore since the last done event.
  *
- * One-time tasks count wall-clock days since their creation. Time and usage chores with a season window count only
- * the time inside the window.
+ * One-time tasks count wall-clock days since their creation. A chore that pauses when nobody is at home counts the
+ * presence clock. A seasonal chore counts the time in its months fully and the time outside at most one interval,
+ * so that it is due at the start of the season and not overdue by the whole pause.
  *
  * @param chore the chore
  * @param ctx the need context
  */
-export function elapsed(chore: Chore, ctx: NeedContext): { value: number; unit: 'days' | 'cycles' } {
-    if (chore.kind !== 'one_time' && chore.growth === 'counter') return { value: ctx.cycles.get(chore.id) ?? 0, unit: 'cycles' };
-    const since = chore.kind === 'one_time' ? chore.createdAt : chore.lastDoneAt;
-    const usage = chore.kind === 'recurring' && chore.growth === 'usage';
-    let ms = 0;
-    for (const [a, b] of seasonParts(since, ctx.now, ctx.settings.time_zone, chore.seasonMonths)) {
-        ms += usage ? presenceBetween(a, b, ctx.occupancy, ctx.firstRecordAt) : b - a;
+export function elapsed(chore: Chore, ctx: NeedContext): number {
+    if (chore.kind === 'one_time') return (ctx.now - chore.createdAt) / DAY;
+    const clock = (a: number, b: number) => (chore.pausesWhenAway
+        ? presenceBetween(a, b, ctx.occupancy, ctx.firstRecordAt)
+        : b - a);
+    const total = clock(chore.lastDoneAt, ctx.now);
+    if (chore.seasonMonths.length === 0) return total / DAY;
+    let inSeason = 0;
+    for (const [a, b] of seasonParts(chore.lastDoneAt, ctx.now, ctx.settings.time_zone, chore.seasonMonths)) {
+        inSeason += clock(a, b);
     }
-    return { value: ms / DAY, unit: 'days' };
+    const outside = Math.min(total - inSeason, effectiveInterval(chore, ctx.settings) * DAY);
+    return (inSeason + outside) / DAY;
 }
 
 /**
@@ -110,9 +85,10 @@ export function deadlines(chore: Chore, now: number, timeZone: string): number[]
  * @param chore the chore
  * @param deadline the deadline timestamp
  * @param now milliseconds since the epoch
+ * @param leadDays days before the deadline in which it applies
  */
-function deadlineNeed(chore: Chore, deadline: number, now: number): number | null {
-    const lead = chore.deadlineLeadDays * DAY;
+export function deadlineNeed(chore: Chore, deadline: number, now: number, leadDays: number): number | null {
+    const lead = leadDays * DAY;
     const leadStart = deadline - lead;
     if (deadline < chore.createdAt) return null;
     // a done one-time task is deleted, and a done time from the creation is no real done event
@@ -120,6 +96,20 @@ function deadlineNeed(chore: Chore, deadline: number, now: number): number | nul
     if (doneInPeriod || now < leadStart) return null;
     if (now <= deadline) return DEADLINE_LEVEL + (lead > 0 ? (now - leadStart) / lead : 1);
     return DEADLINE_LEVEL + 1 + (now - deadline) / DAY;
+}
+
+/**
+ * Tells if the trigger of a chore applies: the condition is true, it became true after the last done event, and
+ * at least the minimum need has built up. The minimum need keeps a condition that changes often from making the
+ * chore urgent again directly after a done tap.
+ *
+ * @param chore the chore
+ * @param rawNeed the need level from the elapsed time
+ * @param settings the settings
+ */
+export function triggerApplies(chore: Chore, rawNeed: number, settings: Settings): boolean {
+    if (chore.triggerId === null || chore.triggerResult !== 1 || chore.triggerSinceAt === null) return false;
+    return chore.lastDoneAt < chore.triggerSinceAt && rawNeed >= settings.trigger_min_need;
 }
 
 /**
@@ -131,15 +121,16 @@ function deadlineNeed(chore: Chore, deadline: number, now: number): number | nul
 export function computeNeed(chore: Chore, ctx: NeedContext): NeedResult {
     const interval = effectiveInterval(chore, ctx.settings);
     const el = elapsed(chore, ctx);
-    const raw = interval > 0 ? el.value / interval : 0;
-    let need = raw <= 1 ? raw : 1 + (raw - 1) * slope(chore, ctx.settings);
+    const raw = interval > 0 ? el / interval : 0;
+    // a one-time task never ranks above a recurring chore that is past its interval
+    let need = chore.kind === 'one_time' ? Math.min(raw, 1) : raw;
     let reason: Reason = chore.kind === 'one_time'
-        ? { code: 'one_time', ageDays: el.value }
-        : { code: 'interval', interval, elapsed: el.value, unit: el.unit };
+        ? { code: 'one_time', ageDays: el }
+        : { code: 'interval', interval, elapsed: el };
     let urgent = false;
 
     for (const deadline of deadlines(chore, ctx.now, ctx.settings.time_zone)) {
-        const level = deadlineNeed(chore, deadline, ctx.now);
+        const level = deadlineNeed(chore, deadline, ctx.now, ctx.settings.deadline_lead_days);
         if (level === null) continue;
         urgent = true;
         if (level > need) {
@@ -148,13 +139,13 @@ export function computeNeed(chore: Chore, ctx: NeedContext): NeedResult {
         }
     }
 
-    if (chore.boostId !== null && chore.boostResult === 1) {
+    if (triggerApplies(chore, raw, ctx.settings)) {
         urgent = true;
         if (DEADLINE_LEVEL > need) {
             need = DEADLINE_LEVEL;
-            reason = { code: 'boost' };
+            reason = { code: 'trigger' };
         }
     }
 
-    return { need, elapsed: el.value, unit: el.unit, urgent, reason };
+    return { need, elapsed: el, urgent, reason };
 }

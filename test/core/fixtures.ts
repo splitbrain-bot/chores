@@ -19,11 +19,9 @@ export function at(iso: string): number {
  */
 export function makeChore(over: Partial<Chore> = {}): Chore {
     return {
-        id: 1, name: 'Test', groupKey: null, kind: 'recurring', growth: 'time', interval: 7, intervalMin: null,
-        intervalMax: null, learnStep: 0.15, learnDirection: 0, counterEntity: null, importance: 'normal',
-        deadlineMd: null, deadlineAt: null, deadlineLeadDays: 14, conditionId: null, boostId: null,
-        forecastId: null, conditionResult: null, boostResult: null, templateError: null, durationMin: 10,
-        effort: 2, seasonMonths: [], noisy: false, notes: null,
+        id: 1, name: 'Test', kind: 'recurring', interval: 7, pausesWhenAway: false, deadlineMd: null, deadlineAt: null,
+        requiresId: null, triggerId: null, requiresResult: null, triggerResult: null, triggerSinceAt: null,
+        templateError: null, durationMin: 10, effort: 2, seasonMonths: [], noisy: false, notes: null,
         lastDoneAt: at('2026-10-01T10:00+02:00'), snoozedUntil: null, notYetCount: 0, lastNotifiedAt: null,
         createdAt: at('2026-01-01T10:00+01:00'), updatedAt: 0, deletedAt: null, personIds: [], categoryIds: [],
         ...over,

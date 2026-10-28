@@ -47,14 +47,15 @@ export function longAbsence(p: PresenceState | undefined, now: number, settings:
 }
 
 /**
- * Tells if another person takes over a chore because its one assigned person is away for a long time.
+ * Tells if another person takes over a chore because its one assigned person is away for a long time. Only an
+ * urgent chore changes hands.
  *
  * @param chore the chore
+ * @param urgent true when a deadline or a trigger makes the chore urgent
  * @param ctx the filter context
  */
-export function handover(chore: Chore, ctx: PossibleContext): boolean {
-    if (chore.personIds.length !== 1) return false;
-    if (chore.importance !== 'important' && chore.importance !== 'critical') return false;
+export function handover(chore: Chore, urgent: boolean, ctx: PossibleContext): boolean {
+    if (chore.personIds.length !== 1 || !urgent) return false;
     return longAbsence(ctx.presence.get(chore.personIds[0]!), ctx.now, ctx.settings);
 }
 
@@ -62,9 +63,10 @@ export function handover(chore: Chore, ctx: PossibleContext): boolean {
  * Returns the persons who can do a chore now for the viewer, or an empty list when the person rule fails.
  *
  * @param chore the chore
+ * @param urgent true when a deadline or a trigger makes the chore urgent
  * @param ctx the filter context
  */
-export function doers(chore: Chore, ctx: PossibleContext): number[] {
+export function doers(chore: Chore, urgent: boolean, ctx: PossibleContext): number[] {
     const s = candidates(chore, ctx.personIds);
     const home = (id: number) => ctx.presence.get(id)?.home === true;
     const h = ctx.personIds.filter(home);
@@ -79,10 +81,10 @@ export function doers(chore: Chore, ctx: PossibleContext): number[] {
     const viewer = ctx.viewer;
     if (viewer.kind === 'shared') {
         if (sh.length > 0) return sh;
-        return handover(chore, ctx) ? h : [];
+        return handover(chore, urgent, ctx) ? h : [];
     }
     if (!home(viewer.personId)) return [];
-    if (sh.includes(viewer.personId) || (sh.length === 0 && handover(chore, ctx))) return [viewer.personId];
+    if (sh.includes(viewer.personId) || (sh.length === 0 && handover(chore, urgent, ctx))) return [viewer.personId];
     return [];
 }
 
@@ -90,18 +92,19 @@ export function doers(chore: Chore, ctx: PossibleContext): number[] {
  * Applies the filters that do not depend on the need level or the capacity.
  *
  * @param chore the chore
+ * @param urgent true when a deadline or a trigger makes the chore urgent
  * @param ctx the filter context
  * @returns the codes of the failed filters
  */
-export function baseBlocks(chore: Chore, ctx: PossibleContext): BlockCode[] {
+export function baseBlocks(chore: Chore, urgent: boolean, ctx: PossibleContext): BlockCode[] {
     const blocks: BlockCode[] = [];
     const local = localParts(ctx.now, ctx.settings.time_zone);
     if (chore.deletedAt !== null) blocks.push('deleted');
     if (chore.snoozedUntil !== null && chore.snoozedUntil > ctx.now) blocks.push('snoozed');
     if (!inSeason(local.month, chore.seasonMonths)) blocks.push('season');
     if (chore.noisy && isQuietDay(local.date, ctx.holidays)) blocks.push('quiet_day');
-    if (chore.conditionId !== null && chore.conditionResult !== 1) blocks.push('condition');
-    if (doers(chore, ctx).length === 0) blocks.push('persons');
+    if (chore.requiresId !== null && chore.requiresResult !== 1) blocks.push('condition');
+    if (doers(chore, urgent, ctx).length === 0) blocks.push('persons');
     return blocks;
 }
 
@@ -124,13 +127,15 @@ export function fitsCapacity(chore: Chore, persons: readonly number[], capacitie
  *
  * @param chore the chore
  * @param need the need level of the chore
- * @param urgent true when an active deadline or boost raises the need level
+ * @param urgent true when an active deadline or trigger raises the need level
  * @param ctx the filter context
  * @returns the codes of the failed filters, empty when the chore is possible now
  */
 export function blocks(chore: Chore, need: number, urgent: boolean, ctx: PossibleContext): BlockCode[] {
-    const result = baseBlocks(chore, ctx);
-    if (!result.includes('persons') && !fitsCapacity(chore, doers(chore, ctx), ctx.capacities)) result.push('capacity');
+    const result = baseBlocks(chore, urgent, ctx);
+    if (!result.includes('persons') && !fitsCapacity(chore, doers(chore, urgent, ctx), ctx.capacities)) {
+        result.push('capacity');
+    }
     if (!urgent && need < ctx.settings.suggest_threshold) result.push('need');
     return result;
 }

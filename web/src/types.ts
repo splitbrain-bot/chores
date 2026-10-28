@@ -23,7 +23,6 @@ export interface SuggestionsResponse {
     nextSlotAt: number | null;
     presence: PersonPresence[];
     hints: Hint[];
-    earlierWindowSeconds: number;
 }
 
 /** A token without its hash. */

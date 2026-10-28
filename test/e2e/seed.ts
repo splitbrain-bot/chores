@@ -3,7 +3,7 @@ import { insertStates } from '../../src/db/ha_state.ts';
 import { replaceOccupancy } from '../../src/db/occupancy.ts';
 import { putSettings } from '../../src/db/settings.ts';
 import { createToken as insertToken } from '../../src/db/tokens.ts';
-import { DAY, DEFAULT_SETTINGS } from '../../src/core/types.ts';
+import { DAY } from '../../src/core/types.ts';
 import { createCategory, createPerson } from '../../src/service/admin.ts';
 import { hashToken } from '../../src/service/auth.ts';
 import { createChore } from '../../src/service/chores.ts';
@@ -35,7 +35,6 @@ export async function seed(path: string): Promise<void> {
             { days: [0, 1, 2, 3, 4, 5, 6], from: '00:00', to: '23:59', minutes: 120, energy: 5 },
         ],
         ha_frame_ancestors: ['https://ha.example.org'],
-        earlier_window_seconds: DEFAULT_SETTINGS.earlier_window_seconds,
     });
 
     const andi = await createPerson(deps, { name: 'Andi', haEntity: 'person.andreas_gohr', password: 'andi-pw',
@@ -52,19 +51,19 @@ export async function seed(path: string): Promise<void> {
     const bath = await createCategory(deps, 'Bad', 2, 'shower');
     await createCategory(deps, 'Garten', 3);
 
-    const base = { kind: 'recurring', growth: 'time', importance: 'normal' } as const;
+    const base = { kind: 'recurring' } as const;
     const chores: ChoreInput[] = [
-        { ...base, name: 'Fußboden wischen', groupKey: 'fussboden-wischen', interval: 7, durationMin: 20, effort: 3,
-            categoryIds: [kitchen.id], lastDoneAt: now - 9.8 * DAY },
-        { ...base, name: 'Fußboden wischen', groupKey: 'fussboden-wischen', interval: 7, durationMin: 15, effort: 3,
-            categoryIds: [bath.id], lastDoneAt: now - 6 * DAY },
+        { ...base, name: 'Fußboden wischen', interval: 7, durationMin: 20, effort: 3, categoryIds: [kitchen.id],
+            lastDoneAt: now - 8.5 * DAY },
+        { ...base, name: 'Fußboden wischen', interval: 7, durationMin: 15, effort: 3, categoryIds: [bath.id],
+            lastDoneAt: now - 6 * DAY },
         { ...base, name: 'Spiegel putzen', interval: 14, durationMin: 5, effort: 1, categoryIds: [bath.id],
             lastDoneAt: now - 20 * DAY },
         { ...base, name: 'Kühlschrank auswischen', interval: 30, durationMin: 30, effort: 2, categoryIds: [kitchen.id],
             lastDoneAt: now - 50 * DAY, notes: 'Alles ausräumen und mit Essigwasser auswischen.\nGemüsefach separat spülen.\nDichtung nicht vergessen.' },
         { ...base, name: 'Fenster putzen', interval: 90, durationMin: 60, effort: 4, lastDoneAt: now - 10 * DAY,
             personIds: [andi.id, kaddi.id], noisy: true },
-        { ...base, name: 'Regal bauen', kind: 'one_time', durationMin: 90, effort: 3, importance: 'optional' },
+        { ...base, name: 'Regal bauen', kind: 'one_time', durationMin: 90, effort: 3 },
     ];
     for (const c of chores) await createChore(deps, c);
 

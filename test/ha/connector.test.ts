@@ -79,29 +79,30 @@ describe('Home Assistant connector', () => {
         expect(fake.last('subscribe_trigger')!.trigger).toEqual({ trigger: 'state', entity_id: ['person.a', 'person.k'] });
     });
 
-    it('stores template results and errors', async () => {
+    it('stores template results and errors with the time since a result is true', async () => {
         await ha.start();
-        const cond = await createCondition(db, { name: 'Sonne', kind: 'state',
-            template: '{{ is_state("sun.sun", "above_horizon") }}' });
-        const boost = await createCondition(db, { name: 'Nie', kind: 'state', template: '{{ false }}' });
-        const forecast = await createCondition(db, { name: 'Trocken', kind: 'forecast', template: '{{ day.dry }}' });
-        const chore = await createChore(db, newChore({ conditionId: cond.id, boostId: boost.id }));
-        const templates = new TemplateManager(db, ha);
-        await templates.sync([cond, boost, forecast]);
+        const cond = await createCondition(db, { name: 'Sonne', template: '{{ is_state("sun.sun", "above_horizon") }}' });
+        const trigger = await createCondition(db, { name: 'Nie', template: '{{ false }}', forecastTemplate: '{{ day.dry }}' });
+        const chore = await createChore(db, newChore({ requiresId: cond.id, triggerId: trigger.id }));
+        const templates = new TemplateManager(db, ha, () => 4242);
+        await templates.sync([cond, trigger]);
         expect(templates.size).toBe(2);
         const subs = fake.commands.filter((c) => c.type === 'render_template');
         const condSub = subs.find((c) => String(c.template).includes('sun'))!;
-        const boostSub = subs.find((c) => c !== condSub)!;
+        const triggerSub = subs.find((c) => c !== condSub)!;
         expect(condSub.report_errors).toBe(true);
+        expect(triggerSub.template).toBe('{{ false }}');
 
         fake.push(condSub.id, { result: true, listeners: {} });
-        fake.push(boostSub.id, { result: 'False', listeners: {} });
-        await until(async () => (await getChore(db, chore.id))?.conditionResult === 1);
-        await until(async () => (await getChore(db, chore.id))?.boostResult === 0);
+        fake.push(triggerSub.id, { result: 'False', listeners: {} });
+        await until(async () => (await getChore(db, chore.id))?.requiresResult === 1);
+        await until(async () => (await getChore(db, chore.id))?.triggerResult === 0);
+        expect(await getCondition(db, cond.id)).toMatchObject({ result: 1, sinceAt: 4242 });
+        expect(await getCondition(db, trigger.id)).toMatchObject({ result: 0, sinceAt: null });
 
         fake.push(condSub.id, { error: 'UndefinedError: x', level: 'ERROR' });
         await until(async () => (await getCondition(db, cond.id))?.error === 'UndefinedError: x');
-        expect((await getChore(db, chore.id))).toMatchObject({ conditionResult: null, templateError: 'UndefinedError: x' });
+        expect((await getChore(db, chore.id))).toMatchObject({ requiresResult: null, templateError: 'UndefinedError: x' });
 
         await templates.sync([cond]);
         expect(templates.size).toBe(1);
@@ -111,7 +112,7 @@ describe('Home Assistant connector', () => {
     it('stores the error of a template that Home Assistant rejects', async () => {
         await ha.start();
         fake.handlers.set('render_template', () => { throw new Error('TemplateSyntaxError'); });
-        const cond = await createCondition(db, { name: 'Kaputt', kind: 'state', template: '{{ broken' });
+        const cond = await createCondition(db, { name: 'Kaputt', template: '{{ broken' });
         await new TemplateManager(db, ha).sync([cond]);
         expect((await getCondition(db, cond.id))?.error).toContain('TemplateSyntaxError');
     });

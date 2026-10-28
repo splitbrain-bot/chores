@@ -63,6 +63,26 @@ export function hasHangover(personId: number, now: number, events: readonly Chor
 }
 
 /**
+ * Returns the capacity limits from the postpone taps of a person in the current slot. "No time" says that the
+ * person has less time than the chore needs, "no energy" that the person has less energy than the chore needs.
+ * Events without a person count for every person.
+ *
+ * @param personId the person
+ * @param slotStart start of the current slot
+ * @param events recent events
+ * @returns the limits, Infinity without a tap
+ */
+export function capacityCaps(personId: number, slotStart: number, events: readonly ChoreEvent[]): Capacity {
+    const caps: Capacity = { minutes: Infinity, energy: Infinity };
+    for (const e of events) {
+        if (e.type !== 'postpone' || e.at < slotStart || (e.personId !== null && e.personId !== personId)) continue;
+        if (e.reason === 'no_time') caps.minutes = Math.min(caps.minutes, e.durationMin - 1);
+        if (e.reason === 'no_energy') caps.energy = Math.min(caps.energy, e.effort - 1);
+    }
+    return caps;
+}
+
+/**
  * Computes the capacity of a person at a moment.
  *
  * @param personId the person
@@ -70,7 +90,7 @@ export function hasHangover(personId: number, now: number, events: readonly Chor
  * @param settings the settings with the slot table
  * @param holidays local dates of the public holidays
  * @param calendar calendar events of the person
- * @param recentDone done events of the last two days
+ * @param recentEvents events of the last two days
  */
 export function capacityFor(
     personId: number,
@@ -78,10 +98,17 @@ export function capacityFor(
     settings: Settings,
     holidays: ReadonlySet<string>,
     calendar: readonly CalendarEvent[],
-    recentDone: readonly ChoreEvent[],
+    recentEvents: readonly ChoreEvent[],
 ): CapacityResult {
     const slot = currentSlot(now, settings.time_zone, settings.capacity_slots, holidays);
     if (!slot) return { capacity: { minutes: 0, energy: 0 }, slot: null };
-    const energy = slot.slot.energy - (hasHangover(personId, now, recentDone, settings) ? 1 : 0);
-    return { capacity: { minutes: freeMinutes(slot, calendar), energy: Math.max(0, energy) }, slot };
+    const caps = capacityCaps(personId, slot.start, recentEvents);
+    const energy = slot.slot.energy - (hasHangover(personId, now, recentEvents, settings) ? 1 : 0);
+    return {
+        capacity: {
+            minutes: Math.max(0, Math.min(freeMinutes(slot, calendar), caps.minutes)),
+            energy: Math.max(0, Math.min(energy, caps.energy)),
+        },
+        slot,
+    };
 }

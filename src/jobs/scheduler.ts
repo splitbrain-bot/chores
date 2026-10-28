@@ -116,7 +116,7 @@ export class Scheduler {
         await setCache(db, HOLIDAYS_KEY, publicHolidays(events, settings.holiday_state), now);
     }
 
-    /** Sends the deadline and boost messages and on Thursday the look-ahead for the weekend, at the notify hour. */
+    /** Sends the deadline and trigger messages and on Thursday the look-ahead for the weekend, at the notify hour. */
     async sendNotifications(): Promise<void> {
         const { db } = this.deps;
         const settings = await getSettings(db);
@@ -186,7 +186,7 @@ function dayMonth(ts: number, timeZone: string): string {
 }
 
 /**
- * Builds the message for a chore with an active deadline or boost.
+ * Builds the message for a chore with an active deadline or trigger.
  *
  * @param chore the chore
  * @param settings the settings

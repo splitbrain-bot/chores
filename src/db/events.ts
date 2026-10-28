@@ -53,25 +53,33 @@ export async function listRecentEvents(db: Database, limit = 30): Promise<EventW
 }
 
 /**
- * Lists the done events since a moment.
+ * Lists the events since a moment.
  *
  * @param db the database
  * @param since milliseconds since the epoch
  */
-export async function listDoneSince(db: Database, since: number): Promise<ChoreEvent[]> {
-    return db.selectFrom('event').selectAll().where('type', '=', 'done').where('at', '>=', since).orderBy('at').execute();
+export async function listEventsSince(db: Database, since: number): Promise<ChoreEvent[]> {
+    return db.selectFrom('event').selectAll().where('at', '>=', since).orderBy('at').orderBy('id').execute();
 }
 
 /**
- * Tells if an earlier event of a chore exists in a period.
+ * Returns the last event of a chore.
  *
  * @param db the database
  * @param choreId the chore id
- * @param from start of the period
- * @param to end of the period
  */
-export async function hasEarlierBetween(db: Database, choreId: number, from: number, to: number): Promise<boolean> {
-    const row = await db.selectFrom('event').select('id').where('choreId', '=', choreId).where('type', '=', 'earlier')
-        .where('at', '>=', from).where('at', '<=', to).executeTakeFirst();
-    return row !== undefined;
+export async function lastEvent(db: Database, choreId: number): Promise<ChoreEvent | undefined> {
+    return (await listChoreEvents(db, choreId, 1))[0];
+}
+
+/**
+ * Returns the last learning event of a chore: an earlier event or a postpone with the reason not_yet.
+ *
+ * @param db the database
+ * @param choreId the chore id
+ */
+export async function lastLearnEvent(db: Database, choreId: number): Promise<ChoreEvent | undefined> {
+    return db.selectFrom('event').selectAll().where('choreId', '=', choreId)
+        .where((eb) => eb.or([eb('type', '=', 'earlier'), eb('reason', '=', 'not_yet')]))
+        .orderBy('at', 'desc').orderBy('id', 'desc').executeTakeFirst();
 }

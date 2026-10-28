@@ -15,7 +15,8 @@ export interface LookaheadContext {
     calendars: ReadonlyMap<number, readonly CalendarEvent[]>;
     /** Daily forecast per local date. */
     forecast: ReadonlyMap<string, ForecastDay>;
-    /** Result of the forecast condition per chore id and local date, null for a render error. */
+    /** Result of the forecast template per chore id and local date, null for a render error. Only chores whose
+     * required condition has a forecast template have an entry. */
     forecastResults: ReadonlyMap<number, ReadonlyMap<string, boolean | null>>;
 }
 
@@ -23,10 +24,11 @@ export interface LookaheadContext {
  * Tells if a chore needs a look-ahead hint at all.
  *
  * @param chore the chore
+ * @param hasForecast true when the required condition of the chore has a forecast template
  */
-export function isLookaheadCandidate(chore: ChoreWithNeed): boolean {
+export function isLookaheadCandidate(chore: ChoreWithNeed, hasForecast: boolean): boolean {
     if (chore.deletedAt !== null) return false;
-    if (chore.forecastId !== null || chore.noisy) return true;
+    if (hasForecast || chore.noisy) return true;
     return together(chore);
 }
 
@@ -48,7 +50,8 @@ export function freeMinutesOnDay(date: string, events: readonly CalendarEvent[],
 }
 
 /**
- * Computes the look-ahead hints for the next days. Each chore gets a hint for the first day that fits.
+ * Computes the look-ahead hints for the next days. Each chore gets a hint for the first day that fits. A chore with
+ * forecast results in the context needs a good forecast day.
  *
  * @param chores the evaluated chores
  * @param ctx the look-ahead context
@@ -59,7 +62,7 @@ export function lookahead(chores: readonly ChoreWithNeed[], ctx: LookaheadContex
     const hints: Hint[] = [];
 
     for (const chore of chores) {
-        if (!isLookaheadCandidate(chore)) continue;
+        if (!isLookaheadCandidate(chore, ctx.forecastResults.has(chore.id))) continue;
         const persons = candidates(chore, ctx.personIds);
         const interval = effectiveInterval(chore, ctx.settings);
 
@@ -93,11 +96,12 @@ function checkDay(chore: ChoreWithNeed, date: string, interval: number, persons:
     const month = Number(date.slice(5, 7));
     if (!inSeason(month, chore.seasonMonths)) return null;
 
-    const growth = chore.elapsedUnit === 'days' && interval > 0 ? (startOfDay(date, tz) - ctx.now) / DAY / interval : 0;
+    const growth = interval > 0 ? (startOfDay(date, tz) - ctx.now) / DAY / interval : 0;
     if (!chore.urgent && chore.need + growth < ctx.settings.suggest_threshold) return null;
 
-    if (chore.forecastId !== null) {
-        if (ctx.forecastResults.get(chore.id)?.get(date) !== true) return null;
+    const forecast = ctx.forecastResults.get(chore.id);
+    if (forecast) {
+        if (forecast.get(date) !== true) return null;
         const day = ctx.forecast.get(date);
         reasons.push({
             code: 'weather',

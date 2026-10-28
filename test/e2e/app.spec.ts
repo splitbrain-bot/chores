@@ -43,23 +43,25 @@ test('marks a suggestion as done and taps necessary earlier', async ({ page, req
     await card.getByRole('button', { name: 'Done' }).click();
     await dialog.getByRole('checkbox').check();
     await dialog.getByRole('button', { name: 'Done' }).click();
+    // the question has no timer
     await expect(dialog.getByText('Done. Thank you!')).toBeVisible();
+    await page.waitForTimeout(2500);
+    await expect(dialog.getByRole('button', { name: 'Close' })).toBeVisible();
     await dialog.getByRole('button', { name: 'Was necessary earlier' }).click();
-    await expect(dialog.getByText('Noted. The chore comes back sooner.')).toBeVisible();
     await expect(dialog).toHaveCount(0);
     await expect(page.locator('.task h2')).toHaveText(['Kühlschrank auswischen', 'Spiegel putzen']);
 
+    // a chore that was done late gets no question
     const late = page.locator('.task').filter({ hasText: 'Kühlschrank auswischen' });
     await late.getByRole('button', { name: 'Done' }).click();
-    await expect(dialog.getByText('Done. Thank you!')).toBeVisible();
-    await expect(dialog.getByRole('button', { name: 'Was necessary earlier' })).toHaveCount(0);
-    await dialog.getByRole('button', { name: 'Close' }).click();
+    await expect(dialog).toHaveCount(0);
     await expect(page.locator('.task h2')).toHaveText(['Spiegel putzen']);
 
     const token = await page.evaluate(() => localStorage.getItem('chores.token'));
     const res = await request.get('/api/chores?q=Fußboden', { headers: { authorization: `Bearer ${token}` } });
     const { chores } = await res.json() as { chores: { interval: number; categoryIds: number[]; lastDoneAt: number }[] };
-    expect(chores.map((c) => c.interval).sort()).toEqual([5.95, 7]);
+    // the elapsed time grows during the test, so the learned interval is rounded
+    expect(chores.map((c) => Math.round(c.interval * 100) / 100).sort()).toEqual([6.69, 7]);
     expect(chores.every((c) => Date.now() - c.lastDoneAt < 60_000)).toBe(true);
 });
 
@@ -79,13 +81,14 @@ test('shows the notes and opens the chore from a suggestion', async ({ page }) =
 
 test('postpones a suggestion with a reason', async ({ page }) => {
     await login(page);
-    const card = page.locator('.task').filter({ hasText: 'Spiegel putzen' });
+    const card = page.locator('.task').filter({ hasText: 'Kühlschrank auswischen' });
     await card.getByRole('button', { name: 'Later' }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'No energy' }).click();
-    await expect(page.locator('.task h2')).toHaveText(['Kühlschrank auswischen', 'Fußboden wischen']);
+    // the energy is below the effort 2 of the postponed chore now, only the effort 1 chore fits
+    await expect(page.locator('.task h2')).toHaveText(['Spiegel putzen']);
 
     await page.getByRole('link', { name: 'Chores' }).click();
-    const row = page.locator('.task').filter({ hasText: 'Spiegel putzen' });
+    const row = page.locator('.task').filter({ hasText: 'Kühlschrank auswischen' });
     await expect(row).toContainText('paused until');
 
     await row.getByRole('button', { name: 'Later' }).click();
@@ -111,20 +114,23 @@ test('opens the tablet mode with the shared token URL', async ({ page }) => {
     await expect(page.locator('.task').first()).toBeVisible();
     await page.getByRole('link', { name: 'Chores' }).click();
     await expect(page.getByRole('button', { name: 'New chore' })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Done' }).first().click();
+    await page.locator('.task').filter({ hasText: 'Fußboden wischen' }).first().getByRole('button', { name: 'Done' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Done' }).click();
     await expect(page.getByRole('dialog').getByText('Done. Thank you!')).toBeVisible();
     await page.reload();
     await expect(page.locator('html')).toHaveClass(/tablet/);
 });
 
-test('groups the chore list by category or by group key', async ({ page }) => {
+test('groups the chore list by category or by name', async ({ page }) => {
     await login(page);
     await page.goto('/chores');
     await expect(page.locator('.chores > section > h2')).toHaveText(['Küche', 'Bad', 'Without category']);
-    await page.getByLabel('Grouping').selectOption('groupKey');
-    await expect(page.locator('.chores > section > h2')).toHaveText(['fussboden-wischen', 'Without group key']);
-    await expect(page.locator('.chores section').first().locator('.task h2')).toHaveText(['Fußboden wischen', 'Fußboden wischen']);
-    const related = page.locator('.chores section').first().locator('.related').first();
+    await page.getByLabel('Grouping').selectOption('name');
+    await expect(page.locator('.chores > section > h2')).toHaveText(['Fenster putzen', 'Fußboden wischen',
+        'Kühlschrank auswischen', 'Regal bauen', 'Spiegel putzen']);
+    const floors = page.locator('.chores section').nth(1);
+    await expect(floors.locator('.task h2')).toHaveText(['Fußboden wischen', 'Fußboden wischen']);
+    const related = floors.locator('.related').first();
     await expect(related).toHaveAttribute('title', 'Fußboden wischen (Bad)');
     await expect(related.locator('.name')).toBeHidden();
     await expect(related.locator('.categories')).toHaveText('Bad');
@@ -134,12 +140,21 @@ test('creates and edits a chore in the form', async ({ page }) => {
     await login(page);
     await page.getByRole('link', { name: 'Chores' }).click();
     await page.getByRole('button', { name: 'New chore' }).click();
-    await page.getByLabel('Name').fill('Backofen reinigen');
+    // an input with a datalist has the role combobox
+    const name = page.getByRole('combobox', { name: /^Name/ });
+    await expect(name).toHaveAttribute('list', 'chore-names');
+    await expect(page.locator('datalist#chore-names option[value="Spiegel putzen"]')).toHaveCount(1);
+    await name.fill('Backofen reinigen');
     await page.getByRole('button', { name: 'Küche' }).click();
-    await page.getByLabel('Growth').selectOption('time');
+    await expect(page.getByLabel('Growth')).toHaveCount(0);
+    await expect(page.getByLabel('Importance')).toHaveCount(0);
+    await expect(page.getByLabel('Group key')).toHaveCount(0);
+    await expect(page.getByLabel('Pauses while nobody is at home')).toBeChecked();
+    await page.getByLabel('Pauses while nobody is at home').uncheck();
     await page.getByLabel('Interval (days)').fill('60');
     await page.getByLabel('Duration (minutes)').fill('45');
     await page.getByRole('radio', { name: 'Effort 4 of 5' }).click();
+    await page.getByLabel('Yearly deadline (MM-DD)').fill('12-01');
     await page.getByRole('button', { name: 'Save' }).click();
 
     await expect(page).toHaveURL(/\/chores$/);
@@ -147,11 +162,16 @@ test('creates and edits a chore in the form', async ({ page }) => {
         .locator('.task').filter({ hasText: 'Backofen reinigen' });
     await expect(row).toBeVisible();
 
+    await expect(row.locator('.flag[title="Due by 12/1"]')).toBeVisible();
+
     await row.getByRole('link', { name: 'Backofen reinigen' }).click();
     await expect(page.getByRole('heading', { name: 'Edit chore' })).toBeVisible();
-    await expect(page.getByLabel('Minimum interval')).toHaveValue('7.5');
+    await expect(page.getByLabel('Interval (days)')).toHaveValue('60');
+    await expect(page.getByLabel('Pauses while nobody is at home')).not.toBeChecked();
+    await expect(page.getByLabel('Yearly deadline (MM-DD)')).toHaveValue('12-01');
+    await expect(page.getByLabel('Minimum interval')).toHaveCount(0);
     await expect(page.getByRole('radio', { name: 'Effort 4 of 5' })).toHaveAttribute('aria-checked', 'true');
-    await page.getByLabel('Name').fill('Backofen gründlich reinigen');
+    await page.getByRole('combobox', { name: /^Name/ }).fill('Backofen gründlich reinigen');
     await page.getByRole('button', { name: 'Kaddi' }).click();
     const season = page.getByRole('group', { name: 'Season' });
     await expect(season.getByText('Whole year')).toBeVisible();
@@ -172,7 +192,8 @@ test('creates a condition and uses it in a chore', async ({ page }) => {
     await page.getByRole('tab', { name: 'Conditions' }).click();
     const form = page.locator('form.condition').last();
     await form.getByLabel('Name').fill('Trocken');
-    await form.getByLabel('Template').fill('{{ is_state("sensor.rain", "off") }}');
+    await form.getByLabel('Template', { exact: true }).fill('{{ is_state("sensor.rain", "off") }}');
+    await expect(form.getByLabel('Forecast template')).toHaveValue('');
     await form.getByRole('button', { name: 'Select icon' }).click();
     await form.getByLabel('Search icon').fill('weather-sunny');
     await form.getByLabel('Search icon').press('Enter');
@@ -186,9 +207,9 @@ test('creates a condition and uses it in a chore', async ({ page }) => {
 
     await page.goto('/chores');
     await page.getByRole('link', { name: 'Spiegel putzen' }).click();
-    await page.getByRole('combobox', { name: /^Condition/ }).selectOption({ label: 'Trocken' });
+    await page.getByRole('combobox', { name: /^Only when/ }).selectOption({ label: 'Trocken' });
     await expect(page.getByText('Current result: no result')).toBeVisible();
-    await expect(page.getByLabel('Forecast condition').locator('option')).toHaveText(['–']);
+    await expect(page.getByRole('combobox', { name: /^Urgent when/ }).locator('option')).toHaveText(['–', 'Trocken']);
     await page.getByRole('button', { name: 'Save' }).click();
     const row = page.locator('.task').filter({ hasText: 'Spiegel putzen' });
     await expect(row).toContainText('condition');

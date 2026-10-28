@@ -52,6 +52,16 @@ describe('person without entity', () => {
     });
 });
 
+describe('watch list', () => {
+    it('holds the person and distance entities of the persons', async () => {
+        const deps = await makeDeps(new Clock('2026-10-26T20:00:00+01:00'));
+        await createPerson(deps.db, { name: 'Andi', haEntity: 'person.a', distanceEntity: 'sensor.d' });
+        await createPerson(deps.db, { name: 'Kaddi', haEntity: 'person.k' });
+        await createChore(deps, { name: 'Rasen', kind: 'recurring', interval: 7, durationMin: 30, effort: 3 });
+        expect(await watchList(deps.db)).toEqual({ persons: ['person.a', 'person.k'], others: ['sensor.d'] });
+    });
+});
+
 describe('changed entities', () => {
     it('records the current state of a new entity at once', async () => {
         const clock = new Clock('2026-10-26T20:00:00+01:00');
@@ -133,18 +143,22 @@ describe('template results', () => {
         const clock = new Clock('2026-10-26T20:00:00+01:00');
         const deps = await makeDeps(clock);
         const fake = deps.fake as FakeApi;
-        const dry = await createCondition(deps, { name: 'Trocken', kind: 'state', template: '{{ dry }}' });
-        const chore = await createChore(deps, { name: 'Rasen', kind: 'recurring', growth: 'time', interval: 7,
-            importance: 'normal', durationMin: 30, effort: 3, conditionId: dry.id });
-        const templates = new TemplateManager(deps.db, fake);
+        const dry = await createCondition(deps, { name: 'Trocken', template: '{{ dry }}', forecastTemplate: '{{ day.dry }}' });
+        const chore = await createChore(deps, { name: 'Rasen', kind: 'recurring', interval: 7, durationMin: 30, effort: 3,
+            requiresId: dry.id });
+        const templates = new TemplateManager(deps.db, fake, () => clock.t);
         await templates.sync(await listConditions(deps.db));
-        const sub = fake.subscriptions.find((s) => s.message.type === 'render_template')!;
+        const subs = fake.subscriptions.filter((s) => s.message.type === 'render_template');
+        expect(subs).toHaveLength(1);
+        const sub = subs[0]!;
+        expect(sub.message).toMatchObject({ template: '{{ dry }}' });
         sub.callback({ result: true });
         await new Promise((r) => setTimeout(r, 10));
-        expect((await loadChore(deps.db, chore.id))?.conditionResult).toBe(1);
+        expect(await loadChore(deps.db, chore.id)).toMatchObject({ requiresResult: 1, templateError: null });
+        expect((await listConditions(deps.db))[0]).toMatchObject({ result: 1, sinceAt: clock.t });
         sub.callback({ error: 'boom' });
         await new Promise((r) => setTimeout(r, 10));
-        expect(await loadChore(deps.db, chore.id)).toMatchObject({ conditionResult: null, templateError: 'boom' });
+        expect(await loadChore(deps.db, chore.id)).toMatchObject({ requiresResult: null, templateError: 'boom' });
 
         await templates.sync([]);
         expect(sub.closed).toBe(true);

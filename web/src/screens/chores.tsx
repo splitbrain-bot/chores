@@ -8,13 +8,13 @@ import { navigate } from '../router.ts';
 import type { ChoreWithNeed } from '../types.ts';
 import { useInterval } from '../use-interval.ts';
 
-/** The list of all chores, grouped by category or by group key. */
+/** The list of all chores, grouped by category or by name. */
 export function Chores() {
     const { categories, tablet } = useApp();
     const [chores, setChores] = useState<ChoreWithNeed[] | null>(null);
     const [query, setQuery] = useState('');
     const [dueOnly, setDueOnly] = useState(false);
-    const [groupBy, setGroupBy] = useState<'category' | 'groupKey'>('category');
+    const [groupBy, setGroupBy] = useState<'category' | 'name'>('category');
     const [action, setAction] = useState<TaskAction | null>(null);
 
     const load = useCallback(() => {
@@ -28,24 +28,21 @@ export function Chores() {
     useInterval(load, 60_000);
 
     if (!chores) return <p className="status">{t('common.loading')}</p>;
-    const related = (chore: ChoreWithNeed) => (chore.groupKey === null ? []
-        : chores.filter((c) => c.groupKey === chore.groupKey && c.id !== chore.id));
+    const related = (chore: ChoreWithNeed) => chores.filter((c) => c.name === chore.name && c.id !== chore.id);
     const q = query.trim().toLocaleLowerCase();
     const visible = chores
         .filter((c) => (!q || c.name.toLocaleLowerCase().includes(q)) && (!dueOnly || c.need >= 1))
         .sort((a, b) => b.need - a.need);
 
-    const groupKeys = [...new Set(visible.map((c) => c.groupKey).filter((k) => k !== null))].sort((a, b) => a.localeCompare(b));
+    const names = [...new Set(visible.map((c) => c.name))].sort((a, b) => a.localeCompare(b));
     const groups = (groupBy === 'category'
         ? [
             ...categories.map((cat) => ({ key: String(cat.id), name: cat.name,
                 chores: visible.filter((c) => c.categoryIds.includes(cat.id)) })),
             { key: 'none', name: t('chores.noCategory'), chores: visible.filter((c) => c.categoryIds.length === 0) },
         ]
-        : [
-            ...groupKeys.map((k) => ({ key: k, name: k, chores: visible.filter((c) => c.groupKey === k) })),
-            { key: 'none', name: t('chores.noGroupKey'), chores: visible.filter((c) => c.groupKey === null) },
-        ]).filter((g) => g.chores.length > 0);
+        : names.map((n) => ({ key: n, name: n, chores: visible.filter((c) => c.name === n) }))
+    ).filter((g) => g.chores.length > 0);
 
     return (
         <section className="chores">
@@ -57,9 +54,9 @@ export function Chores() {
                     {t('chores.dueOnly')}
                 </label>
                 <select aria-label={t('chores.groupBy')} value={groupBy}
-                    onChange={(e) => setGroupBy(e.target.value as 'category' | 'groupKey')}>
+                    onChange={(e) => setGroupBy(e.target.value as 'category' | 'name')}>
                     <option value="category">{t('chores.groupBy.category')}</option>
-                    <option value="groupKey">{t('chores.groupBy.groupKey')}</option>
+                    <option value="name">{t('chores.groupBy.name')}</option>
                 </select>
                 {!tablet && <button type="button" onClick={() => navigate('/chores/new')}>{t('chores.new')}</button>}
             </div>

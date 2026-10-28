@@ -14,16 +14,16 @@ describe('chores', () => {
         const c2 = await createCategory(db, 'Bad');
         const chore = await createChore(db, newChore({ name: 'Boden', noisy: true, personIds: [p.id],
             categoryIds: [c2.id, c1.id] }));
-        expect(chore).toMatchObject({ id: 1, name: 'Boden', noisy: true, personIds: [p.id], categoryIds: [1, 2],
-            learnDirection: 0 });
+        expect(chore).toMatchObject({ id: 1, name: 'Boden', noisy: true, pausesWhenAway: false, personIds: [p.id],
+            categoryIds: [1, 2] });
     });
 
     it('updates values and replaces links', async () => {
         const db = await memoryDb();
         const c1 = await createCategory(db, 'Küche');
         const chore = await createChore(db, newChore({ categoryIds: [c1.id] }));
-        const updated = await updateChore(db, chore.id, { interval: 5, learnDirection: -1, noisy: true, categoryIds: [] });
-        expect(updated).toMatchObject({ interval: 5, learnDirection: -1, noisy: true, categoryIds: [] });
+        const updated = await updateChore(db, chore.id, { interval: 5, pausesWhenAway: true, noisy: true, categoryIds: [] });
+        expect(updated).toMatchObject({ interval: 5, pausesWhenAway: true, noisy: true, categoryIds: [] });
         const kept = await updateChore(db, chore.id, { name: 'Neu' });
         expect(kept).toMatchObject({ name: 'Neu', interval: 5 });
         expect(await updateChore(db, 99, { name: 'x' })).toBeUndefined();
@@ -42,14 +42,20 @@ describe('chores', () => {
 
     it('reads the results of the linked conditions', async () => {
         const db = await memoryDb();
-        const cond = await createCondition(db, { name: 'Trocken', kind: 'state', template: '{{ x }}' });
-        const boost = await createCondition(db, { name: 'Besuch', kind: 'state', template: '{{ y }}' });
-        const chore = await createChore(db, newChore({ conditionId: cond.id, boostId: boost.id }));
-        expect(chore).toMatchObject({ conditionResult: null, boostResult: null, templateError: null });
-        await setConditionResult(db, cond.id, 1, null);
-        await setConditionResult(db, boost.id, null, 'UndefinedError');
-        expect(await getChore(db, chore.id)).toMatchObject({ conditionResult: 1, boostResult: null,
+        const requires = await createCondition(db, { name: 'Trocken', template: '{{ x }}' });
+        const trigger = await createCondition(db, { name: 'Frost', template: '{{ y }}' });
+        const chore = await createChore(db, newChore({ requiresId: requires.id, triggerId: trigger.id }));
+        expect(chore).toMatchObject({ requiresResult: null, triggerResult: null, triggerSinceAt: null, templateError: null });
+        await setConditionResult(db, requires.id, 1, null, 500);
+        await setConditionResult(db, trigger.id, null, 'UndefinedError', 600);
+        expect(await getChore(db, chore.id)).toMatchObject({ requiresResult: 1, triggerResult: null, triggerSinceAt: null,
             templateError: 'UndefinedError' });
-        expect((await listChores(db))[0]).toMatchObject({ conditionResult: 1, templateError: 'UndefinedError' });
+        // a change from an error to true keeps the time, a change from false to true sets it
+        await setConditionResult(db, trigger.id, 1, null, 650);
+        expect((await getChore(db, chore.id))?.triggerSinceAt).toBeNull();
+        await setConditionResult(db, trigger.id, 0, null, 660);
+        await setConditionResult(db, trigger.id, 1, null, 700);
+        expect((await listChores(db))[0]).toMatchObject({ requiresResult: 1, triggerResult: 1, triggerSinceAt: 700,
+            templateError: null });
     });
 });

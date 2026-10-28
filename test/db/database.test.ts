@@ -83,12 +83,16 @@ describe('migration templates-to-conditions', () => {
         await db.insertInto('cache').values({ key: 'forecast_template:1:2026-10-30', value: 'true', fetchedAt: 0 }).execute();
 
         await conditions.up(db as never);
-        expect(await db.selectFrom('condition').select(['id', 'name', 'kind', 'template']).orderBy('id').execute()).toEqual([
+        const created = await sql<Record<string, unknown>>`SELECT id, name, kind, template FROM condition ORDER BY id`
+            .execute(db);
+        expect(created.rows).toEqual([
             { id: 1, name: 'Rasen', kind: 'state', template: '{{ dry }}' },
             { id: 2, name: 'Rasen (2)', kind: 'state', template: '{{ guests }}' },
             { id: 3, name: 'Rasen (3)', kind: 'forecast', template: '{{ day.sun }}' },
         ]);
-        expect(await db.selectFrom('chore').select(['conditionId', 'boostId', 'forecastId']).orderBy('id').execute()).toEqual([
+        const linked = await sql<Record<string, unknown>>`SELECT condition_id, boost_id, forecast_id FROM chore ORDER BY id`
+            .execute(db);
+        expect(linked.rows).toEqual([
             { conditionId: 1, boostId: 2, forecastId: 3 },
             { conditionId: 1, boostId: null, forecastId: null },
             { conditionId: null, boostId: 1, forecastId: null },
@@ -207,6 +211,80 @@ describe('migration without-season-range', () => {
             { seasonFrom: 4, seasonTo: 10 },
             { seasonFrom: 11, seasonTo: 2 },
         ]);
+        await db.destroy();
+    });
+});
+
+describe('migration simpler-chores', () => {
+    it('converts the chores, the conditions, the events and the settings and back', async () => {
+        const { openDatabase, migrate } = await import('../../src/db/database.ts');
+        const { Migrator } = await import('kysely/migration');
+        const { sql } = await import('kysely');
+        const names = ['initial', 'person-entity-optional', 'slot-weekdays', 'templates-to-conditions',
+            'visual-icons-and-colors', 'without-assignment', 'without-season-range'];
+        const migrations = Object.fromEntries(await Promise.all(names.map(async (name) =>
+            [`2026-10-27-${name}`, await import(`../../src/db/migrations/2026-10-27-${name}.ts`)])));
+        const simpler = await import('../../src/db/migrations/2026-10-28-simpler-chores.ts');
+        const db = openDatabase(':memory:');
+        await new Migrator({ db, provider: { getMigrations: async () => migrations } }).migrateToLatest();
+        await sql`INSERT INTO condition (name, kind, template, result) VALUES ('Trocken', 'state', '{{ dry }}', 1)`.execute(db);
+        await sql`INSERT INTO condition (name, kind, template, result) VALUES ('Sonnig', 'forecast', '{{ day.sun }}', 0)`
+            .execute(db);
+        const chore = (name: string, growth: string, condition: number | null, boost: number | null, forecast: number | null) =>
+            sql`INSERT INTO chore (name, group_key, kind, growth, interval, importance, duration_min, effort, last_done_at,
+                created_at, updated_at, condition_id, boost_id, forecast_id, season_months)
+                VALUES (${name}, 'g', 'recurring', ${growth}, 7, 'critical', 10, 1, 5, 1, 2, ${condition}, ${boost},
+                ${forecast}, 6)`.execute(db);
+        await chore('Rasen', 'usage', 1, null, 2);
+        await chore('Sprenger', 'time', null, 1, null);
+        await chore('Filter', 'counter', null, null, null);
+        await db.insertInto('category').values({ name: 'Garten' }).execute();
+        await db.insertInto('choreCategory').values({ choreId: 1, categoryId: 1 }).execute();
+        await sql`INSERT INTO event (chore_id, type, at, need_level, effort) VALUES (2, 'done', 9, 1.5, 3)`.execute(db);
+        for (const key of ['slope.normal', 'earlier_max_need', 'earlier_window_seconds', 'suggest_threshold']) {
+            await db.insertInto('setting').values({ key, value: '1' }).execute();
+        }
+
+        await migrate(db);
+        expect(await db.selectFrom('chore').select(['id', 'name', 'pausesWhenAway', 'requiresId', 'triggerId', 'seasonMonths',
+            'lastDoneAt']).orderBy('id').execute()).toEqual([
+            { id: 1, name: 'Rasen', pausesWhenAway: 1, requiresId: 1, triggerId: null, seasonMonths: 6, lastDoneAt: 5 },
+            { id: 2, name: 'Sprenger', pausesWhenAway: 0, requiresId: null, triggerId: 1, seasonMonths: 6, lastDoneAt: 5 },
+            { id: 3, name: 'Filter', pausesWhenAway: 0, requiresId: null, triggerId: null, seasonMonths: 6, lastDoneAt: 5 },
+        ]);
+        const columns = (await db.introspection.getTables()).find((t) => t.name === 'chore')!.columns.map((c) => c.name);
+        for (const gone of ['group_key', 'growth', 'importance', 'interval_min', 'learn_step', 'counter_entity',
+            'deadline_lead_days', 'condition_id', 'boost_id', 'forecast_id']) {
+            expect(columns).not.toContain(gone);
+        }
+        expect(await db.selectFrom('condition').select(['id', 'template', 'forecastTemplate', 'result', 'sinceAt'])
+            .orderBy('id').execute()).toEqual([
+            { id: 1, template: '{{ dry }}', forecastTemplate: null, result: 1, sinceAt: null },
+            { id: 2, template: 'true', forecastTemplate: '{{ day.sun }}', result: null, sinceAt: null },
+        ]);
+        expect(await db.selectFrom('event').select(['choreId', 'durationMin', 'effort']).execute())
+            .toEqual([{ choreId: 2, durationMin: 0, effort: 3 }]);
+        expect((await db.selectFrom('setting').select('key').orderBy('key').execute()).map((r) => r.key))
+            .toEqual(['suggest_threshold']);
+        expect(await db.selectFrom('choreCategory').selectAll().execute()).toEqual([{ choreId: 1, categoryId: 1 }]);
+        await expect(sql`INSERT INTO chore (name, kind, duration_min, effort, last_done_at, created_at, updated_at,
+            requires_id) VALUES ('x', 'recurring', 1, 1, 0, 0, 0, 99)`.execute(db)).rejects.toThrow(/FOREIGN KEY/);
+
+        await simpler.down(db as never);
+        const rows = await sql<Record<string, unknown>>`SELECT growth, importance, interval_min, interval_max,
+            condition_id, boost_id, forecast_id FROM chore ORDER BY id`.execute(db);
+        expect(rows.rows).toEqual([
+            { growth: 'usage', importance: 'normal', intervalMin: 0.875, intervalMax: 28, conditionId: 1, boostId: null,
+                forecastId: null },
+            { growth: 'time', importance: 'normal', intervalMin: 0.875, intervalMax: 28, conditionId: null, boostId: 1,
+                forecastId: null },
+            { growth: 'time', importance: 'normal', intervalMin: 0.875, intervalMax: 28, conditionId: null, boostId: null,
+                forecastId: null },
+        ]);
+        const conditions = await sql<Record<string, unknown>>`SELECT kind, template FROM condition ORDER BY id`.execute(db);
+        expect(conditions.rows).toEqual([{ kind: 'state', template: '{{ dry }}' }, { kind: 'forecast', template: '{{ day.sun }}' }]);
+        expect((await db.introspection.getTables()).find((t) => t.name === 'event')!.columns.map((c) => c.name))
+            .not.toContain('duration_min');
         await db.destroy();
     });
 });

@@ -1,19 +1,24 @@
 import { capacityFor } from '../../src/core/capacity.ts';
 import { buildOccupancy } from '../../src/core/clock.ts';
-import { done, earlier, postpone } from '../../src/core/feedback.ts';
+import { done, earlier, earlierAllowed, learnDirection, postpone, type PostponeContext } from '../../src/core/feedback.ts';
+import type { Direction } from '../../src/core/learn.ts';
 import type { NeedContext } from '../../src/core/need.ts';
 import type { PossibleContext } from '../../src/core/possible.ts';
 import { evaluateChores, selectSuggestions } from '../../src/core/select.ts';
 import { addDays, localParts, nextSlotStart, slotsOfDay, startOfDay, zonedTime } from '../../src/core/time.ts';
 import {
-    DAY, DEFAULT_SETTINGS, MINUTE, type Capacity, type Chore, type ChoreEvent, type ChoreWithNeed, type Growth,
-    type Importance, type Kind, type OccupancyRow, type PresenceState, type Settings, type StateRecord,
+    DAY, DEFAULT_SETTINGS, MINUTE, type Capacity, type Chore, type ChoreEvent, type ChoreWithNeed, type Kind,
+    type OccupancyRow, type PresenceState, type Settings, type StateRecord,
 } from '../../src/core/types.ts';
 
 /** Options of the simulation, read from the command line as key=value pairs. */
 const options = Object.fromEntries(process.argv.slice(2).map((a) => a.split('=') as [string, string]));
 const SEED = Number(options.seed ?? 1);
 const YEAR = Number(options.year ?? 2027);
+/** Number of random recurring chores besides the fixed ones. */
+const SIZE = Number(options.size ?? 110);
+/** True to simulate a user who also vacuums from the chore list when the floor needs it. */
+const ACTIVE = options.active === '1';
 const settings: Settings = { ...DEFAULT_SETTINGS, ...(options.settings ? JSON.parse(options.settings) : {}) };
 const tz = settings.time_zone;
 
@@ -21,6 +26,8 @@ const PERSONS = [1, 2];
 const ENTITIES = ['person.a', 'person.k'];
 const VACATION_START = `${YEAR}-08-01`;
 const VACATION_END = `${YEAR}-08-22`;
+/** Local dates at which the shedding seasons of the dog start. */
+const SHEDDING_STARTS = [`${YEAR}-03-15`, `${YEAR}-09-15`];
 
 /**
  * Creates a seeded random generator with values from 0 to 1.
@@ -67,50 +74,45 @@ function shedding(at: number): boolean {
 }
 
 /**
- * Generates about 150 chores that mirror the Todoist data.
+ * Generates the chores: the vacuuming, two chores per room, the random recurring chores, the seasonal chores and
+ * the projects.
  *
  * @param start the start of the simulation
  */
 function generateChores(start: number): SimChore[] {
     const chores: SimChore[] = [];
-    const add = (name: string, kind: Kind, growth: Growth, interval: number | null, extra: Partial<Chore> = {},
+    const add = (name: string, kind: Kind, pausesWhenAway: boolean, interval: number | null, extra: Partial<Chore> = {},
         trueInterval?: (at: number) => number) => {
         const factor = 0.6 + random();
         const id = chores.length + 1;
         chores.push({
-            id, name, groupKey: null, kind, growth, interval,
-            intervalMin: interval === null ? null : interval / 8, intervalMax: interval === null ? null : interval * 4,
-            learnStep: 0.15, learnDirection: 0, counterEntity: null, importance: 'normal', deadlineMd: null,
-            deadlineAt: null, deadlineLeadDays: 14, conditionId: null, boostId: null, forecastId: null,
-            conditionResult: null, boostResult: null, templateError: null, durationMin: pick([5, 10, 15, 30, 45, 60]),
-            effort: 1 + Math.floor(random() * 4), seasonMonths: [], noisy: false,
-            notes: null, lastDoneAt: interval === null ? start : start - random() * interval * DAY, snoozedUntil: null,
-            notYetCount: 0, lastNotifiedAt: null, createdAt: start, updatedAt: start, deletedAt: null, personIds: [],
-            categoryIds: [], ...extra,
+            id, name, kind, interval, pausesWhenAway, deadlineMd: null, deadlineAt: null, requiresId: null,
+            triggerId: null, requiresResult: null, triggerResult: null, triggerSinceAt: null, templateError: null,
+            durationMin: pick([5, 10, 15, 30, 45, 60]), effort: 1 + Math.floor(random() * 4), seasonMonths: [],
+            noisy: false, notes: null, lastDoneAt: interval === null ? start : start - random() * interval * DAY,
+            snoozedUntil: null, notYetCount: 0, lastNotifiedAt: null, createdAt: start, updatedAt: start,
+            deletedAt: null, personIds: [], categoryIds: [], ...extra,
             trueInterval: trueInterval ?? (() => (interval ?? settings.one_time_reference_days) * factor),
         });
     };
 
-    add('Staubsaugen', 'recurring', 'usage', 7, { durationMin: 30, effort: 3 }, (at) => (shedding(at) ? 1 : 7));
-    const rooms = ['Küche', 'Bad', 'Flur', 'Wohnzimmer', 'Schlafzimmer', 'Büro'];
-    for (const room of rooms) {
-        add(`Fußboden wischen ${room}`, 'recurring', 'usage', 14, { groupKey: 'fussboden-wischen', durationMin: 15 });
-        add(`Staub wischen ${room}`, 'recurring', 'time', 21, { groupKey: 'staub-wischen', durationMin: 10, effort: 1 });
+    add('Staubsaugen', 'recurring', true, 7, { durationMin: 30, effort: 3 }, (at) => (shedding(at) ? 1 : 7));
+    // the chores of the rooms share their name, so they form one group each
+    for (let room = 1; room <= 6; room++) {
+        add('Fußboden wischen', 'recurring', true, 14, { durationMin: 15, categoryIds: [room] });
+        add('Staub wischen', 'recurring', false, 21, { durationMin: 10, effort: 1, categoryIds: [room] });
     }
     const intervals = [2, 7, 7, 14, 14, 14, 30, 30, 30, 60, 60, 90, 90, 180, 180, 365, 365];
-    const importances: Importance[] = ['optional', 'normal', 'normal', 'normal', 'important', 'critical'];
-    while (chores.length < 110) {
-        const interval = pick(intervals);
-        add(`Aufgabe ${chores.length + 1}`, 'recurring', random() < 0.6 ? 'usage' : 'time', interval,
-            { importance: pick(importances) });
+    while (chores.length < 13 + SIZE) {
+        add(`Aufgabe ${chores.length + 1}`, 'recurring', random() < 0.6, pick(intervals));
     }
     for (let i = 0; i < 15; i++) {
         const from = pick([3, 4, 5, 9, 11]);
-        add(`Saison ${i + 1}`, 'recurring', 'time', pick([7, 14, 30]),
+        add(`Saison ${i + 1}`, 'recurring', false, pick([7, 14, 30]),
             { seasonMonths: [0, 1, 2, 3, 4, 5].map((i) => ((from + i - 1) % 12) + 1), noisy: random() < 0.5 });
     }
     for (let i = 0; i < 15; i++) {
-        add(`Projekt ${i + 1}`, 'one_time', 'time', null, { importance: 'optional', durationMin: pick([60, 90, 120]) });
+        add(`Projekt ${i + 1}`, 'one_time', false, null, { durationMin: pick([60, 90, 120]) });
     }
     return chores;
 }
@@ -181,25 +183,43 @@ function run(): void {
     const start = startOfDay(startDate, tz);
     const days = 365;
     const chores = generateChores(start);
+    const vacuum = chores[0]!;
     const records = generatePresence(startDate, days);
     const occupancy: OccupancyRow[] = buildOccupancy(records);
     const firstRecordAt = records[0]!.at;
     const events: ChoreEvent[] = [];
     const holidays = new Set<string>();
     const months = new Map<number, MonthStats>();
+    /** The vacuuming interval at the end of each day, by local date. */
+    const vacuumByDate = new Map<string, number>();
     let afterVacation: ChoreWithNeed[] | null = null;
     let eventId = 1;
 
     const evaluateAt = (now: number, viewer: PossibleContext['viewer']) => {
-        const recent = events.filter((e) => e.type === 'done' && e.at >= now - 2 * DAY);
+        const recent = events.filter((e) => e.at >= now - 2 * DAY);
         const capacities = new Map<number, Capacity>(PERSONS.map((id) =>
             [id, capacityFor(id, now, settings, holidays, [], recent).capacity]));
-        const needCtx: NeedContext = { now, settings, occupancy, firstRecordAt, cycles: new Map() };
+        const needCtx: NeedContext = { now, settings, occupancy, firstRecordAt };
         const possibleCtx: PossibleContext = { now, settings, viewer, personIds: PERSONS, presence: presenceAt(records, now),
             capacities, holidays };
         return { list: evaluateChores(chores.filter((c) => c.deletedAt === null), needCtx, possibleCtx), possibleCtx };
     };
     const apply = (chore: SimChore, update: Partial<Chore>) => Object.assign(chore, update);
+    const record = (event: Omit<ChoreEvent, 'id'>): ChoreEvent => {
+        const stored = { ...event, id: eventId++ };
+        events.push(stored);
+        return stored;
+    };
+    const lastEventOf = (choreId: number) => events.findLast((e) => e.choreId === choreId);
+    const lastLearnOf = (choreId: number): Direction | null => {
+        for (let i = events.length - 1; i >= 0; i--) {
+            const e = events[i]!;
+            if (e.choreId !== choreId) continue;
+            const direction = learnDirection(e);
+            if (direction !== null) return direction;
+        }
+        return null;
+    };
     const stats = (month: number) => {
         let s = months.get(month);
         if (!s) {
@@ -208,11 +228,28 @@ function run(): void {
         }
         return s;
     };
+    /** Marks a chore as done and taps "earlier" when the true need says so and the rule offers the tap. */
+    const doChore = (chore: SimChore, evaluated: ChoreWithNeed, now: number, personId: number, s: MonthStats) => {
+        const trueNeed = evaluated.elapsed / chore.trueInterval(now);
+        const result = done(chore, now, evaluated.need, personId);
+        const event = record(result.event);
+        apply(chore, result.update);
+        s.done++;
+        if (trueNeed > 1.3 && earlierAllowed(chore, event, settings)) {
+            const e = earlier(chore, event, lastEventOf(chore.id), lastLearnOf(chore.id), now + 5000, personId, settings);
+            if (e && !('error' in e)) {
+                apply(chore, e.update);
+                record(e.event);
+                s.earlier++;
+            }
+        }
+    };
 
     for (let d = 0; d < days; d++) {
         const date = addDays(startDate, d);
         const month = Number(date.slice(5, 7));
         const s = stats(month);
+        let vacuumedToday = false;
 
         for (const slot of slotsOfDay(date, tz, settings.capacity_slots, holidays)) {
             if (random() >= 0.7) continue;
@@ -227,41 +264,44 @@ function run(): void {
             const chore = chores.find((c) => c.id === first.chore.id)!;
             const trueNeed = first.chore.elapsed / chore.trueInterval(now);
 
-            const ctx = { now, need: first.need, elapsed: first.chore.elapsed, personId, oneTimeSnoozeDays:
-                settings.one_time_snooze_days, nextSlotAt: nextSlotStart(now, tz, settings.capacity_slots, holidays) };
+            const ctx: PostponeContext = { now, need: first.need, elapsed: first.chore.elapsed, personId,
+                nextSlotAt: nextSlotStart(now, tz, settings.capacity_slots, holidays), lastLearn: lastLearnOf(chore.id),
+                settings };
             if (random() < 0.1) {
-                apply(chore, postpone(chore, 'no_time', ctx).update);
+                const result = postpone(chore, 'no_time', ctx);
+                apply(chore, result.update);
+                record(result.event);
                 s.noTime++;
             } else if (trueNeed < 0.6 && !first.chore.urgent) {
-                apply(chore, postpone(chore, 'not_yet', ctx).update);
+                const result = postpone(chore, 'not_yet', ctx);
+                apply(chore, result.update);
+                record(result.event);
                 s.notYet++;
             } else {
-                const result = done(chore, now, first.need, personId);
-                const event = { ...result.event, id: eventId++ };
-                events.push(event);
-                apply(chore, result.update);
-                s.done++;
-                if (trueNeed > 1.3) {
-                    const e = earlier(chore, event, false, now + 5000, personId, settings.earlier_max_need);
-                    if (e && !('error' in e)) {
-                        apply(chore, e.update);
-                        s.earlier++;
-                    }
-                }
+                doChore(chore, first.chore, now, personId, s);
+            }
+
+            // the active user vacuums from the chore list when the floor needs it
+            const evaluatedVacuum = list.find((c) => c.id === vacuum.id);
+            if (ACTIVE && !vacuumedToday && chore !== vacuum && evaluatedVacuum
+                && evaluatedVacuum.elapsed / vacuum.trueInterval(now) >= 1) {
+                doChore(vacuum, evaluatedVacuum, now + MINUTE, personId, s);
+                vacuumedToday = true;
             }
         }
 
         const endOfDay = startOfDay(addDays(date, 1), tz) - MINUTE;
         const { list } = evaluateAt(endOfDay, { kind: 'shared' });
         if (date === VACATION_END) afterVacation = list;
+        vacuumByDate.set(date, vacuum.interval!);
         if (addDays(date, 1).slice(5, 7) !== date.slice(5, 7)) {
             s.aboveOne = list.filter((c) => c.need >= 1).length;
             s.aboveTwo = list.filter((c) => c.need >= 2).length;
-            s.vacuum = chores[0]!.interval!;
+            s.vacuum = vacuum.interval!;
         }
     }
 
-    console.log(`Simulation of ${YEAR} with seed ${SEED}, ${chores.length} chores\n`);
+    console.log(`Simulation of ${YEAR} with seed ${SEED}, ${chores.length} chores${ACTIVE ? ', active user' : ''}\n`);
     console.log('Month  need>=1  need>=2  vacuum interval  done  earlier  not_yet  no_time');
     for (const [month, s] of [...months].sort((a, b) => a[0] - b[0])) {
         console.log(`${String(month).padStart(5)}  ${String(s.aboveOne).padStart(7)}  ${String(s.aboveTwo).padStart(7)}  `
@@ -269,16 +309,32 @@ function run(): void {
             + `${String(s.notYet).padStart(7)}  ${String(s.noTime).padStart(7)}`);
     }
 
+    console.log('\nShedding season: days until the vacuuming interval is 2 or less');
+    for (const seasonStart of SHEDDING_STARTS) {
+        let reached: number | null = null;
+        for (let i = 0; i < days; i++) {
+            const interval = vacuumByDate.get(addDays(seasonStart, i));
+            if (interval === undefined) break;
+            if (interval <= 2) {
+                reached = i;
+                break;
+            }
+        }
+        console.log(`  ${seasonStart}: ${reached === null ? 'not reached' : `${reached} days`}`);
+    }
+
     if (afterVacation) {
         const list = afterVacation as ChoreWithNeed[];
         console.log(`\nState after the vacation (${VACATION_END} evening):`);
-        for (const growth of ['usage', 'time'] as const) {
-            const g = list.filter((c) => c.growth === growth && c.kind === 'recurring');
-            console.log(`  ${growth.padEnd(5)}: ${g.filter((c) => c.need >= 1).length} of ${g.length} chores with need >= 1`);
+        for (const pauses of [true, false]) {
+            const g = list.filter((c) => c.pausesWhenAway === pauses && c.kind === 'recurring');
+            const label = pauses ? 'pauses when away' : 'runs when away  ';
+            console.log(`  ${label}: ${g.filter((c) => c.need >= 1).length} of ${g.length} chores with need >= 1`);
         }
         console.log('  Highest need:');
         for (const c of [...list].sort((a, b) => b.need - a.need).slice(0, 5)) {
-            console.log(`    ${c.need.toFixed(2).padStart(6)}  ${c.name} (${c.growth}, interval ${c.interval?.toFixed(1) ?? '-'})`);
+            const clock = c.pausesWhenAway ? 'pauses when away' : 'runs when away';
+            console.log(`    ${c.need.toFixed(2).padStart(6)}  ${c.name} (${clock}, interval ${c.interval?.toFixed(1) ?? '-'})`);
         }
     }
 }

@@ -3,6 +3,38 @@
 Chores is a recommender for household chores. It holds a pool of chores and suggests the two or three chores that
 are the best to do now. It reads presence, calendars and template results from Home Assistant.
 
+## Chore Model
+
+A chore has a name, rooms, an interval in days, a duration and an effort. All other values are optional.
+
+| Value             | Meaning                                                                                    |
+|-------------------|--------------------------------------------------------------------------------------------|
+| name              | Chores with the same name form a group, for example the same chore in several rooms.      |
+| kind              | Recurring, or a one-time task.                                                             |
+| interval          | Days between two done events of a recurring chore. The app corrects it over time.          |
+| pauses when away  | The elapsed time counts only while a person is at home. Default yes.                       |
+| duration, effort  | Minutes and effort from 1 to 5. Both must fit the capacity of the person.                  |
+| persons           | No person: anybody. One person: only this person. More persons: all of them together.     |
+| season            | Months of the chore. No month means the whole year.                                        |
+| noisy             | Not on Sundays and public holidays.                                                        |
+| deadline          | MM-DD for a recurring chore, a date for a one-time task. The chore is urgent before it.     |
+| only when         | A condition that must be true. Its forecast template gives the hints of the outlook.       |
+| urgent when       | A condition that makes the chore urgent when it becomes true, until the chore is done.     |
+
+The need level of a chore is the elapsed time divided by the interval. A chore with a need level of 0.9 or more is a
+candidate for the suggestions. A seasonal chore counts the time outside its season at most one interval, so it is
+due at the start of the season. A one-time task reaches the need level 1 after the reference days and stays there.
+At most one one-time task is in the suggestions while a recurring chore is possible.
+
+A deadline or a trigger makes a chore urgent. A trigger applies when its condition became true after the last done
+event and at least half of the interval has passed. A done tap ends the urgency.
+
+Two taps correct the interval. "Was necessary earlier" after a done tap moves the interval toward the elapsed time
+minus the margin. "Not necessary yet" in the dialog Later moves it toward the elapsed time plus the margin. One tap
+applies half of the change, a second tap in the same direction applies the whole change. The reasons "No time" and
+"No energy" lower the capacity of the person for the rest of the slot, so the next suggestions are shorter or
+lighter.
+
 ## Development
 
 Node.js 26 is required.
@@ -74,9 +106,11 @@ claude mcp add --transport http chores https://<host>/mcp --header "Authorizatio
 ## Simulation
 
 `npm run sim` simulates one year with about 150 generated chores and prints the need levels per month, the learned
-vacuuming interval and the state after a vacation. The arguments `seed=<n>`, `year=<yyyy>` and
-`settings=<json>` change the random seed, the year and the settings, for example:
+vacuuming interval, the days until the interval follows the shedding season of the dog and the state after a
+vacation. The arguments `seed=<n>`, `year=<yyyy>` and `settings=<json>` change the random seed, the year and the
+settings. `size=<n>` sets the number of random recurring chores, default 110. `active=1` simulates a user who also
+vacuums from the chore list when the floor needs it, for example:
 
 ```
-npm run sim -- seed=2 settings='{"suggest_threshold":1}'
+npm run sim -- seed=2 size=13 active=1 settings='{"suggest_threshold":1}'
 ```

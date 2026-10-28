@@ -40,16 +40,17 @@ function bitsToMonths(bits: number): number[] {
  */
 function toChore(row: ChoreRow, personIds: number[], categoryIds: number[], conditions: ReadonlyMap<number, Condition>):
     Chore {
-    const condition = row.conditionId === null ? undefined : conditions.get(row.conditionId);
-    const boost = row.boostId === null ? undefined : conditions.get(row.boostId);
+    const requires = row.requiresId === null ? undefined : conditions.get(row.requiresId);
+    const trigger = row.triggerId === null ? undefined : conditions.get(row.triggerId);
     return {
         ...row,
-        learnDirection: Math.sign(row.learnDirection) as -1 | 0 | 1,
+        pausesWhenAway: row.pausesWhenAway === 1,
         noisy: row.noisy === 1,
         seasonMonths: bitsToMonths(row.seasonMonths),
-        conditionResult: condition?.result ?? null,
-        boostResult: boost?.result ?? null,
-        templateError: condition?.error ?? boost?.error ?? null,
+        requiresResult: requires?.result ?? null,
+        triggerResult: trigger?.result ?? null,
+        triggerSinceAt: trigger?.sinceAt ?? null,
+        templateError: requires?.error ?? trigger?.error ?? null,
         personIds,
         categoryIds,
     };
@@ -70,9 +71,10 @@ async function conditionMap(db: Database): Promise<Map<number, Condition>> {
  * @param values the chore values
  */
 function toRow(values: Partial<Chore>): ChoreRowUpdate {
-    const { id: _id, personIds: _p, categoryIds: _c, conditionResult: _cr, boostResult: _br, templateError: _te, noisy,
-        seasonMonths, ...rest } = values;
+    const { id: _id, personIds: _p, categoryIds: _c, requiresResult: _rr, triggerResult: _tr, triggerSinceAt: _ts,
+        templateError: _te, pausesWhenAway, noisy, seasonMonths, ...rest } = values;
     const row: ChoreRowUpdate = { ...rest };
+    if (pausesWhenAway !== undefined) row.pausesWhenAway = pausesWhenAway ? 1 : 0;
     if (noisy !== undefined) row.noisy = noisy ? 1 : 0;
     if (seasonMonths !== undefined) row.seasonMonths = monthsToBits(seasonMonths);
     return row;

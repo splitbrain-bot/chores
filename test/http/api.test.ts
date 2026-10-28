@@ -3,8 +3,7 @@ import { DAY } from '../../src/core/types.ts';
 import { DEFAULT_SETTINGS } from '../../src/core/types.ts';
 import { testApp, type TestApp } from './helpers.ts';
 
-const chore = { name: 'Boden', kind: 'recurring', growth: 'time', interval: 7, importance: 'normal', durationMin: 15,
-    effort: 2 };
+const chore = { name: 'Boden', kind: 'recurring', interval: 7, durationMin: 15, effort: 2 };
 
 describe('HTTP API', () => {
     let t: TestApp;
@@ -41,32 +40,38 @@ describe('HTTP API', () => {
     });
 
     it('manages conditions', async () => {
-        const created = await t.call('POST', '/api/conditions', t.person, { name: 'Trocken', kind: 'state', template: '{{ a }}' });
+        const created = await t.call('POST', '/api/conditions', t.person, { name: 'Trocken', template: '{{ a }}' });
         expect(created.status).toBe(201);
         const { condition } = await created.json() as { condition: { id: number } };
-        expect((await t.call('POST', '/api/conditions', t.person, { name: 'x', kind: 'other', template: '{{ a }}' })).status)
-            .toBe(400);
-        expect((await t.call('POST', '/api/conditions', t.shared, { name: 'x', kind: 'state', template: '{{ a }}' })).status)
-            .toBe(403);
-        await t.call('POST', '/api/chores', t.person, { ...chore, conditionId: condition.id });
+        expect((await t.call('POST', '/api/conditions', t.person, { name: 'x', template: '' })).status).toBe(400);
+        expect((await t.call('POST', '/api/conditions', t.person, { name: 'x', template: '{{ a }}', forecastTemplate: 5 }))
+            .status).toBe(400);
+        expect((await t.call('POST', '/api/conditions', t.shared, { name: 'x', template: '{{ a }}' })).status).toBe(403);
+        await t.call('POST', '/api/chores', t.person, { ...chore, requiresId: condition.id });
 
         expect(await (await t.call('GET', '/api/conditions', t.shared)).json()).toMatchObject({
-            conditions: [{ id: condition.id, name: 'Trocken', choreIds: [1] }] });
-        expect(await (await t.call('PATCH', `/api/conditions/${condition.id}`, t.person, { name: 'Draußen trocken' })).json())
-            .toMatchObject({ condition: { name: 'Draußen trocken' } });
+            conditions: [{ id: condition.id, name: 'Trocken', forecastTemplate: null, sinceAt: null, choreIds: [1] }] });
+        expect(await (await t.call('PATCH', `/api/conditions/${condition.id}`, t.person,
+            { name: 'Draußen trocken', forecastTemplate: '{{ day.dry }}' })).json())
+            .toMatchObject({ condition: { name: 'Draußen trocken', forecastTemplate: '{{ day.dry }}' } });
         expect((await t.call('DELETE', `/api/conditions/${condition.id}`)).status).toBe(409);
         await t.call('DELETE', '/api/chores/1');
         expect((await t.call('DELETE', `/api/conditions/${condition.id}`)).status).toBe(200);
     });
 
     it('manages chores and gives feedback', async () => {
-        const created = await t.call('POST', '/api/chores', t.person, { ...chore, lastDoneAt: t.clock.t - 10 * DAY });
+        const created = await t.call('POST', '/api/chores', t.person, { ...chore, lastDoneAt: t.clock.t - 8 * DAY,
+            deadline: '12-24', pausesWhenAway: false });
         expect(created.status).toBe(201);
         const { chore: c } = await created.json() as { chore: { id: number } };
+        expect(c).toMatchObject({ deadlineMd: '12-24', deadlineAt: null, pausesWhenAway: false });
         expect((await t.call('POST', '/api/chores', t.person, { ...chore, effort: 9 })).status).toBe(400);
+        expect((await t.call('POST', '/api/chores', t.person, { ...chore, deadline: '13-01' })).status).toBe(400);
+        expect((await t.call('POST', '/api/chores', t.person, { ...chore, growth: 'time' })).status).toBe(201);
 
         const list = await (await t.call('GET', '/api/chores?q=bod&kind=recurring')).json() as { chores: unknown[] };
-        expect(list.chores).toHaveLength(1);
+        expect(list.chores).toHaveLength(2);
+        expect(await (await t.call('GET', '/api/chores/names', t.shared)).json()).toEqual({ names: ['Boden'] });
         expect(await (await t.call('GET', `/api/chores/${c.id}`)).json()).toMatchObject({ chore: { id: c.id }, events: [] });
         expect((await t.call('GET', '/api/chores/999')).status).toBe(404);
         expect((await t.call('GET', '/api/chores/abc')).status).toBe(404);
@@ -80,11 +85,10 @@ describe('HTTP API', () => {
         expect(suggestions.presence).toHaveLength(1);
 
         const done = await (await t.call('POST', `/api/chores/${c.id}/done`, t.shared, {})).json() as {
-            events: { choreId: number; eventId: number }[]; earlierWindowSeconds: number };
-        expect(done.events).toEqual([{ choreId: c.id, eventId: expect.any(Number), earlier: true }]);
-        expect(done.earlierWindowSeconds).toBe(DEFAULT_SETTINGS.earlier_window_seconds);
+            events: { choreId: number; eventId: number }[] };
+        expect(done).toEqual({ events: [{ choreId: c.id, eventId: expect.any(Number), earlier: true }] });
         const earlier = await t.call('POST', `/api/events/${done.events[0]!.eventId}/earlier`, t.shared);
-        expect(await earlier.json()).toMatchObject({ chore: { interval: 5.95 } });
+        expect(await earlier.json()).toMatchObject({ chore: { interval: 6.5 } });
         expect((await t.call('POST', `/api/events/${done.events[0]!.eventId}/earlier`, t.shared)).status).toBe(409);
 
         const postponed = await t.call('POST', `/api/chores/${c.id}/postpone`, t.shared, { reason: 'no_energy' });
@@ -94,7 +98,7 @@ describe('HTTP API', () => {
         expect((await t.call('DELETE', `/api/chores/${c.id}`)).status).toBe(200);
         expect((await t.call('DELETE', `/api/chores/${c.id}`)).status).toBe(404);
         const all = await (await t.call('GET', '/api/chores?includeDeleted=true')).json() as { chores: unknown[] };
-        expect(all.chores).toHaveLength(1);
+        expect(all.chores).toHaveLength(2);
     });
 
     it('manages categories', async () => {
@@ -130,7 +134,10 @@ describe('HTTP API', () => {
 
     it('reads and writes the settings', async () => {
         const { settings } = await (await t.call('GET', '/api/settings')).json() as { settings: typeof DEFAULT_SETTINGS };
-        expect(settings.suggestion_count).toBe(3);
+        expect(settings).toMatchObject({ suggestion_count: 3, deadline_lead_days: 14, trigger_min_need: 0.5,
+            learn_margin: 0.25, learn_rate: 0.5 });
+        expect(Object.keys(settings)).not.toContain('slope.normal');
+        expect(Object.keys(settings)).not.toContain('earlier_window_seconds');
         const put = await t.call('PUT', '/api/settings', t.person, { ...settings, suggestion_count: 2 });
         expect(await put.json()).toMatchObject({ settings: { suggestion_count: 2 } });
         expect((await t.call('PUT', '/api/settings', t.person, { ...settings, time_zone: 'Mars/Base' })).status).toBe(400);

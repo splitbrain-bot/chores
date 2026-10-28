@@ -4,14 +4,14 @@ import { iconSchema } from './admin.ts';
 /** Body of a new condition. */
 export const conditionSchema = z.object({
     name: z.string().trim().min(1).max(100),
-    kind: z.enum(['state', 'forecast']).describe('state has a current result, forecast gets the forecast of one day '
-        + 'as the variable day'),
-    template: z.string().trim().min(1).describe('Home Assistant template that renders to true or false'),
+    template: z.string().trim().min(1).describe('Home Assistant template that renders to true or false for now'),
+    forecastTemplate: z.string().trim().min(1).nullish().describe('Home Assistant template that renders to true or '
+        + 'false for one forecast day, with the forecast of the day as the variable day. For the look-ahead'),
     icon: iconSchema,
 });
 
-/** Body of a change of a condition. The kind cannot change. */
-export const conditionUpdateSchema = conditionSchema.omit({ kind: true }).partial();
+/** Body of a change of a condition. */
+export const conditionUpdateSchema = conditionSchema.partial();
 
 /** Values of a new condition. */
 export type ConditionInput = z.infer<typeof conditionSchema>;

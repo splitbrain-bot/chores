@@ -10,13 +10,12 @@ export function reasonText(chore: ChoreWithNeed | Suggestion['chore']): string {
     const r = chore.reason;
     switch (r.code) {
         case 'interval':
-            return t('reason.interval', { interval: num(r.interval), elapsed: num(r.elapsed), unit: t(`unit.${r.unit}`),
-                need: num(chore.need) });
+            return t('reason.interval', { interval: num(r.interval), elapsed: num(r.elapsed), need: num(chore.need) });
         case 'deadline':
             // the deadline is the start of the day after the due date
             return t(r.overdueDays > 0 ? 'reason.overdue' : 'reason.deadline', { date: dayMonth(r.deadline - 1) });
-        case 'boost':
-            return t('reason.boost');
+        case 'trigger':
+            return t('reason.trigger');
         case 'one_time':
             return t('reason.oneTime', { days: Math.floor(r.ageDays) });
     }
@@ -65,16 +64,17 @@ function resultText(result: number | boolean | null): string {
 }
 
 /**
- * Returns the status of a condition: the current result of a state condition, or the result per day of a forecast
- * condition.
+ * Returns the status of a condition: the current result, and the result per day for a condition with a forecast
+ * template.
  *
  * @param condition the condition with its status
  */
 export function conditionStatusText(condition: ConditionStatus): string {
-    if (condition.kind === 'state') return t('condition.result', { result: resultText(condition.result) });
-    if (condition.forecast.length === 0) return t('condition.noForecast');
-    return t('condition.forecast', { days: condition.forecast
-        .map((d) => `${weekdayName(new Date(`${d.date}T12:00:00`).getDay())} ${resultText(d.result)}`).join(', ') });
+    const now = t('condition.result', { result: resultText(condition.result) });
+    if (condition.forecastTemplate === null) return now;
+    if (condition.forecast.length === 0) return `${now} ${t('condition.noForecast')}`;
+    return `${now} ${t('condition.forecast', { days: condition.forecast
+        .map((d) => `${weekdayName(new Date(`${d.date}T12:00:00`).getDay())} ${resultText(d.result)}`).join(', ') })}`;
 }
 
 /**

@@ -1,6 +1,6 @@
 import {
     mdiCalendarAlert, mdiCheck, mdiClockOutline, mdiCog, mdiLightningBolt, mdiLinkVariant, mdiNumeric1BoxOutline,
-    mdiSprout, mdiTrafficLight, mdiVolumeHigh, mdiWeatherPartlyCloudy,
+    mdiSprout, mdiTrafficLight, mdiVolumeHigh,
 } from '@mdi/js';
 import type { CSSProperties, ReactNode } from 'react';
 import { useApp } from '../context.ts';
@@ -11,7 +11,7 @@ import type { Category, ChoreWithNeed } from '../types.ts';
 import { Icon } from './icon.tsx';
 
 /** Icon of a condition without its own icon, per use in the chore. */
-const CONDITION_ICONS = { conditionId: mdiTrafficLight, boostId: mdiLightningBolt, forecastId: mdiWeatherPartlyCloudy };
+const CONDITION_ICONS = { requiresId: mdiTrafficLight, triggerId: mdiLightningBolt };
 
 /** Height in pixels of one color in the stripe of a chore with more than one person. */
 const DASH = 10;
@@ -101,11 +101,11 @@ export function TaskCard({ chore, related, onDone, onLater }:
             urgent={chore.reason.code === 'deadline'} />,
         chore.seasonMonths.length > 0 && <Flag key="season" icon={<Icon path={mdiSprout} />}
             text={t('suggestions.season', { months: seasonText(chore.seasonMonths) })} />,
-        ...(['conditionId', 'boostId', 'forecastId'] as const).map((key) => {
+        ...(['requiresId', 'triggerId'] as const).map((key) => {
             const condition = conditions.find((c) => c.id === chore[key]);
             if (!condition) return null;
             const icon = condition.icon ? <Icon name={condition.icon} /> : <Icon path={CONDITION_ICONS[key]} />;
-            return <Flag key={key} icon={icon} text={condition.name} />;
+            return <Flag key={key} icon={icon} text={condition.name} urgent={key === 'triggerId' && chore.reason.code === 'trigger'} />;
         }),
         chore.noisy && <Flag key="noisy" icon={<Icon path={mdiVolumeHigh} />} text={t('suggestions.noisy')} />,
     ].filter(Boolean);

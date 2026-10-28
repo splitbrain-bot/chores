@@ -15,7 +15,6 @@ export interface TaskAction {
 /** Response of the done endpoint. */
 interface DoneResponse {
     events: { choreId: number; eventId: number; earlier: boolean }[];
-    earlierWindowSeconds: number;
 }
 
 /**
@@ -47,31 +46,19 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 }
 
 /**
- * The confirmation after a done tap with the button "necessary earlier". It closes itself after the window.
+ * The question after a done tap if the chore was necessary earlier.
  *
  * @param props.eventId the done event of the main chore
- * @param props.earlier true when the done event allows the tap "necessary earlier"
- * @param props.seconds the time in which the button is shown
- * @param props.onClose called when the confirmation is over
+ * @param props.onClose called when the question is answered or closed
  */
-function DoneConfirmation({ eventId, earlier, seconds, onClose }:
-    { eventId: number; earlier: boolean; seconds: number; onClose: () => void }) {
-    const [thanks, setThanks] = useState(false);
-
-    useEffect(() => {
-        const timer = setTimeout(onClose, (thanks || !earlier ? 2 : seconds) * 1000);
-        return () => clearTimeout(timer);
-    }, [thanks, earlier, seconds, onClose]);
-
+function DoneConfirmation({ eventId, onClose }: { eventId: number; onClose: () => void }) {
     return (
         <div className="confirm">
-            <p>{thanks ? t('suggestions.earlierThanks') : t('suggestions.doneConfirm')}</p>
+            <p>{t('suggestions.doneConfirm')}</p>
             <div className="actions">
-                {earlier && !thanks && (
-                    <button type="button" onClick={() => {
-                        api('POST', `/events/${eventId}/earlier`).finally(() => setThanks(true));
-                    }}>{t('suggestions.earlier')}</button>
-                )}
+                <button type="button" onClick={() => {
+                    api('POST', `/events/${eventId}/earlier`).finally(onClose);
+                }}>{t('suggestions.earlier')}</button>
                 <button type="button" className="primary" onClick={onClose}>{t('common.close')}</button>
             </div>
         </div>
@@ -80,7 +67,8 @@ function DoneConfirmation({ eventId, earlier, seconds, onClose }:
 
 /**
  * The dialog after a tap on Done. With related chores it first asks which of them were done too, then it sends
- * the done event and shows the confirmation.
+ * the done event. When the done event allows the tap "necessary earlier", the dialog asks for it. Otherwise it
+ * closes at once.
  *
  * @param props.chore the chore
  * @param props.related the chores of the same group
@@ -90,13 +78,14 @@ function DoneDialog({ chore, related, onClose }: { chore: ChoreWithNeed; related
     const { categories } = useApp();
     const [checked, setChecked] = useState<number[]>([]);
     const [sending, setSending] = useState(false);
-    const [done, setDone] = useState<{ eventId: number; earlier: boolean; seconds: number } | null>(null);
+    const [done, setDone] = useState<{ eventId: number } | null>(null);
 
     const send = (also: number[]) => {
         setSending(true);
         api<DoneResponse>('POST', `/chores/${chore.id}/done`, { also }).then((r) => {
             const event = r.events.find((e) => e.choreId === chore.id)!;
-            setDone({ eventId: event.eventId, earlier: event.earlier, seconds: r.earlierWindowSeconds });
+            if (event.earlier) setDone({ eventId: event.eventId });
+            else onClose();
         }, onClose);
     };
     // without related chores there is nothing to ask, the effect runs only once even in the strict mode
@@ -110,7 +99,7 @@ function DoneDialog({ chore, related, onClose }: { chore: ChoreWithNeed; related
     return (
         <Modal title={chore.name} onClose={onClose}>
             {done
-                ? <DoneConfirmation eventId={done.eventId} earlier={done.earlier} seconds={done.seconds} onClose={onClose} />
+                ? <DoneConfirmation eventId={done.eventId} onClose={onClose} />
                 : related.length > 0 && (
                     <form onSubmit={(e) => {
                         e.preventDefault();

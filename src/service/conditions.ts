@@ -12,7 +12,7 @@ import { FORECAST_TEMPLATE_PREFIX, forecastResults, loadForecast } from './looka
 export interface ConditionStatus extends Condition {
     /** Active chores that use the condition. */
     choreIds: number[];
-    /** Results of a forecast condition per local date of the look-ahead, empty for a state condition. */
+    /** Results of the forecast template per local date of the look-ahead, empty without a forecast template. */
     forecast: { date: string; result: boolean | null }[];
 }
 
@@ -26,8 +26,8 @@ async function withStatus(deps: Deps, list: readonly Condition[]): Promise<Condi
     const uses = await conditions.conditionUses(deps.db);
     const settings = await getSettings(deps.db);
     const forecast = await loadForecast(deps, settings.time_zone);
-    const results = await forecastResults(deps, list.filter((c) => c.kind === 'forecast'), forecast.days, deps.now(),
-        settings);
+    const results = await forecastResults(deps, list.filter((c) => c.forecastTemplate !== null), forecast.days,
+        deps.now(), settings);
     return list.map((c) => ({
         ...c,
         choreIds: uses.get(c.id) ?? [],
@@ -76,7 +76,8 @@ export async function createCondition(deps: Deps, input: ConditionInput): Promis
 }
 
 /**
- * Changes a condition. A changed template clears the last result and the cached forecast results.
+ * Changes a condition. A changed template clears the last result, a changed forecast template clears the cached
+ * forecast results.
  *
  * @param deps the dependencies
  * @param id the condition id
@@ -89,7 +90,7 @@ export async function updateCondition(deps: Deps, id: number, input: ConditionUp
         if (isUniqueError(err)) throw new ServiceError(409, 'The name exists already');
         throw err;
     }
-    if (input.template !== undefined) await deleteCache(deps.db, `${FORECAST_TEMPLATE_PREFIX}${id}:`);
+    if (input.forecastTemplate !== undefined) await deleteCache(deps.db, `${FORECAST_TEMPLATE_PREFIX}${id}:`);
     deps.onConditionsChanged?.();
     return statusOf(deps, id);
 }

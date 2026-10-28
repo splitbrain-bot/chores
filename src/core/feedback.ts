@@ -1,8 +1,6 @@
-import { learn } from './learn.ts';
-import { DAY, type Chore, type ChoreEvent, type PostponeReason } from './types.ts';
-
-/** Time after a done event in which an earlier call is allowed. */
-export const EARLIER_LIMIT = 60_000;
+import { canLearn, learn, type Direction } from './learn.ts';
+import { DEADLINE_LEVEL } from './need.ts';
+import { DAY, type Chore, type ChoreEvent, type PostponeReason, type Settings } from './types.ts';
 
 /** Longest snooze of a one-time task after not_yet. */
 export const MAX_ONE_TIME_SNOOZE_DAYS = 56;
@@ -17,7 +15,18 @@ export interface FeedbackResult {
 }
 
 /** Error of an earlier call. */
-export type EarlierError = 'not_done' | 'window' | 'already' | 'overdue';
+export type EarlierError = 'not_done' | 'stale' | 'overdue';
+
+/**
+ * Returns the direction of a learning event, or null for an event without learning.
+ *
+ * @param event the event
+ */
+export function learnDirection(event: Pick<ChoreEvent, 'type' | 'reason'>): Direction | null {
+    if (event.type === 'earlier') return -1;
+    if (event.type === 'postpone' && event.reason === 'not_yet') return 1;
+    return null;
+}
 
 /**
  * Builds the changes for a done tap.
@@ -34,21 +43,39 @@ export function done(chore: Chore, now: number, need: number, personId: number |
         update,
         event: {
             choreId: chore.id, type: 'done', reason: null, at: now, personId, needLevel: need,
-            intervalBefore: chore.interval, intervalAfter: chore.interval, effort: chore.effort,
+            intervalBefore: chore.interval, intervalAfter: chore.interval, durationMin: chore.durationMin,
+            effort: chore.effort,
         },
     };
 }
 
 /**
- * Tells if a done event allows the tap "the chore was necessary earlier". A chore that was done late, for example
- * because of the capacity, gives no information about its interval.
+ * Returns the elapsed days of a done event from its need level and its interval. The need level of a recurring
+ * chore without urgency is the elapsed time divided by the interval. The need level of an urgent chore does not
+ * contain the elapsed time, so the result is null for it.
+ *
+ * @param doneEvent the done event, or its need level and interval
+ * @returns the elapsed days, or null for a one-time task or an urgent chore
+ */
+function elapsedOf(doneEvent: Pick<ChoreEvent, 'needLevel' | 'intervalBefore'>): number | null {
+    if (doneEvent.intervalBefore === null || doneEvent.needLevel >= DEADLINE_LEVEL) return null;
+    return doneEvent.needLevel * doneEvent.intervalBefore;
+}
+
+/**
+ * Tells if a done event allows the tap "the chore was necessary earlier". The tap is possible while it can shorten
+ * the interval. A chore that was done late, for example because of the capacity, gives no information. An urgent
+ * chore gives no information either, because the deadline or the trigger set the time of the done tap.
  *
  * @param chore the chore
- * @param needLevel the need level of the done event
- * @param maxNeed the highest need level that allows the tap
+ * @param doneEvent the done event, or its need level and interval
+ * @param settings the settings
  */
-export function earlierAllowed(chore: Chore, needLevel: number, maxNeed: number): boolean {
-    return chore.kind === 'recurring' && needLevel <= maxNeed;
+export function earlierAllowed(chore: Chore, doneEvent: Pick<ChoreEvent, 'needLevel' | 'intervalBefore'>,
+    settings: Settings): boolean {
+    const elapsed = elapsedOf(doneEvent);
+    if (chore.kind !== 'recurring' || elapsed === null) return false;
+    return canLearn(doneEvent.intervalBefore!, elapsed, -1, settings.learn_margin);
 }
 
 /**
@@ -56,26 +83,28 @@ export function earlierAllowed(chore: Chore, needLevel: number, maxNeed: number)
  *
  * @param chore the chore
  * @param doneEvent the done event that the tap refers to
- * @param alreadyUsed true when the done event already has an earlier event
+ * @param lastEvent the last event of the chore
+ * @param lastLearn the direction of the last learning event of the chore, or null
  * @param now time of the tap
  * @param personId person of the viewer, or null
- * @param maxNeed the highest need level of the done event that allows the tap
+ * @param settings the settings
  * @returns the changes, null for a one-time task, or the reason of the refusal
  */
-export function earlier(chore: Chore, doneEvent: ChoreEvent, alreadyUsed: boolean, now: number,
-    personId: number | null, maxNeed: number): FeedbackResult | null | { error: EarlierError } {
+export function earlier(chore: Chore, doneEvent: ChoreEvent, lastEvent: ChoreEvent | undefined,
+    lastLearn: Direction | null, now: number, personId: number | null, settings: Settings):
+    FeedbackResult | null | { error: EarlierError } {
     if (doneEvent.type !== 'done' || doneEvent.choreId !== chore.id) return { error: 'not_done' };
-    if (alreadyUsed) return { error: 'already' };
-    if (now - doneEvent.at > EARLIER_LIMIT || now < doneEvent.at) return { error: 'window' };
+    if (lastEvent?.id !== doneEvent.id) return { error: 'stale' };
     if (chore.kind === 'one_time') return null;
-    if (!earlierAllowed(chore, doneEvent.needLevel, maxNeed)) return { error: 'overdue' };
+    if (!earlierAllowed(chore, doneEvent, settings)) return { error: 'overdue' };
 
-    const learned = learn(chore, -1);
+    const interval = learn(chore.interval!, elapsedOf(doneEvent)!, -1, lastLearn === -1, settings);
     return {
-        update: { ...learned, updatedAt: now },
+        update: { interval, updatedAt: now },
         event: {
             choreId: chore.id, type: 'earlier', reason: null, at: now, personId, needLevel: doneEvent.needLevel,
-            intervalBefore: chore.interval, intervalAfter: learned.interval, effort: chore.effort,
+            intervalBefore: chore.interval, intervalAfter: interval, durationMin: chore.durationMin,
+            effort: chore.effort,
         },
     };
 }
@@ -84,11 +113,13 @@ export function earlier(chore: Chore, doneEvent: ChoreEvent, alreadyUsed: boolea
 export interface PostponeContext {
     now: number;
     need: number;
-    /** Elapsed days or cycles since the last done event. */
+    /** Elapsed days since the last done event. */
     elapsed: number;
     /** Start of the next capacity slot, null when the slot table is empty. */
     nextSlotAt: number | null;
-    oneTimeSnoozeDays: number;
+    /** Direction of the last learning event of the chore, or null. */
+    lastLearn: Direction | null;
+    settings: Settings;
     personId: number | null;
 }
 
@@ -107,34 +138,20 @@ export function postpone(chore: Chore, reason: PostponeReason, ctx: PostponeCont
     if (reason !== 'not_yet') {
         update.snoozedUntil = ctx.nextSlotAt ?? now + DAY;
     } else if (chore.kind === 'one_time') {
-        const days = Math.min(ctx.oneTimeSnoozeDays * 2 ** chore.notYetCount, MAX_ONE_TIME_SNOOZE_DAYS);
+        const days = Math.min(ctx.settings.one_time_snooze_days * 2 ** chore.notYetCount, MAX_ONE_TIME_SNOOZE_DAYS);
         update.snoozedUntil = now + days * DAY;
         update.notYetCount = chore.notYetCount + 1;
     } else {
-        const learned = learn(chore, 1);
-        Object.assign(update, learned);
-        intervalAfter = learned.interval;
-        update.snoozedUntil = Math.max(dueAt(chore, learned.interval, ctx), now + DAY);
+        intervalAfter = learn(chore.interval!, ctx.elapsed, 1, ctx.lastLearn === 1, ctx.settings);
+        update.interval = intervalAfter;
+        update.snoozedUntil = Math.max(now + (intervalAfter - ctx.elapsed) * DAY, now + DAY);
     }
 
     return {
         update,
         event: {
             choreId: chore.id, type: 'postpone', reason, at: now, personId: ctx.personId, needLevel: ctx.need,
-            intervalBefore: chore.interval, intervalAfter, effort: chore.effort,
+            intervalBefore: chore.interval, intervalAfter, durationMin: chore.durationMin, effort: chore.effort,
         },
     };
-}
-
-/**
- * Estimates the time at which the need level of a recurring chore reaches 1. Usage chores assume full presence.
- * Counter chores have no estimate and return the current time.
- *
- * @param chore the chore
- * @param interval the interval to use
- * @param ctx the postpone context
- */
-function dueAt(chore: Chore, interval: number, ctx: PostponeContext): number {
-    if (chore.growth === 'counter') return ctx.now;
-    return ctx.now + (interval - ctx.elapsed) * DAY;
 }

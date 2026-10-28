@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { capacityFor } from '../../src/core/capacity.ts';
+import { capacityCaps, capacityFor } from '../../src/core/capacity.ts';
 import { doers, fitsCapacity } from '../../src/core/possible.ts';
-import type { CalendarEvent, ChoreEvent } from '../../src/core/types.ts';
+import type { CalendarEvent, ChoreEvent, PostponeReason } from '../../src/core/types.ts';
 import { at, makeChore, presence, settings } from './fixtures.ts';
 
 const none = new Set<string>();
@@ -18,8 +18,54 @@ function event(from: string, to: string, allDay = false): CalendarEvent {
  */
 function doneEvent(iso: string, effort: number, personId: number | null): ChoreEvent {
     return { id: 1, choreId: 1, type: 'done', reason: null, at: at(iso), personId, needLevel: 1, intervalBefore: 7,
-        intervalAfter: 7, effort };
+        intervalAfter: 7, durationMin: 10, effort };
 }
+
+/**
+ * Creates a postpone event.
+ */
+function postponeEvent(iso: string, reason: PostponeReason, durationMin: number, effort: number,
+    personId: number | null): ChoreEvent {
+    return { id: 2, choreId: 1, type: 'postpone', reason, at: at(iso), personId, needLevel: 1, intervalBefore: 7,
+        intervalAfter: 7, durationMin, effort };
+}
+
+describe('capacityCaps', () => {
+    const slotStart = at('2026-10-31T18:00+01:00');
+
+    it('has no limits without taps', () => {
+        expect(capacityCaps(1, slotStart, [doneEvent('2026-10-31T18:30+01:00', 3, 1)])).toEqual({ minutes: Infinity, energy: Infinity });
+    });
+
+    it('limits the minutes below the duration for no_time and the energy below the effort for no_energy', () => {
+        const events = [
+            postponeEvent('2026-10-31T18:30+01:00', 'no_time', 20, 2, 1),
+            postponeEvent('2026-10-31T18:40+01:00', 'no_energy', 10, 3, 1),
+        ];
+        expect(capacityCaps(1, slotStart, events)).toEqual({ minutes: 19, energy: 2 });
+    });
+
+    it('keeps the lowest limit of several taps', () => {
+        const events = [
+            postponeEvent('2026-10-31T18:30+01:00', 'no_time', 30, 2, 1),
+            postponeEvent('2026-10-31T18:40+01:00', 'no_time', 15, 2, 1),
+        ];
+        expect(capacityCaps(1, slotStart, events).minutes).toBe(14);
+    });
+
+    it('applies taps without a person to every person and taps of another person to nobody else', () => {
+        const shared = [postponeEvent('2026-10-31T18:30+01:00', 'no_energy', 10, 3, null)];
+        expect(capacityCaps(1, slotStart, shared).energy).toBe(2);
+        expect(capacityCaps(2, slotStart, shared).energy).toBe(2);
+        const other = [postponeEvent('2026-10-31T18:30+01:00', 'no_energy', 10, 3, 2)];
+        expect(capacityCaps(1, slotStart, other).energy).toBe(Infinity);
+    });
+
+    it('ignores taps before the slot start', () => {
+        const before = [postponeEvent('2026-10-31T17:00+01:00', 'no_time', 20, 2, 1)];
+        expect(capacityCaps(1, slotStart, before).minutes).toBe(Infinity);
+    });
+});
 
 describe('capacityFor', () => {
     // Saturday evening slot 18:00 to 21:30 with 45 minutes
@@ -73,6 +119,22 @@ describe('capacityFor', () => {
         const light = doneEvent('2026-10-30T10:00+01:00', 3, 1);
         expect(capacityFor(1, now, settings, none, [], [today, light]).capacity.energy).toBe(3);
     });
+
+    it('applies the limits of the postpone taps in the slot', () => {
+        const taps = [
+            postponeEvent('2026-10-31T18:30+01:00', 'no_time', 20, 2, 1),
+            postponeEvent('2026-10-31T18:40+01:00', 'no_energy', 10, 2, 1),
+        ];
+        expect(capacityFor(1, now, settings, none, [], taps).capacity).toEqual({ minutes: 19, energy: 1 });
+        expect(capacityFor(2, now, settings, none, [], taps).capacity).toEqual({ minutes: 45, energy: 3 });
+        const before = [postponeEvent('2026-10-31T17:00+01:00', 'no_time', 20, 2, 1)];
+        expect(capacityFor(1, now, settings, none, [], before).capacity.minutes).toBe(45);
+    });
+
+    it('does not go below zero with a limit', () => {
+        const tap = [postponeEvent('2026-10-31T18:30+01:00', 'no_energy', 5, 1, 1)];
+        expect(capacityFor(1, now, settings, none, [], tap).capacity.energy).toBe(0);
+    });
 });
 
 describe('shared device', () => {
@@ -80,7 +142,7 @@ describe('shared device', () => {
         const chore = makeChore({ durationMin: 30 });
         const states = presence({ 1: { home: true }, 2: { home: true } });
         const capacities = new Map([[1, { minutes: 0, energy: 3 }], [2, { minutes: 45, energy: 3 }]]);
-        const persons = doers(chore, { now: 0, settings, viewer: { kind: 'shared' }, personIds: [1, 2],
+        const persons = doers(chore, false, { now: 0, settings, viewer: { kind: 'shared' }, personIds: [1, 2],
             presence: states, capacities, holidays: none });
         expect(persons).toEqual([1, 2]);
         expect(fitsCapacity(chore, persons, capacities)).toBe(true);

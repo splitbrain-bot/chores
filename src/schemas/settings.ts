@@ -22,16 +22,18 @@ export const settingsSchema = z.object({
         }
     }, { message: 'Unknown time zone' })
         .describe('IANA time zone for the slots, the deadlines and the notifications, for example Europe/Berlin'),
-    'slope.optional': z.number().min(0)
-        .describe('Increase of the need level per interval after the interval is over, for optional chores'),
-    'slope.normal': z.number().min(0)
-        .describe('Increase of the need level per interval after the interval is over, for normal chores'),
-    'slope.important': z.number().min(0)
-        .describe('Increase of the need level per interval after the interval is over, for important chores'),
-    'slope.critical': z.number().min(0)
-        .describe('Increase of the need level per interval after the interval is over, for critical chores'),
     one_time_reference_days: z.number().positive()
-        .describe('Days after its creation at which a one-time task gets the need level 1'),
+        .describe('Days after its creation at which a one-time task gets the need level 1, its highest level'),
+    deadline_lead_days: z.number().int().min(0).max(365)
+        .describe('Days before a deadline in which the chore is urgent'),
+    trigger_min_need: z.number().min(0)
+        .describe('Lowest need level at which a trigger condition can make a chore urgent'),
+    learn_margin: z.number().min(0).max(0.9)
+        .describe('Distance of the learning target from the observed elapsed time, as a part of it. Necessary '
+            + 'earlier aims at elapsed * (1 - margin), not necessary yet at elapsed * (1 + margin)'),
+    learn_rate: z.number().min(0).max(1)
+        .describe('Part of the distance to the target that one signal applies. A repeated signal in the same '
+            + 'direction applies the whole distance'),
     handover_after_hours: z.number().min(0)
         .describe('Hours of absence after which the persons at home can get the chores of an absent person'),
     handover_distance_km: z.number().min(0)
@@ -46,10 +48,6 @@ export const settingsSchema = z.object({
         .describe('Free minutes and energy of each person in time windows on some weekdays'),
     hangover_effort: z.number().int().min(1).max(6)
         .describe('Lowest effort of a done chore that decreases the energy of the person by 1 on the next day'),
-    earlier_window_seconds: z.number().int().min(1).max(60)
-        .describe('Seconds after a done tap in which the button necessary earlier shows'),
-    earlier_max_need: z.number().min(0)
-        .describe('Highest need level of a done event that allows the tap necessary earlier'),
     one_time_snooze_days: z.number().positive()
         .describe('Days that not yet pauses a one-time task. Each further not yet doubles the time, up to 56 days'),
     lookahead_days: z.number().int().min(1).max(14)

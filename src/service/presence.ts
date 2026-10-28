@@ -1,6 +1,5 @@
 import { isValidState } from '../core/clock.ts';
 import type { Person, PresenceState } from '../core/types.ts';
-import { listChores } from '../db/chores.ts';
 import type { Database } from '../db/database.ts';
 import { lastHomeChange, lastValidStateBefore, latestState } from '../db/ha_state.ts';
 import { listPersons } from '../db/persons.ts';
@@ -51,16 +50,13 @@ export async function listPresence(deps: Deps): Promise<PersonPresence[]> {
 }
 
 /**
- * Returns the entities that the watcher records: the person and distance entities of the persons and the counter
- * entities of the active chores.
+ * Returns the entities that the watcher records: the person and distance entities of the persons.
  *
  * @param db the database
  */
 export async function watchList(db: Database): Promise<WatchList> {
     const persons = await listPersons(db);
-    const chores = await listChores(db);
     const others = new Set<string>();
     for (const p of persons) if (p.distanceEntity) others.add(p.distanceEntity);
-    for (const c of chores) if (c.growth === 'counter' && c.counterEntity) others.add(c.counterEntity);
     return { persons: persons.flatMap((p) => (p.haEntity ? [p.haEntity] : [])), others: [...others] };
 }

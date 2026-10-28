@@ -1,5 +1,5 @@
 import { capacityFor, type CapacityResult } from '../core/capacity.ts';
-import { countCycles, type NeedContext } from '../core/need.ts';
+import type { NeedContext } from '../core/need.ts';
 import type { PossibleContext } from '../core/possible.ts';
 import { evaluateChores } from '../core/select.ts';
 import { nextSlotStart } from '../core/time.ts';
@@ -7,7 +7,6 @@ import {
     DAY,
     type CalendarEvent,
     type Capacity,
-    type Chore,
     type ChoreEvent,
     type ChoreWithNeed,
     type Person,
@@ -18,8 +17,8 @@ import {
 import { getCache } from '../db/cache.ts';
 import { listChores, type ChoreFilter } from '../db/chores.ts';
 import type { Database } from '../db/database.ts';
-import { listDoneSince } from '../db/events.ts';
-import { firstStateAt, lastValidStateBefore, listStates } from '../db/ha_state.ts';
+import { listEventsSince } from '../db/events.ts';
+import { firstStateAt } from '../db/ha_state.ts';
 import { listOccupancy } from '../db/occupancy.ts';
 import { listPersons } from '../db/persons.ts';
 import { getSettings } from '../db/settings.ts';
@@ -50,7 +49,8 @@ export interface EvalState {
     capacities: Map<number, CapacityResult>;
     holidays: Set<string>;
     calendars: Map<number, CalendarEvent[]>;
-    recentDone: ChoreEvent[];
+    /** Events of the last two days. */
+    recentEvents: ChoreEvent[];
     needCtx: NeedContext;
     /** Start of the next capacity slot, null when the slot table is empty. */
     nextSlotAt: number | null;
@@ -81,42 +81,24 @@ export async function loadCalendars(db: Database, persons: readonly Person[]): P
 }
 
 /**
- * Counts the completed cycles of every counter chore since its last done event.
- *
- * @param db the database
- * @param chores the chores
- */
-async function loadCycles(db: Database, chores: readonly Chore[]): Promise<Map<number, number>> {
-    const cycles = new Map<number, number>();
-    for (const c of chores) {
-        if (c.growth !== 'counter' || !c.counterEntity) continue;
-        const initial = await lastValidStateBefore(db, c.counterEntity, c.lastDoneAt);
-        const states = await listStates(db, [c.counterEntity], c.lastDoneAt);
-        cycles.set(c.id, countCycles(states.map((s) => s.state), initial?.state ?? null));
-    }
-    return cycles;
-}
-
-/**
  * Loads all data for the evaluation of chores.
  *
  * @param deps the dependencies
- * @param chores the chores to evaluate, for the counter cycles
  */
-export async function loadState(deps: Deps, chores: readonly Chore[]): Promise<EvalState> {
+export async function loadState(deps: Deps): Promise<EvalState> {
     const { db } = deps;
     const now = deps.now();
     const settings = await getSettings(db);
     const persons = await listPersons(db);
     const holidays = await loadHolidays(db);
     const calendars = await loadCalendars(db, persons);
-    const recentDone = await listDoneSince(db, now - 2 * DAY);
+    const recentEvents = await listEventsSince(db, now - 2 * DAY);
 
     const presence = new Map<number, PresenceState>();
     const capacities = new Map<number, CapacityResult>();
     for (const p of persons) {
         presence.set(p.id, await presenceOf(db, p, now));
-        capacities.set(p.id, capacityFor(p.id, now, settings, holidays, calendars.get(p.id) ?? [], recentDone));
+        capacities.set(p.id, capacityFor(p.id, now, settings, holidays, calendars.get(p.id) ?? [], recentEvents));
     }
 
     // a person without a person entity is always at home, so the presence clock is the wall clock
@@ -126,10 +108,9 @@ export async function loadState(deps: Deps, chores: readonly Chore[]): Promise<E
         settings,
         occupancy: tracked ? await listOccupancy(db) : [],
         firstRecordAt: tracked ? await firstStateAt(db, persons.map((p) => p.haEntity!)) : null,
-        cycles: await loadCycles(db, chores),
     };
     const nextSlotAt = nextSlotStart(now, settings.time_zone, settings.capacity_slots, holidays);
-    return { now, settings, persons, presence, capacities, holidays, calendars, recentDone, needCtx, nextSlotAt };
+    return { now, settings, persons, presence, capacities, holidays, calendars, recentEvents, needCtx, nextSlotAt };
 }
 
 /**
@@ -161,6 +142,6 @@ export function possibleContext(state: EvalState, viewer: Viewer): PossibleConte
 export async function evaluate(deps: Deps, viewer: Viewer, filter: ChoreFilter = {}):
     Promise<{ state: EvalState; chores: ChoreWithNeed[] }> {
     const chores = await listChores(deps.db, filter);
-    const state = await loadState(deps, chores);
+    const state = await loadState(deps);
     return { state, chores: evaluateChores(chores, state.needCtx, possibleContext(state, viewer)) };
 }

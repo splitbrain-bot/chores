@@ -27,9 +27,11 @@ export interface ChoreQuery {
  */
 function check(c: Omit<NewChore, 'createdAt' | 'updatedAt'>): void {
     if (c.kind === 'recurring' && !c.interval) throw new ServiceError(400, 'A recurring chore needs an interval');
-    if (c.growth === 'counter' && !c.counterEntity) throw new ServiceError(400, 'A counter chore needs a counter entity');
-    if (c.intervalMin !== null && c.intervalMax !== null && c.intervalMin > c.intervalMax) {
-        throw new ServiceError(400, 'The minimum interval is larger than the maximum interval');
+    if (c.kind === 'recurring' && c.deadlineAt !== null) {
+        throw new ServiceError(400, 'A recurring chore has a yearly deadline, not a fixed date');
+    }
+    if (c.kind === 'one_time' && c.deadlineMd !== null) {
+        throw new ServiceError(400, 'A one-time task has a fixed deadline, not a yearly date');
     }
 }
 
@@ -49,43 +51,38 @@ async function checkLinks(deps: Deps, personIds: readonly number[], categoryIds:
 }
 
 /**
- * Checks that the linked conditions exist and have the right kind.
+ * Checks that the linked conditions exist.
  *
  * @param deps the dependencies
  * @param c the values
- * @throws ServiceError for an unknown condition or a wrong kind
+ * @throws ServiceError for an unknown condition
  */
 async function checkConditions(deps: Deps, c: NewChore): Promise<void> {
-    const kinds = new Map((await listConditions(deps.db)).map((cond) => [cond.id, cond.kind]));
-    for (const [id, kind] of [[c.conditionId, 'state'], [c.boostId, 'state'], [c.forecastId, 'forecast']] as const) {
-        if (id === null) continue;
-        if (!kinds.has(id)) throw new ServiceError(400, 'Unknown condition');
-        if (kinds.get(id) !== kind) throw new ServiceError(400, `The condition ${id} is not a ${kind} condition`);
+    const ids = new Set((await listConditions(deps.db)).map((cond) => cond.id));
+    for (const id of [c.requiresId, c.triggerId]) {
+        if (id !== null && !ids.has(id)) throw new ServiceError(400, 'Unknown condition');
     }
 }
 
 /**
- * Applies input values to chore values. The interval limits of a recurring chore default to an eighth and four times
- * the interval when they are empty or when the input sets the interval without them.
+ * Applies input values to chore values. A deadline string sets the yearly date, a deadline number sets the fixed
+ * date.
  *
  * @param base the current values
  * @param input the input values
  */
 function merge(base: NewChore, input: ChoreUpdate): NewChore {
     const next: NewChore = { ...base };
-    for (const [key, value] of Object.entries(input)) {
+    const { deadline, ...rest } = input;
+    for (const [key, value] of Object.entries(rest)) {
         if (value !== undefined) (next as unknown as Record<string, unknown>)[key] = value;
     }
-    if (next.kind === 'one_time') {
-        next.interval = null;
-        next.intervalMin = null;
-        next.intervalMax = null;
-    } else if (next.interval) {
-        if (next.intervalMin == null || (input.interval && input.intervalMin === undefined)) next.intervalMin = next.interval / 8;
-        if (next.intervalMax == null || (input.interval && input.intervalMax === undefined)) next.intervalMax = next.interval * 4;
+    if (next.kind === 'one_time') next.interval = null;
+    if (deadline !== undefined) {
+        next.deadlineMd = typeof deadline === 'string' ? deadline : null;
+        next.deadlineAt = typeof deadline === 'number' ? deadline : null;
     }
-    for (const key of ['groupKey', 'intervalMin', 'intervalMax', 'counterEntity', 'deadlineMd', 'deadlineAt',
-        'conditionId', 'boostId', 'forecastId', 'notes'] as const) {
+    for (const key of ['deadlineMd', 'deadlineAt', 'requiresId', 'triggerId', 'notes'] as const) {
         if (next[key] === undefined) (next as unknown as Record<string, unknown>)[key] = null;
     }
     // all twelve months are the same as the whole year
@@ -103,11 +100,9 @@ function merge(base: NewChore, input: ChoreUpdate): NewChore {
 export async function createChore(deps: Deps, input: ChoreInput): Promise<ChoreWithNeed> {
     const now = deps.now();
     const empty: NewChore = {
-        name: '', groupKey: null, kind: 'recurring', growth: 'time', interval: null, intervalMin: null,
-        intervalMax: null, learnStep: 0.15, learnDirection: 0, counterEntity: null, importance: 'normal',
-        deadlineMd: null, deadlineAt: null, deadlineLeadDays: 14, conditionId: null, boostId: null,
-        forecastId: null, conditionResult: null, boostResult: null, templateError: null, durationMin: 10,
-        effort: 1, seasonMonths: [], noisy: false, notes: null, lastDoneAt: now,
+        name: '', kind: 'recurring', interval: null, pausesWhenAway: true, deadlineMd: null, deadlineAt: null,
+        requiresId: null, triggerId: null, requiresResult: null, triggerResult: null, triggerSinceAt: null,
+        templateError: null, durationMin: 15, effort: 2, seasonMonths: [], noisy: false, notes: null, lastDoneAt: now,
         snoozedUntil: null, notYetCount: 0, lastNotifiedAt: null, createdAt: now, updatedAt: now, deletedAt: null,
         personIds: [], categoryIds: [],
     };
@@ -117,7 +112,6 @@ export async function createChore(deps: Deps, input: ChoreInput): Promise<ChoreW
     await checkLinks(deps, values.personIds, values.categoryIds);
     await checkConditions(deps, values);
     const chore = await insertChore(deps.db, values);
-    deps.onChoresChanged?.();
     return evaluatedChore(deps, { kind: 'shared' }, chore.id);
 }
 
@@ -137,7 +131,6 @@ export async function updateChore(deps: Deps, id: number, input: ChoreUpdate): P
     await checkLinks(deps, values.personIds, values.categoryIds);
     await checkConditions(deps, values);
     await storeChore(deps.db, id, { ...values, updatedAt: deps.now() });
-    deps.onChoresChanged?.();
     return evaluatedChore(deps, { kind: 'shared' }, id);
 }
 
@@ -151,7 +144,6 @@ export async function deleteChore(deps: Deps, id: number): Promise<void> {
     const current = await loadChore(deps.db, id);
     if (!current || current.deletedAt !== null) throw notFound('Chore');
     await storeChore(deps.db, id, { deletedAt: deps.now(), updatedAt: deps.now() });
-    deps.onChoresChanged?.();
 }
 
 /**
@@ -181,4 +173,15 @@ export async function getChore(deps: Deps, id: number, eventLimit = 20):
     Promise<{ chore: ChoreWithNeed; events: ChoreEvent[] }> {
     const chore = await evaluatedChore(deps, { kind: 'shared' }, id, true);
     return { chore, events: await listChoreEvents(deps.db, id, eventLimit) };
+}
+
+/**
+ * Lists the distinct names of the active chores, for the completion of the name field.
+ *
+ * @param deps the dependencies
+ */
+export async function listChoreNames(deps: Deps): Promise<string[]> {
+    const rows = await deps.db.selectFrom('chore').select('name').distinct().where('deletedAt', 'is', null)
+        .orderBy('name').execute();
+    return rows.map((r) => r.name);
 }

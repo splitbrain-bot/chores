@@ -1,5 +1,5 @@
 import { deadlines } from '../core/need.ts';
-import { DAY, type Capacity, type ChoreWithNeed, type Importance, type Kind } from '../core/types.ts';
+import { DAY, type Capacity, type ChoreWithNeed, type Kind } from '../core/types.ts';
 import { listRecentEvents, type EventWithChore } from '../db/events.ts';
 import type { Deps } from './deps.ts';
 import { evaluate } from './evaluate.ts';
@@ -20,7 +20,6 @@ export interface Overview {
     recent: EventWithChore[];
     counts: {
         byKind: Record<Kind, number>;
-        byImportance: Record<Importance, number>;
         aboveOne: number;
     };
     capacityNow: { personId: number; name: string; capacity: Capacity }[];
@@ -38,25 +37,21 @@ export async function getOverview(deps: Deps): Promise<Overview> {
     const { state, chores } = await evaluate(deps, { kind: 'shared' });
     const byNeed = [...chores].sort((a, b) => b.need - a.need);
     const tz = state.settings.time_zone;
+    const lead = state.settings.deadline_lead_days * DAY;
 
     const deadlineList: DeadlineEntry[] = [];
     for (const chore of chores) {
         const next = chore.deadlineMd !== null ? deadlines(chore, state.now + 365 * DAY, tz) : [];
         const candidates = [...deadlines(chore, state.now, tz), ...next];
         const coming = candidates.filter((d) => d > state.now && d <= state.now + DEADLINE_DAYS * DAY
-            && !(chore.kind === 'recurring' && chore.lastDoneAt > chore.createdAt
-                && chore.lastDoneAt >= d - chore.deadlineLeadDays * DAY));
+            && !(chore.kind === 'recurring' && chore.lastDoneAt > chore.createdAt && chore.lastDoneAt >= d - lead));
         if (chore.reason.code === 'deadline') deadlineList.push({ chore, deadline: chore.reason.deadline });
         else if (coming.length > 0) deadlineList.push({ chore, deadline: Math.min(...coming) });
     }
     deadlineList.sort((a, b) => a.deadline - b.deadline);
 
     const byKind: Record<Kind, number> = { recurring: 0, one_time: 0 };
-    const byImportance: Record<Importance, number> = { optional: 0, normal: 0, important: 0, critical: 0 };
-    for (const c of chores) {
-        byKind[c.kind]++;
-        byImportance[c.importance]++;
-    }
+    for (const c of chores) byKind[c.kind]++;
 
     return {
         presence: await listPresence(deps),
@@ -64,7 +59,7 @@ export async function getOverview(deps: Deps): Promise<Overview> {
         neglected: byNeed.filter((c) => c.need >= 2),
         deadlines: deadlineList,
         recent: await listRecentEvents(deps.db, 30),
-        counts: { byKind, byImportance, aboveOne: chores.filter((c) => c.need >= 1).length },
+        counts: { byKind, aboveOne: chores.filter((c) => c.need >= 1).length },
         capacityNow: state.persons.map((p) => ({
             personId: p.id, name: p.name, capacity: state.capacities.get(p.id)?.capacity ?? { minutes: 0, energy: 0 },
         })),

@@ -2,21 +2,18 @@ import { z } from 'zod';
 
 /** Values of a chore as the API and the MCP tools accept them. */
 export const choreFields = {
-    name: z.string().trim().min(1).max(200),
-    groupKey: z.string().trim().min(1).max(100).nullish(),
+    name: z.string().trim().min(1).max(200).describe('Chores with the same name form a group, for example the same '
+        + 'chore in several rooms'),
     kind: z.enum(['recurring', 'one_time']),
-    growth: z.enum(['usage', 'time', 'counter']),
-    interval: z.number().positive().nullish().describe('Days, or cycles for growth counter. Required for recurring.'),
-    intervalMin: z.number().positive().nullish().describe('Default interval / 8'),
-    intervalMax: z.number().positive().nullish().describe('Default interval * 4'),
-    counterEntity: z.string().min(1).nullish().describe('Home Assistant entity, required for growth counter'),
-    importance: z.enum(['optional', 'normal', 'important', 'critical']),
-    deadlineMd: z.string().regex(/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/).nullish().describe('Yearly deadline MM-DD'),
-    deadlineAt: z.number().int().nullish().describe('Fixed deadline in milliseconds since the epoch'),
-    deadlineLeadDays: z.number().int().min(0).max(365).optional(),
-    conditionId: z.number().int().positive().nullish().describe('State condition that must be true'),
-    boostId: z.number().int().positive().nullish().describe('State condition that makes the chore urgent'),
-    forecastId: z.number().int().positive().nullish().describe('Forecast condition for the look-ahead'),
+    interval: z.number().positive().nullish().describe('Days. Required for recurring.'),
+    pausesWhenAway: z.boolean().optional().describe('True when the elapsed time counts only while a person is at '
+        + 'home. Default true'),
+    deadline: z.union([z.string().regex(/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/), z.number().int()]).nullish()
+        .describe('Yearly deadline MM-DD for a recurring chore, or a fixed deadline in milliseconds since the epoch '
+            + 'for a one-time task. The chore is urgent in the lead period before the deadline'),
+    requiresId: z.number().int().positive().nullish().describe('Condition that must be true for the chore'),
+    triggerId: z.number().int().positive().nullish().describe('Condition that makes the chore urgent when it becomes '
+        + 'true, until the chore is done'),
     durationMin: z.number().int().min(1).max(1440),
     effort: z.number().int().min(1).max(5),
     personIds: z.array(z.number().int()).optional().describe('Empty or absent means any person, one person means only '

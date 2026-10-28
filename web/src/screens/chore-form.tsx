@@ -13,20 +13,13 @@ import type { ChoreEvent, ChoreWithNeed, ConditionStatus, Person } from '../type
 /** Values of the form. Text inputs hold strings, empty strings stand for no value. */
 interface FormState {
     name: string;
-    groupKey: string;
     kind: ChoreInput['kind'];
-    growth: ChoreInput['growth'];
     interval: string;
-    intervalMin: string;
-    intervalMax: string;
-    counterEntity: string;
-    importance: ChoreInput['importance'];
-    deadlineMd: string;
-    deadlineAt: string;
-    deadlineLeadDays: string;
-    conditionId: string;
-    boostId: string;
-    forecastId: string;
+    pausesWhenAway: boolean;
+    /** Yearly deadline MM-DD for a recurring chore, or a date YYYY-MM-DD for a one-time task. */
+    deadline: string;
+    requiresId: string;
+    triggerId: string;
     durationMin: string;
     effort: string;
     personIds: number[];
@@ -38,10 +31,9 @@ interface FormState {
 }
 
 const EMPTY: FormState = {
-    name: '', groupKey: '', kind: 'recurring', growth: 'usage', interval: '7', intervalMin: '', intervalMax: '',
-    counterEntity: '', importance: 'normal', deadlineMd: '', deadlineAt: '', deadlineLeadDays: '14',
-    conditionId: '', boostId: '', forecastId: '', durationMin: '15', effort: '2',
-    personIds: [], categoryIds: [], seasonMonths: [], noisy: false, notes: '', lastDoneAt: '',
+    name: '', kind: 'recurring', interval: '7', pausesWhenAway: true, deadline: '', requiresId: '', triggerId: '',
+    durationMin: '15', effort: '2', personIds: [], categoryIds: [], seasonMonths: [], noisy: false, notes: '',
+    lastDoneAt: '',
 };
 
 /**
@@ -62,12 +54,9 @@ function toLocalInput(ts: number): string {
 function toForm(c: ChoreWithNeed): FormState {
     const s = (v: number | string | null) => (v === null ? '' : String(v));
     return {
-        name: c.name, groupKey: s(c.groupKey), kind: c.kind, growth: c.growth, interval: s(c.interval),
-        intervalMin: s(c.intervalMin), intervalMax: s(c.intervalMax), counterEntity: s(c.counterEntity),
-        importance: c.importance, deadlineMd: s(c.deadlineMd),
-        deadlineAt: c.deadlineAt === null ? '' : toLocalInput(c.deadlineAt).slice(0, 10),
-        deadlineLeadDays: String(c.deadlineLeadDays), conditionId: s(c.conditionId), boostId: s(c.boostId),
-        forecastId: s(c.forecastId), durationMin: String(c.durationMin),
+        name: c.name, kind: c.kind, interval: s(c.interval), pausesWhenAway: c.pausesWhenAway,
+        deadline: c.deadlineAt !== null ? toLocalInput(c.deadlineAt).slice(0, 10) : s(c.deadlineMd),
+        requiresId: s(c.requiresId), triggerId: s(c.triggerId), durationMin: String(c.durationMin),
         effort: String(c.effort), personIds: c.personIds, categoryIds: c.categoryIds,
         seasonMonths: c.seasonMonths, noisy: c.noisy, notes: s(c.notes),
         lastDoneAt: toLocalInput(c.lastDoneAt),
@@ -82,15 +71,14 @@ function toForm(c: ChoreWithNeed): FormState {
 function toInput(f: FormState): ChoreInput {
     const text = (v: string) => (v.trim() === '' ? null : v.trim());
     const number = (v: string) => (v.trim() === '' ? null : Number(v));
+    const deadline = text(f.deadline);
     return {
-        name: f.name.trim(), groupKey: text(f.groupKey), kind: f.kind, growth: f.growth,
+        name: f.name.trim(), kind: f.kind,
         interval: f.kind === 'one_time' ? null : number(f.interval),
-        intervalMin: number(f.intervalMin), intervalMax: number(f.intervalMax),
-        counterEntity: f.growth === 'counter' ? text(f.counterEntity) : null, importance: f.importance,
-        deadlineMd: text(f.deadlineMd),
-        deadlineAt: f.deadlineAt ? new Date(`${f.deadlineAt}T23:59:59`).getTime() : null,
-        deadlineLeadDays: Number(f.deadlineLeadDays), conditionId: number(f.conditionId), boostId: number(f.boostId),
-        forecastId: number(f.forecastId), durationMin: Number(f.durationMin), effort: Number(f.effort),
+        pausesWhenAway: f.pausesWhenAway,
+        deadline: deadline === null ? null : f.kind === 'one_time' ? new Date(`${deadline}T23:59:59`).getTime() : deadline,
+        requiresId: number(f.requiresId), triggerId: number(f.triggerId),
+        durationMin: Number(f.durationMin), effort: Number(f.effort),
         personIds: f.personIds, categoryIds: f.categoryIds, seasonMonths: f.seasonMonths,
         noisy: f.noisy, notes: text(f.notes), lastDoneAt: f.lastDoneAt ? new Date(f.lastDoneAt).getTime() : undefined,
     };
@@ -120,11 +108,13 @@ export function ChoreForm({ id }: { id: number | null }) {
     const [events, setEvents] = useState<ChoreEvent[]>([]);
     const [persons, setPersons] = useState<Person[]>([]);
     const [conditions, setConditions] = useState<ConditionStatus[]>([]);
+    const [names, setNames] = useState<string[]>([]);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         api<{ persons: Person[] }>('GET', '/persons').then((r) => setPersons(r.persons), () => undefined);
         api<{ conditions: ConditionStatus[] }>('GET', '/conditions').then((r) => setConditions(r.conditions), () => undefined);
+        api<{ names: string[] }>('GET', '/chores/names').then((r) => setNames(r.names), () => undefined);
         if (id === null) return;
         api<{ chore: ChoreWithNeed; events: ChoreEvent[] }>('GET', `/chores/${id}`).then((r) => {
             setChore(r.chore);
@@ -137,12 +127,12 @@ export function ChoreForm({ id }: { id: number | null }) {
     const input = (key: keyof FormState, type = 'text', extra: Record<string, unknown> = {}) => (
         <input name={key} type={type} value={String(form[key])} onChange={(e) => set(key, e.target.value as never)} {...extra} />
     );
-    const select = <K extends 'kind' | 'growth' | 'importance'>(key: K, options: FormState[K][]) => (
-        <select name={key} value={form[key]} onChange={(e) => set(key, e.target.value as FormState[K])}>
-            {options.map((o) => <option key={o} value={o}>{t(`form.${key}.${o}` as never)}</option>)}
-        </select>
+    const check = (key: 'pausesWhenAway' | 'noisy', label: string) => (
+        <label className="check">
+            <input type="checkbox" name={key} checked={form[key]} onChange={(e) => set(key, e.target.checked)} />
+            {label}
+        </label>
     );
-    const unit = form.growth === 'counter' ? t('unit.cycles') : t('unit.days');
 
     if (id !== null && !chore) return <p className="status">{error ? t('common.error', { message: error }) : t('common.loading')}</p>;
 
@@ -155,25 +145,26 @@ export function ChoreForm({ id }: { id: number | null }) {
             <h1>{id === null ? t('form.titleNew') : t('form.titleEdit')}</h1>
             {error && <p className="error">{t('common.error', { message: error })}</p>}
 
-            <Field label={t('form.name')}>{input('name', 'text', { required: true })}</Field>
+            <Field label={t('form.name')}>
+                {input('name', 'text', { required: true, list: 'chore-names', autoComplete: 'off' })}
+                <datalist id="chore-names">{names.map((n) => <option key={n} value={n} />)}</datalist>
+                <small className="hint">{t('form.nameHint')}</small>
+            </Field>
             <Field label={t('form.categories')} group>
                 <CategoryPicker categories={categories} value={form.categoryIds} onChange={(ids) => set('categoryIds', ids)} />
             </Field>
             <div className="row">
-                <Field label={t('form.kind')}>{select('kind', ['recurring', 'one_time'])}</Field>
-                <Field label={t('form.growth')}>{select('growth', ['usage', 'time', 'counter'])}</Field>
-                <Field label={t('form.importance')}>{select('importance', ['optional', 'normal', 'important', 'critical'])}</Field>
+                <Field label={t('form.kind')}>
+                    <select name="kind" value={form.kind} onChange={(e) => set('kind', e.target.value as FormState['kind'])}>
+                        <option value="recurring">{t('form.kind.recurring')}</option>
+                        <option value="one_time">{t('form.kind.one_time')}</option>
+                    </select>
+                </Field>
+                {form.kind === 'recurring' && (
+                    <Field label={t('form.interval')}>{input('interval', 'number', { step: 'any', min: 0, required: true })}</Field>
+                )}
             </div>
-            {form.kind === 'recurring' && (
-                <div className="row">
-                    <Field label={`${t('form.interval')} (${unit})`}>{input('interval', 'number', { step: 'any', min: 0, required: true })}</Field>
-                    <Field label={t('form.intervalMin')}>{input('intervalMin', 'number', { step: 'any', min: 0 })}</Field>
-                    <Field label={t('form.intervalMax')}>{input('intervalMax', 'number', { step: 'any', min: 0 })}</Field>
-                </div>
-            )}
-            {form.growth === 'counter' && (
-                <Field label={t('form.counterEntity')}>{input('counterEntity', 'text', { required: true })}</Field>
-            )}
+            {form.kind === 'recurring' && check('pausesWhenAway', t('form.pausesWhenAway'))}
             <div className="row">
                 <Field label={t('form.durationMin')}>{input('durationMin', 'number', { min: 1, required: true })}</Field>
                 <Field label={t('form.effort')} group>
@@ -196,30 +187,27 @@ export function ChoreForm({ id }: { id: number | null }) {
             <Field label={t('form.season')} group>
                 <SeasonPicker months={form.seasonMonths} onChange={(months) => set('seasonMonths', months)} />
             </Field>
-            <label className="check">
-                <input type="checkbox" name="noisy" checked={form.noisy} onChange={(e) => set('noisy', e.target.checked)} />
-                {t('form.noisy')}
-            </label>
-            <div className="row">
-                <Field label={t('form.deadlineMd')}>{input('deadlineMd', 'text', { pattern: '\\d{2}-\\d{2}', placeholder: '11-15' })}</Field>
-                <Field label={t('form.deadlineAt')}>{input('deadlineAt', 'date')}</Field>
-                <Field label={t('form.deadlineLeadDays')}>{input('deadlineLeadDays', 'number', { min: 0 })}</Field>
-            </div>
-            <Field label={t('form.groupKey')}>{input('groupKey')}</Field>
+            {check('noisy', t('form.noisy'))}
+            <Field label={form.kind === 'recurring' ? t('form.deadlineMd') : t('form.deadlineAt')}>
+                {form.kind === 'recurring'
+                    ? input('deadline', 'text', { pattern: '\\d{2}-\\d{2}', placeholder: '11-15' })
+                    : input('deadline', 'date')}
+                <small className="hint">{t('form.deadlineHint')}</small>
+            </Field>
 
-            {(['conditionId', 'boostId', 'forecastId'] as const).map((key) => {
+            {(['requiresId', 'triggerId'] as const).map((key) => {
                 const selected = conditions.find((c) => String(c.id) === form[key]);
                 return (
                     <Field key={key} label={t(`form.${key}`)}>
                         <select name={key} value={form[key]} onChange={(e) => set(key, e.target.value)}>
                             <option value="">–</option>
-                            {conditions.filter((c) => c.kind === (key === 'forecastId' ? 'forecast' : 'state'))
-                                .map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            {conditions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
-                        {selected && <small className="template-result">
-                            {conditionStatusText(selected)}
-                            {selected.error && <span className="error"> {selected.error}</span>}
-                        </small>}
+                        <small className="hint">
+                            {t(`form.${key}Hint`)}
+                            {selected && <> {conditionStatusText(selected)}</>}
+                            {selected?.error && <span className="error"> {selected.error}</span>}
+                        </small>
                     </Field>
                 );
             })}

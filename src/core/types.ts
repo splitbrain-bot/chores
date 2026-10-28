@@ -1,12 +1,6 @@
 /** Kind of a chore. */
 export type Kind = 'recurring' | 'one_time';
 
-/** Source of the elapsed value of a chore. */
-export type Growth = 'usage' | 'time' | 'counter';
-
-/** Importance of a chore. It sets the slope of the need level after the interval. */
-export type Importance = 'optional' | 'normal' | 'important' | 'critical';
-
 /** Reason of a postpone. */
 export type PostponeReason = 'no_time' | 'no_energy' | 'not_yet';
 
@@ -36,20 +30,20 @@ export interface Category {
     icon: string | null;
 }
 
-/** Kind of a condition. A state condition has a current result, a forecast condition has a result per forecast day. */
-export type ConditionKind = 'state' | 'forecast';
-
 /** A Home Assistant template that many chores can use. */
 export interface Condition {
     id: number;
     name: string;
-    kind: ConditionKind;
-    /** Template source. A forecast condition gets the forecast of one day as the variable day. */
+    /** Template source for the current state. */
     template: string;
-    /** Last result of a state condition: 1, 0 or null for no result or a render error. */
+    /** Template source for one forecast day, with the forecast of the day as the variable day. Null without a forecast. */
+    forecastTemplate: string | null;
+    /** Last result of the template: 1, 0 or null for no result or a render error. */
     result: number | null;
     /** Error text of the last rendering. */
     error: string | null;
+    /** Time at which the result last changed to 1, null when it never did. */
+    sinceAt: number | null;
     /** Name of a Material Design icon. */
     icon: string | null;
 }
@@ -58,32 +52,26 @@ export interface Condition {
 export interface Chore {
     id: number;
     name: string;
-    groupKey: string | null;
     kind: Kind;
-    growth: Growth;
-    /** Days or cycles. Null for one-time tasks. */
+    /** Days. Null for one-time tasks. */
     interval: number | null;
-    intervalMin: number | null;
-    intervalMax: number | null;
-    learnStep: number;
-    learnDirection: -1 | 0 | 1;
-    counterEntity: string | null;
-    importance: Importance;
-    /** Yearly deadline as MM-DD. */
+    /** True when the elapsed time counts only while a person is at home. */
+    pausesWhenAway: boolean;
+    /** Yearly deadline as MM-DD, for recurring chores. */
     deadlineMd: string | null;
+    /** Fixed deadline, for one-time tasks. */
     deadlineAt: number | null;
-    deadlineLeadDays: number;
-    /** State condition that must be true for the chore. */
-    conditionId: number | null;
-    /** State condition that makes the chore urgent. */
-    boostId: number | null;
-    /** Forecast condition for the look-ahead. */
-    forecastId: number | null;
-    /** Current result of the condition: 1, 0 or null for no result or a render error. */
-    conditionResult: number | null;
-    /** Current result of the boost condition. */
-    boostResult: number | null;
-    /** Error text of the condition or of the boost condition. */
+    /** Condition that must be true for the chore. */
+    requiresId: number | null;
+    /** Condition that makes the chore urgent when it becomes true. */
+    triggerId: number | null;
+    /** Current result of the required condition: 1, 0 or null for no result or a render error. */
+    requiresResult: number | null;
+    /** Current result of the trigger condition. */
+    triggerResult: number | null;
+    /** Time at which the trigger condition last became true. */
+    triggerSinceAt: number | null;
+    /** Error text of the required condition or of the trigger condition. */
     templateError: string | null;
     durationMin: number;
     effort: number;
@@ -114,6 +102,7 @@ export interface ChoreEvent {
     needLevel: number;
     intervalBefore: number | null;
     intervalAfter: number | null;
+    durationMin: number;
     effort: number;
 }
 
@@ -187,17 +176,17 @@ export type BlockCode = 'deleted' | 'snoozed' | 'season' | 'quiet_day' | 'condit
 
 /** Explanation of the need level for the UI. */
 export type Reason =
-    | { code: 'interval'; interval: number; elapsed: number; unit: 'days' | 'cycles' }
+    | { code: 'interval'; interval: number; elapsed: number }
     | { code: 'deadline'; deadline: number; overdueDays: number }
-    | { code: 'boost' }
+    | { code: 'trigger' }
     | { code: 'one_time'; ageDays: number };
 
 /** A chore with its computed need level and filter result. */
 export interface ChoreWithNeed extends Chore {
     need: number;
+    /** Elapsed days since the last done event, or the age of a one-time task. */
     elapsed: number;
-    elapsedUnit: 'days' | 'cycles';
-    /** True when an active deadline or boost raises the need level. */
+    /** True when an active deadline or trigger raises the need level. */
     urgent: boolean;
     possible: boolean;
     blockedBy: BlockCode[];
@@ -231,11 +220,15 @@ export interface Hint {
 /** All tuning values. */
 export interface Settings {
     time_zone: string;
-    'slope.optional': number;
-    'slope.normal': number;
-    'slope.important': number;
-    'slope.critical': number;
     one_time_reference_days: number;
+    /** Days before a deadline in which the chore is urgent. */
+    deadline_lead_days: number;
+    /** Lowest need level at which a trigger can make a chore urgent. */
+    trigger_min_need: number;
+    /** Distance of the learning target from the observed elapsed time, as a part of it. */
+    learn_margin: number;
+    /** Part of the distance to the target that one signal applies. */
+    learn_rate: number;
     handover_after_hours: number;
     handover_distance_km: number;
     suggest_threshold: number;
@@ -243,9 +236,6 @@ export interface Settings {
     suggestion_count: number;
     capacity_slots: Slot[];
     hangover_effort: number;
-    earlier_window_seconds: number;
-    /** Highest need level of a done event that still allows the tap "necessary earlier". */
-    earlier_max_need: number;
     one_time_snooze_days: number;
     lookahead_days: number;
     notify_hour: number;
@@ -261,11 +251,11 @@ export interface Settings {
 /** Default values of all settings. */
 export const DEFAULT_SETTINGS: Settings = {
     time_zone: 'Europe/Berlin',
-    'slope.optional': 0.3,
-    'slope.normal': 1,
-    'slope.important': 2,
-    'slope.critical': 4,
     one_time_reference_days: 30,
+    deadline_lead_days: 14,
+    trigger_min_need: 0.5,
+    learn_margin: 0.25,
+    learn_rate: 0.5,
     handover_after_hours: 24,
     handover_distance_km: 30,
     suggest_threshold: 0.9,
@@ -280,8 +270,6 @@ export const DEFAULT_SETTINGS: Settings = {
         { days: [5, 6, 0], from: '18:00', to: '21:30', minutes: 45, energy: 3 },
     ],
     hangover_effort: 4,
-    earlier_window_seconds: 10,
-    earlier_max_need: 1.5,
     one_time_snooze_days: 7,
     lookahead_days: 7,
     notify_hour: 9,

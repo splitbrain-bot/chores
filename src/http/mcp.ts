@@ -92,19 +92,21 @@ export function createMcpServer(deps: Deps, version: string, identity: Identity)
     }, async ({ id: categoryId, ...values }) => result({ category: await updateCategory(deps, categoryId, values) }));
 
     server.registerTool('list_conditions', {
-        description: 'Lists the conditions with their status. A state condition has the current result 1 or 0, or '
-            + 'null with an error. A forecast condition has a result per day of the look-ahead. choreIds names the '
-            + 'chores that use the condition.',
+        description: 'Lists the conditions with their status: the current result 1 or 0, or null with an error, the '
+            + 'time since the result is true, and the result per day of the look-ahead for a condition with a '
+            + 'forecast template. choreIds names the chores that use the condition.',
     }, async () => result({ conditions: await listConditions(deps) }));
 
     server.registerTool('create_condition', {
-        description: 'Creates a condition. A chore uses a state condition as conditionId or boostId and a forecast '
-            + 'condition as forecastId.',
+        description: 'Creates a condition. A chore uses a condition as requiresId, then the chore is possible only '
+            + 'while the condition is true, or as triggerId, then the chore is urgent from the time the condition '
+            + 'becomes true until the chore is done. The look-ahead uses the forecast template of the required '
+            + 'condition.',
         inputSchema: conditionSchema,
     }, async (args) => result({ condition: await createCondition(deps, args) }));
 
     server.registerTool('update_condition', {
-        description: 'Changes the name, the template or the icon of a condition. All chores that use it get the change.',
+        description: 'Changes the name, the templates or the icon of a condition. All chores that use it get the change.',
         inputSchema: conditionUpdateSchema.extend({ id }),
     }, async ({ id: conditionId, ...values }) => result({ condition: await updateCondition(deps, conditionId, values) }));
 
@@ -134,8 +136,9 @@ export function createMcpServer(deps: Deps, version: string, identity: Identity)
     }, async (args) => result({ ...(await getChore(deps, args.id)) }));
 
     server.registerTool('create_chore', {
-        description: 'Creates a chore. Intervals are in days, or in cycles for the growth counter. Times are '
-            + 'milliseconds since the epoch.',
+        description: 'Creates a chore. The interval is in days. Times are milliseconds since the epoch. The need '
+            + 'level is the elapsed time divided by the interval; the taps necessary earlier and not necessary yet '
+            + 'correct the interval over time.',
         inputSchema: choreInputSchema,
     }, async (args) => result({ chore: await createChore(deps, args) }));
 
@@ -162,7 +165,8 @@ export function createMcpServer(deps: Deps, version: string, identity: Identity)
     }, async (args) => result({ events: await markDone(deps, viewer, args.id, args.also ?? [], args.at) }));
 
     server.registerTool('postpone', {
-        description: 'Postpones a chore. The reason not_yet makes the interval longer.',
+        description: 'Postpones a chore. The reason not_yet makes the interval longer. The reasons no_time and '
+            + 'no_energy lower the capacity of the person for the rest of the slot.',
         inputSchema: postponeSchema.extend({ id }),
     }, async (args) => result({ chore: await postpone(deps, viewer, args.id, args.reason) }));
 

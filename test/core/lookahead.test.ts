@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { lookahead, type LookaheadContext } from '../../src/core/lookahead.ts';
+import { isLookaheadCandidate, lookahead, type LookaheadContext } from '../../src/core/lookahead.ts';
 import type { Chore, ChoreWithNeed } from '../../src/core/types.ts';
 import { at, makeChore, settings } from './fixtures.ts';
 
@@ -10,8 +10,8 @@ const now = at('2026-10-29T12:00+01:00');
  * Creates an evaluated chore.
  */
 function evaluated(over: Partial<Chore>, need = 1): ChoreWithNeed {
-    return { ...makeChore(over), need, elapsed: 7, elapsedUnit: 'days', urgent: false, possible: false, blockedBy: [],
-        reason: { code: 'boost' } };
+    return { ...makeChore(over), need, elapsed: 7, urgent: false, possible: false, blockedBy: [],
+        reason: { code: 'trigger' } };
 }
 
 /**
@@ -21,6 +21,16 @@ function ctx(over: Partial<LookaheadContext> = {}): LookaheadContext {
     return { now, settings, personIds: [1, 2], holidays: new Set(), calendars: new Map(), forecast: new Map(),
         forecastResults: new Map(), ...over };
 }
+
+describe('isLookaheadCandidate', () => {
+    it('needs a forecast, a noisy chore or more persons', () => {
+        expect(isLookaheadCandidate(evaluated({}), false)).toBe(false);
+        expect(isLookaheadCandidate(evaluated({ requiresId: 1 }), true)).toBe(true);
+        expect(isLookaheadCandidate(evaluated({ noisy: true }), false)).toBe(true);
+        expect(isLookaheadCandidate(evaluated({ personIds: [1, 2] }), false)).toBe(true);
+        expect(isLookaheadCandidate(evaluated({ noisy: true, deletedAt: 1 }), false)).toBe(false);
+    });
+});
 
 describe('lookahead', () => {
     it('gives a noisy chore the next day that is not a Sunday or holiday', () => {
@@ -41,13 +51,13 @@ describe('lookahead', () => {
     });
 
     it('gives no hint when the forecast template is false on every day', () => {
-        const chore = evaluated({ id: 5, forecastId: 1 });
+        const chore = evaluated({ id: 5, requiresId: 1 });
         const results = new Map([[5, new Map([['2026-10-30', false], ['2026-10-31', false], ['2026-11-01', null]])]]);
         expect(lookahead([chore], ctx({ forecastResults: results }))).toEqual([]);
     });
 
     it('uses the forecast entry in the reasons', () => {
-        const chore = evaluated({ id: 5, forecastId: 1 });
+        const chore = evaluated({ id: 5, requiresId: 1 });
         const results = new Map([[5, new Map([['2026-10-31', true]])]]);
         const forecast = new Map([['2026-10-31', { datetime: '2026-10-31', condition: 'sunny', temperature: 12,
             precipitation: 0 }]]);
