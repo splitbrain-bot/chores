@@ -56,3 +56,26 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy:
+    needs: docker
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      # Watchtower pulls the new image and restarts the container. Without a
+      # WATCHTOWER_URL secret, as in a fork, the step succeeds with a note.
+      - env:
+          WATCHTOWER_URL: ${{ secrets.WATCHTOWER_URL }}
+          WATCHTOWER_TOKEN: ${{ secrets.WATCHTOWER_HTTP_API_TOKEN }}
+          IMAGE: ghcr.io/${{ github.repository }}
+        run: |
+          set -eu
+          url=${WATCHTOWER_URL:-}
+          if [ -z "$url" ]; then
+            echo 'No WATCHTOWER_URL secret set; nothing to deploy.'
+            exit 0
+          fi
+          answer=$(curl --fail --silent --show-error --max-time 300 \
+            -X POST "$url?image=$IMAGE" \
+            -H "Authorization: Bearer ${WATCHTOWER_TOKEN:-}")
+          printf 'Watchtower answered: %s\n' "$answer"
