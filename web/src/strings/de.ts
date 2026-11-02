@@ -149,7 +149,7 @@ export const de: Record<StringKey, string> = {
     'param.time_zone': 'Zeitzone für alle lokalen Zeiten, zum Beispiel Europe/Berlin.',
     'param.one_time_reference_days': 'Tage, nach denen eine einmalige Aufgabe fällig ist.',
     'param.deadline_lead_days': 'Tage vor einer Frist, in denen die Aufgabe dringend ist.',
-    'param.trigger_min_need': 'Kleinster Bedarf, ab dem eine Auslöse-Bedingung eine Aufgabe dringend machen kann. 0,5 bedeutet das halbe Intervall.',
+    'param.urgent_min_need': 'Kleinster Bedarf, ab dem eine Auslöse-Bedingung oder eine jährliche Frist eine Aufgabe dringend machen kann. 0,5 bedeutet das halbe Intervall.',
     'param.learn_margin': 'Wie weit \u201eWar schon früher nötig\u201c und \u201eNoch nicht nötig\u201c das Intervall von der beobachteten Zeit weg bewegen, als Anteil davon.',
     'param.learn_rate': 'Anteil der Änderung, den ein Tipp anwendet. Ein zweiter Tipp in dieselbe Richtung wendet die ganze Änderung an.',
     'param.handover_after_hours': 'Nach so vielen Stunden Abwesenheit können die Personen zu Hause die Aufgaben der abwesenden Person bekommen.',

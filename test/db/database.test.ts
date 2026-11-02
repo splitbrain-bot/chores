@@ -337,3 +337,19 @@ describe('migration unknown-last-done', () => {
         await db.destroy();
     });
 });
+
+describe('migration urgent-min-need', () => {
+    it('renames the stored setting and back', async () => {
+        const { openDatabase, migrate } = await import('../../src/db/database.ts');
+        const urgent = await import('../../src/db/migrations/2026-11-02-urgent-min-need.ts');
+        const db = openDatabase(':memory:');
+        await migrate(db);
+        await db.insertInto('setting').values({ key: 'trigger_min_need', value: '0.3' }).execute();
+
+        await urgent.up(db as never);
+        expect(await db.selectFrom('setting').selectAll().execute()).toEqual([{ key: 'urgent_min_need', value: '0.3' }]);
+        await urgent.down(db as never);
+        expect(await db.selectFrom('setting').selectAll().execute()).toEqual([{ key: 'trigger_min_need', value: '0.3' }]);
+        await db.destroy();
+    });
+});

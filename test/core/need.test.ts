@@ -127,6 +127,14 @@ describe('deadline', () => {
         expect(result.need).toBeLessThan(1);
     });
 
+    it('does not apply before half of the interval after a done event before the lead period', () => {
+        const chore = makeChore({ ...base, lastDoneAt: deadline - 16 * DAY });
+        expect(computeNeed(chore, ctx({ now: deadline - 13 * DAY })).urgent).toBe(false);
+        expect(computeNeed(chore, ctx({ now: deadline + 3 * DAY })).urgent).toBe(false);
+        const low = { ...settings, urgent_min_need: 0 };
+        expect(computeNeed(chore, ctx({ now: deadline - 13 * DAY, settings: low })).urgent).toBe(true);
+    });
+
     it('applies to a chore that was created in the lead period without a done date', () => {
         const created = deadline - 5 * DAY;
         const chore = makeChore({ ...base, createdAt: created, lastDoneAt: null });
@@ -174,7 +182,7 @@ describe('trigger', () => {
     it('does not apply before half of the interval', () => {
         const fresh = { ...chore, lastDoneAt: now - DAY, triggerSinceAt: now - HOUR };
         expect(computeNeed(fresh, ctx()).urgent).toBe(false);
-        expect(computeNeed(fresh, ctx({ settings: { ...settings, trigger_min_need: 0.1 } })).need).toBe(10);
+        expect(computeNeed(fresh, ctx({ settings: { ...settings, urgent_min_need: 0.1 } })).need).toBe(10);
     });
 
     it('applies to a chore with an unknown start when the condition became true before the creation', () => {

@@ -229,8 +229,8 @@ export interface Settings {
     one_time_reference_days: number;
     /** Days before a deadline in which the chore is urgent. */
     deadline_lead_days: number;
-    /** Lowest need level at which a trigger can make a chore urgent. */
-    trigger_min_need: number;
+    /** Lowest need level at which a trigger or a yearly deadline can make a chore urgent. */
+    urgent_min_need: number;
     /** Distance of the learning target from the observed elapsed time, as a part of it. */
     learn_margin: number;
     /** Part of the distance to the target that one signal applies. */
@@ -259,7 +259,7 @@ export const DEFAULT_SETTINGS: Settings = {
     time_zone: 'Europe/Berlin',
     one_time_reference_days: 30,
     deadline_lead_days: 14,
-    trigger_min_need: 0.5,
+    urgent_min_need: 0.5,
     learn_margin: 0.25,
     learn_rate: 0.5,
     handover_after_hours: 24,

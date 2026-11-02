@@ -28,7 +28,8 @@ its creation, so it starts at the need level 0.5. A one-time task reaches the ne
 and stays there. At most one one-time task is in the suggestions while a recurring chore is possible.
 
 A deadline or a trigger makes a chore urgent. A trigger applies when its condition became true after the last done
-event and at least half of the interval has passed. A done tap ends the urgency.
+event and at least half of the interval has passed. A yearly deadline does not apply when the chore was done in its lead
+period or less than half of the interval before it. A done tap ends the urgency.
 
 Two taps correct the interval. "Was necessary earlier" after a done tap moves the interval toward the elapsed time
 minus the margin. "Not necessary yet" in the dialog Later moves it toward the elapsed time plus the margin. One tap

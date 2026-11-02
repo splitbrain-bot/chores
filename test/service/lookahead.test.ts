@@ -50,11 +50,14 @@ describe('look-ahead and overview', () => {
             deadline: '11-15' });
         await createChore(deps, { name: 'Alt', kind: 'recurring', interval: 2, durationMin: 10, effort: 1,
             lastDoneAt: clock.t - 10 * DAY });
+        // done shortly before the lead period, so its deadline does not count
+        await createChore(deps, { name: 'Rinne', kind: 'recurring', interval: 365, durationMin: 30, effort: 3,
+            deadline: '11-15', lastDoneAt: clock.t - 10 * DAY });
         const o = await getOverview(deps);
-        expect(o.top.map((c) => c.name)).toEqual(['Sprenger', 'Alt']);
+        expect(o.top.map((c) => c.name)).toEqual(['Sprenger', 'Alt', 'Rinne']);
         expect(o.neglected.map((c) => c.name)).toEqual(['Sprenger', 'Alt']);
         expect(o.deadlines.map((d) => d.chore.name)).toEqual(['Sprenger']);
-        expect(o.counts).toEqual({ byKind: { recurring: 2, one_time: 0 }, aboveOne: 2 });
+        expect(o.counts).toEqual({ byKind: { recurring: 3, one_time: 0 }, aboveOne: 2 });
         expect(o.presence[0]).toMatchObject({ name: 'Andi', home: true });
         expect(o.capacityNow[0]).toMatchObject({ name: 'Andi', capacity: { minutes: 10, energy: 2 } });
     });

@@ -134,7 +134,7 @@ describe('HTTP API', () => {
 
     it('reads and writes the settings', async () => {
         const { settings } = await (await t.call('GET', '/api/settings')).json() as { settings: typeof DEFAULT_SETTINGS };
-        expect(settings).toMatchObject({ suggestion_count: 3, deadline_lead_days: 14, trigger_min_need: 0.5,
+        expect(settings).toMatchObject({ suggestion_count: 3, deadline_lead_days: 14, urgent_min_need: 0.5,
             learn_margin: 0.25, learn_rate: 0.5 });
         expect(Object.keys(settings)).not.toContain('slope.normal');
         expect(Object.keys(settings)).not.toContain('earlier_window_seconds');
