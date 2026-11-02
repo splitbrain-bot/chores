@@ -197,6 +197,8 @@ export interface ChoreWithNeed extends Chore {
     possible: boolean;
     blockedBy: BlockCode[];
     reason: Reason;
+    /** The earliest deadline that counts, also when it is over, or null. */
+    nextDeadline: number | null;
 }
 
 /** One suggestion with its main chore and the chores of the same group. */
@@ -229,7 +231,7 @@ export interface Settings {
     one_time_reference_days: number;
     /** Days before a deadline in which the chore is urgent. */
     deadline_lead_days: number;
-    /** Lowest need level at which a trigger or a yearly deadline can make a chore urgent. */
+    /** Part of the interval after a done time in which a trigger or a yearly deadline cannot make a chore urgent. */
     urgent_min_need: number;
     /** Distance of the learning target from the observed elapsed time, as a part of it. */
     learn_margin: number;

@@ -135,6 +135,16 @@ describe('deadline', () => {
         expect(computeNeed(chore, ctx({ now: deadline - 13 * DAY, settings: low })).urgent).toBe(true);
     });
 
+    it('gives the earliest deadline that counts, also when it is over', () => {
+        expect(computeNeed(makeChore(base), ctx({ now: deadline - 20 * DAY })).nextDeadline).toBe(deadline);
+        const done = makeChore({ ...base, lastDoneAt: deadline - 16 * DAY });
+        expect(computeNeed(done, ctx({ now: deadline - 13 * DAY })).nextDeadline).toBe(at('2027-11-16T00:00+01:00'));
+        const missed = makeChore({ ...base, createdAt: at('2025-01-01T10:00+01:00'), lastDoneAt: null });
+        const result = computeNeed(missed, ctx({ now: deadline - 20 * DAY }));
+        expect(result.nextDeadline).toBe(at('2025-11-16T00:00+01:00'));
+        expect(result.reason).toMatchObject({ code: 'deadline', deadline: at('2025-11-16T00:00+01:00') });
+    });
+
     it('applies to a chore that was created in the lead period without a done date', () => {
         const created = deadline - 5 * DAY;
         const chore = makeChore({ ...base, createdAt: created, lastDoneAt: null });
@@ -175,7 +185,7 @@ describe('trigger', () => {
     });
 
     it('does not apply after a done event since the condition became true', () => {
-        expect(triggerApplies({ ...chore, triggerSinceAt: now - 6 * DAY }, 5 / 7, settings)).toBe(false);
+        expect(triggerApplies({ ...chore, triggerSinceAt: now - 6 * DAY }, now, settings)).toBe(false);
         expect(computeNeed({ ...chore, triggerSinceAt: now - 6 * DAY }, ctx()).urgent).toBe(false);
     });
 
@@ -190,10 +200,20 @@ describe('trigger', () => {
         expect(computeNeed(created, ctx())).toMatchObject({ need: 10, urgent: true });
     });
 
+    it('counts the calm days in calendar time, also for a chore that pauses', () => {
+        const away = { ...chore, pausesWhenAway: true, lastDoneAt: now - 4 * DAY };
+        expect(computeNeed(away, ctx({ occupancy: [], firstRecordAt: now - 10 * DAY })).need).toBe(10);
+    });
+
+    it('applies to a one-time task without calm days', () => {
+        const task = { ...chore, kind: 'one_time' as const, interval: null, lastDoneAt: null, createdAt: now - 2 * DAY };
+        expect(computeNeed(task, ctx()).urgent).toBe(true);
+    });
+
     it('does nothing with result 0, null or without a time since true', () => {
         expect(computeNeed({ ...chore, triggerResult: 0 }, ctx()).urgent).toBe(false);
         expect(computeNeed({ ...chore, triggerResult: null }, ctx()).need).toBeLessThan(1);
-        expect(triggerApplies({ ...chore, triggerSinceAt: null }, 1, settings)).toBe(false);
-        expect(triggerApplies({ ...chore, triggerId: null }, 1, settings)).toBe(false);
+        expect(triggerApplies({ ...chore, triggerSinceAt: null }, now, settings)).toBe(false);
+        expect(triggerApplies({ ...chore, triggerId: null }, now, settings)).toBe(false);
     });
 });

@@ -11,7 +11,7 @@ const now = at('2026-10-29T12:00+01:00');
  */
 function evaluated(over: Partial<Chore>, need = 1): ChoreWithNeed {
     return { ...makeChore(over), need, elapsed: 7, urgent: false, possible: false, blockedBy: [],
-        reason: { code: 'trigger' } };
+        reason: { code: 'trigger' }, nextDeadline: null };
 }
 
 /**

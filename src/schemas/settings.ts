@@ -27,7 +27,8 @@ export const settingsSchema = z.object({
     deadline_lead_days: z.number().int().min(0).max(365)
         .describe('Days before a deadline in which the chore is urgent'),
     urgent_min_need: z.number().min(0)
-        .describe('Lowest need level at which a trigger condition or a yearly deadline can make a chore urgent'),
+        .describe('Part of the interval after a done time in which a trigger condition or a yearly deadline '
+            + 'cannot make a chore urgent'),
     learn_margin: z.number().min(0).max(0.9)
         .describe('Distance of the learning target from the observed elapsed time, as a part of it. Necessary '
             + 'earlier aims at elapsed * (1 - margin), not necessary yet at elapsed * (1 + margin)'),

@@ -1,4 +1,3 @@
-import { deadlineCounts, deadlines } from '../core/need.ts';
 import { DAY, type Capacity, type ChoreWithNeed, type Kind } from '../core/types.ts';
 import { listRecentEvents, type EventWithChore } from '../db/events.ts';
 import type { Deps } from './deps.ts';
@@ -36,16 +35,11 @@ const DEADLINE_DAYS = 30;
 export async function getOverview(deps: Deps): Promise<Overview> {
     const { state, chores } = await evaluate(deps, { kind: 'shared' });
     const byNeed = [...chores].sort((a, b) => b.need - a.need);
-    const tz = state.settings.time_zone;
 
     const deadlineList: DeadlineEntry[] = [];
     for (const chore of chores) {
-        const next = chore.deadlineMd !== null ? deadlines(chore, state.now + 365 * DAY, tz) : [];
-        const candidates = [...deadlines(chore, state.now, tz), ...next];
-        const coming = candidates.filter((d) => d > state.now && d <= state.now + DEADLINE_DAYS * DAY
-            && deadlineCounts(chore, d, state.settings));
-        if (chore.reason.code === 'deadline') deadlineList.push({ chore, deadline: chore.reason.deadline });
-        else if (coming.length > 0) deadlineList.push({ chore, deadline: Math.min(...coming) });
+        const deadline = chore.nextDeadline;
+        if (deadline !== null && deadline <= state.now + DEADLINE_DAYS * DAY) deadlineList.push({ chore, deadline });
     }
     deadlineList.sort((a, b) => a.deadline - b.deadline);
 

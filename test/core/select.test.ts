@@ -9,7 +9,7 @@ import { makeChore, settings } from './fixtures.ts';
 function evaluated(id: number, need: number, blockedBy: BlockCode[] = [], name = `c${id}`, kind: Kind = 'recurring',
     elapsed = 0): ChoreWithNeed {
     return { ...makeChore({ id, name, kind }), need, elapsed, urgent: false,
-        possible: blockedBy.length === 0, blockedBy, reason: { code: 'trigger' } };
+        possible: blockedBy.length === 0, blockedBy, reason: { code: 'trigger' }, nextDeadline: null };
 }
 
 describe('byNeed', () => {

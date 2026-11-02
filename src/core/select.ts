@@ -21,6 +21,7 @@ export function evaluateChores(chores: readonly Chore[], needCtx: NeedContext, p
             possible: blockedBy.length === 0,
             blockedBy,
             reason: n.reason,
+            nextDeadline: n.nextDeadline,
         };
     });
 }

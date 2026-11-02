@@ -147,7 +147,7 @@ export const en = {
     'param.time_zone': 'Time zone for all local times, for example Europe/Berlin.',
     'param.one_time_reference_days': 'Days after which a one-time task is due.',
     'param.deadline_lead_days': 'Days before a deadline in which the chore is urgent.',
-    'param.urgent_min_need': 'Lowest need at which a trigger condition or a yearly deadline can make a chore urgent. 0.5 means half of the interval.',
+    'param.urgent_min_need': 'Part of the interval after a done tap in which a trigger condition or a yearly deadline cannot make a chore urgent. 0.5 means half of the interval.',
     'param.learn_margin': 'How far \u201cWas necessary earlier\u201d and \u201cNot necessary yet\u201d move the interval away from the observed time, as a part of it.',
     'param.learn_rate': 'Part of the change that one tap applies. A second tap in the same direction applies the whole change.',
     'param.handover_after_hours': 'After this many hours of absence, the persons at home can get the chores of the absent person.',

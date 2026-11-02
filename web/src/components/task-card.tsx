@@ -66,11 +66,8 @@ function Rooms({ categories }: { categories: Category[] }) {
  */
 function deadlineText(chore: ChoreWithNeed): string | null {
     if (chore.reason.code === 'deadline') return reasonText(chore);
-    if (chore.deadlineAt !== null) return t('reason.deadline', { date: dayMonth(chore.deadlineAt) });
-    if (chore.deadlineMd !== null) {
-        const [month, day] = chore.deadlineMd.split('-').map(Number);
-        return t('reason.deadline', { date: dayMonth(new Date(new Date().getFullYear(), month! - 1, day).getTime()) });
-    }
+    // the deadline is the end of the due date
+    if (chore.nextDeadline !== null) return t('reason.deadline', { date: dayMonth(chore.nextDeadline - 1) });
     return null;
 }
 

@@ -17,6 +17,8 @@ export interface NeedResult {
     /** True when an active deadline or trigger raises the need level. */
     urgent: boolean;
     reason: Reason;
+    /** The earliest deadline that counts, also when it is over, or null. */
+    nextDeadline: number | null;
 }
 
 /** Lowest need level of an urgent chore. */
@@ -71,19 +73,40 @@ export function elapsed(chore: Chore, ctx: NeedContext): number {
 }
 
 /**
- * Returns the deadlines of a chore that can apply now: the fixed deadline, or the yearly deadline of the last and of
- * the current year. A deadline is the end of its local day.
+ * Returns the days after a known done time in which a deadline or a trigger does not make a recurring chore urgent.
  *
  * @param chore the chore
- * @param now milliseconds since the epoch
+ * @param settings the settings
+ */
+export function calmDays(chore: Chore, settings: Settings): number {
+    return settings.urgent_min_need * effectiveInterval(chore, settings);
+}
+
+/**
+ * Tells if a recurring chore has a known done time at most the given days before a moment, or after it.
+ *
+ * @param chore the chore
+ * @param at milliseconds since the epoch
+ * @param days the days before the moment
+ */
+function doneSince(chore: Chore, at: number, days: number): boolean {
+    return chore.kind === 'recurring' && chore.lastDoneAt !== null && chore.lastDoneAt >= at - days * DAY;
+}
+
+/**
+ * Returns the possible deadlines of a chore around a moment: the fixed deadline, or the yearly deadline of the year
+ * before, of the year and of the year after. A deadline is the end of its local day.
+ *
+ * @param chore the chore
+ * @param at milliseconds since the epoch
  * @param timeZone IANA time zone
  */
-export function deadlines(chore: Chore, now: number, timeZone: string): number[] {
+function deadlineCandidates(chore: Chore, at: number, timeZone: string): number[] {
     const result: number[] = [];
     if (chore.deadlineAt !== null) result.push(chore.deadlineAt);
     if (chore.deadlineMd !== null) {
-        const year = localParts(now, timeZone).year;
-        for (const y of [year - 1, year]) {
+        const year = localParts(at, timeZone).year;
+        for (const y of [year - 1, year, year + 1]) {
             result.push(startOfDay(addDays(`${y}-${chore.deadlineMd}`, 1), timeZone));
         }
     }
@@ -92,49 +115,58 @@ export function deadlines(chore: Chore, now: number, timeZone: string): number[]
 
 /**
  * Tells if a deadline counts for a chore. A deadline before the creation of the chore does not count. A known done
- * time of a recurring chore cancels the deadline when it is in the lead period, or when it is less than the minimum
- * need times the interval before the deadline.
+ * time of a recurring chore cancels the deadline when it is in the lead period, less than the calm days before the
+ * deadline, or after the deadline.
  *
  * @param chore the chore
  * @param deadline the deadline timestamp
  * @param settings the settings
  */
-export function deadlineCounts(chore: Chore, deadline: number, settings: Settings): boolean {
+function deadlineCounts(chore: Chore, deadline: number, settings: Settings): boolean {
     if (deadline < chore.createdAt) return false;
-    if (chore.kind !== 'recurring' || chore.lastDoneAt === null) return true;
-    const window = Math.max(settings.deadline_lead_days, settings.urgent_min_need * effectiveInterval(chore, settings));
-    return chore.lastDoneAt < deadline - window * DAY;
+    return !doneSince(chore, deadline, Math.max(settings.deadline_lead_days, calmDays(chore, settings)));
 }
 
 /**
- * Returns the need level that a deadline adds, or null when the deadline does not count or its lead period has not
- * started.
+ * Returns the next deadline of a chore: the earliest deadline that counts, also when it is over. Returns null when
+ * no deadline counts.
  *
  * @param chore the chore
- * @param deadline the deadline timestamp
  * @param now milliseconds since the epoch
  * @param settings the settings
  */
-export function deadlineNeed(chore: Chore, deadline: number, now: number, settings: Settings): number | null {
-    const lead = settings.deadline_lead_days * DAY;
+export function nextDeadline(chore: Chore, now: number, settings: Settings): number | null {
+    const counting = deadlineCandidates(chore, now, settings.time_zone).filter((d) => deadlineCounts(chore, d, settings));
+    return counting.length > 0 ? Math.min(...counting) : null;
+}
+
+/**
+ * Returns the need level that a deadline adds, or null before its lead period.
+ *
+ * @param deadline the deadline timestamp
+ * @param now milliseconds since the epoch
+ * @param leadDays days before the deadline in which it applies
+ */
+export function deadlineNeed(deadline: number, now: number, leadDays: number): number | null {
+    const lead = leadDays * DAY;
     const leadStart = deadline - lead;
-    if (now < leadStart || !deadlineCounts(chore, deadline, settings)) return null;
+    if (now < leadStart) return null;
     if (now <= deadline) return DEADLINE_LEVEL + (lead > 0 ? (now - leadStart) / lead : 1);
     return DEADLINE_LEVEL + 1 + (now - deadline) / DAY;
 }
 
 /**
  * Tells if the trigger of a chore applies: the condition is true, it became true after the start of the chore, and
- * at least the minimum need has built up. The minimum need keeps a condition that changes often from making the
+ * the calm days after the last done time are over. The calm days keep a condition that changes often from making the
  * chore urgent again directly after a done tap.
  *
  * @param chore the chore
- * @param rawNeed the need level from the elapsed time
+ * @param now milliseconds since the epoch
  * @param settings the settings
  */
-export function triggerApplies(chore: Chore, rawNeed: number, settings: Settings): boolean {
+export function triggerApplies(chore: Chore, now: number, settings: Settings): boolean {
     if (chore.triggerId === null || chore.triggerResult !== 1 || chore.triggerSinceAt === null) return false;
-    return startAt(chore, settings) < chore.triggerSinceAt && rawNeed >= settings.urgent_min_need;
+    return startAt(chore, settings) < chore.triggerSinceAt && !doneSince(chore, now, calmDays(chore, settings));
 }
 
 /**
@@ -154,9 +186,9 @@ export function computeNeed(chore: Chore, ctx: NeedContext): NeedResult {
         : { code: 'interval', interval, elapsed: el };
     let urgent = false;
 
-    for (const deadline of deadlines(chore, ctx.now, ctx.settings.time_zone)) {
-        const level = deadlineNeed(chore, deadline, ctx.now, ctx.settings);
-        if (level === null) continue;
+    const deadline = nextDeadline(chore, ctx.now, ctx.settings);
+    const level = deadline === null ? null : deadlineNeed(deadline, ctx.now, ctx.settings.deadline_lead_days);
+    if (deadline !== null && level !== null) {
         urgent = true;
         if (level > need) {
             need = level;
@@ -164,7 +196,7 @@ export function computeNeed(chore: Chore, ctx: NeedContext): NeedResult {
         }
     }
 
-    if (triggerApplies(chore, raw, ctx.settings)) {
+    if (triggerApplies(chore, ctx.now, ctx.settings)) {
         urgent = true;
         if (DEADLINE_LEVEL > need) {
             need = DEADLINE_LEVEL;
@@ -172,5 +204,5 @@ export function computeNeed(chore: Chore, ctx: NeedContext): NeedResult {
         }
     }
 
-    return { need, elapsed: el, urgent, reason };
+    return { need, elapsed: el, urgent, reason, nextDeadline: deadline };
 }
