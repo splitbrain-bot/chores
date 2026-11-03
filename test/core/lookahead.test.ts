@@ -43,8 +43,8 @@ describe('isLookaheadCandidate', () => {
         const chore = { ...evaluated({ durationMin: 60 }, 1.5), blockedBy: ['capacity' as const] };
         expect(isLookaheadCandidate(chore, false, ctx())).toBe(true);
         expect(isLookaheadCandidate({ ...chore, blockedBy: ['capacity', 'persons'] }, false, ctx())).toBe(false);
-        // outside of the slots nothing fits now
-        expect(isLookaheadCandidate(chore, false, ctx({ now: at('2026-10-29T22:00+01:00') }))).toBe(false);
+        // outside of the slots too
+        expect(isLookaheadCandidate(chore, false, ctx({ now: at('2026-10-29T22:00+01:00') }))).toBe(true);
     });
 });
 
@@ -70,6 +70,14 @@ describe('lookahead', () => {
         const chore = evaluated({ id: 5, requiresId: 1 });
         const results = new Map([[5, new Map([['2026-10-30', false], ['2026-10-31', false], ['2026-11-01', null]])]]);
         expect(lookahead([chore], ctx({ forecastResults: results }))).toEqual([]);
+    });
+
+    it('uses the current result of the forecast condition for today', () => {
+        const results = new Map([[5, new Map([['2026-10-30', false], ['2026-10-31', true]])]]);
+        const chore = evaluated({ id: 5, requiresId: 1, requiresResult: 1, durationMin: 30 });
+        expect(lookahead([chore], ctx({ forecastResults: results }))[0]!.date).toBe('2026-10-29');
+        const bad = { ...chore, requiresResult: 0 };
+        expect(lookahead([bad], ctx({ forecastResults: results }))[0]!.date).toBe('2026-10-31');
     });
 
     it('uses the forecast entry in the reasons', () => {

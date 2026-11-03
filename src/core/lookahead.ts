@@ -1,7 +1,7 @@
 import { busyMinutes } from './capacity.ts';
 import { effectiveInterval } from './need.ts';
 import { candidates, together } from './possible.ts';
-import { addDays, currentSlot, inSeason, isQuietDay, localDate, slotsOfDay, startOfDay } from './time.ts';
+import { addDays, inSeason, isQuietDay, localDate, slotsOfDay, startOfDay } from './time.ts';
 import { DAY, type CalendarEvent, type Capacity, type ChoreWithNeed, type ForecastDay, type Hint, type HintReason,
     type Settings } from './types.ts';
 
@@ -31,8 +31,8 @@ function leadStart(chore: ChoreWithNeed, settings: Settings): number | null {
 }
 
 /**
- * Tells if a chore needs a look-ahead hint at all: it depends on a forecast, it is noisy, it needs more persons, a
- * deadline makes it urgent in the look-ahead days, or only the capacity of the current slot blocks it.
+ * Tells if a chore needs a look-ahead hint at all: it has a forecast condition, it is noisy, it needs more persons,
+ * a deadline makes it urgent in the look-ahead days, or only the capacity blocks it now.
  *
  * @param chore the chore
  * @param hasForecast true when the required condition of the chore has a forecast template
@@ -43,8 +43,7 @@ export function isLookaheadCandidate(chore: ChoreWithNeed, hasForecast: boolean,
     if (hasForecast || chore.noisy || together(chore)) return true;
     const lead = leadStart(chore, ctx.settings);
     if (!chore.possible && lead !== null && lead <= ctx.now + ctx.settings.lookahead_days * DAY) return true;
-    const inSlot = currentSlot(ctx.now, ctx.settings.time_zone, ctx.settings.capacity_slots, ctx.holidays) !== null;
-    return inSlot && chore.blockedBy.length === 1 && chore.blockedBy[0] === 'capacity';
+    return chore.blockedBy.length === 1 && chore.blockedBy[0] === 'capacity';
 }
 
 /**
@@ -71,7 +70,7 @@ export function freeOnDay(date: string, events: readonly CalendarEvent[], ctx: L
 
 /**
  * Computes the look-ahead hints for the rest of today and the next days. Each chore gets a hint for the first day
- * that fits. A chore with forecast results in the context needs a good forecast day.
+ * that fits. A chore with forecast results in the context needs a good forecast day, or today its current result.
  *
  * @param chores the evaluated chores
  * @param ctx the look-ahead context
@@ -125,7 +124,8 @@ function checkDay(chore: ChoreWithNeed, date: string, interval: number, persons:
 
     const forecast = ctx.forecastResults.get(chore.id);
     if (forecast) {
-        if (forecast.get(date) !== true) return null;
+        const good = date === localDate(ctx.now, tz) ? chore.requiresResult === 1 : forecast.get(date) === true;
+        if (!good) return null;
         const day = ctx.forecast.get(date);
         reasons.push({
             code: 'weather',

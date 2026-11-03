@@ -33,8 +33,8 @@ when the chore was done in its lead period or less than half of the interval bef
 
 The outlook shows the first day that fits for chores that cannot be done now: chores with a forecast condition,
 noisy chores, chores for more persons, chores that a deadline makes urgent in the next days, and chores that do not
-fit the time or the energy of the current slot. A day fits when the slots of the day, minus the calendar events, have
-enough minutes and energy. The rest of the current day counts too.
+fit the capacity now. A day fits when the slots of the day, minus the calendar events, have enough minutes and
+energy. The rest of the current day counts too; a forecast condition counts with its current result on this day.
 
 Two taps correct the interval. "Was necessary earlier" after a done tap moves the interval toward the elapsed time
 minus the margin. "Not necessary yet" in the dialog Later moves it toward the elapsed time plus the margin. One tap
