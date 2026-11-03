@@ -66,16 +66,16 @@ function resultText(result: number | boolean | null): string {
 }
 
 /**
- * Returns the status of a condition: the current result, and the result per day for a condition with a forecast
- * template.
+ * Returns the status of a condition: the current result, and for a forecast condition its name with the result per
+ * day.
  *
  * @param condition the condition with its status
  */
 export function conditionStatusText(condition: ConditionStatus): string {
     const now = t('condition.result', { result: resultText(condition.result) });
     if (condition.forecastTemplate === null) return now;
-    if (condition.forecast.length === 0) return `${now} ${t('condition.noForecast')}`;
-    return `${now} ${t('condition.forecast', { days: condition.forecast
+    if (condition.forecast.length === 0) return `${now} ${t('condition.noForecast', { name: condition.name })}`;
+    return `${now} ${t('condition.forecast', { name: condition.name, days: condition.forecast
         .map((d) => `${weekdayName(new Date(`${d.date}T12:00:00`).getDay())} ${resultText(d.result)}`).join(', ') })}`;
 }
 
