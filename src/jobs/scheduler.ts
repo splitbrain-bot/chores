@@ -44,7 +44,7 @@ export class Scheduler {
     /** All jobs. */
     private get jobs(): Job[] {
         return [
-            { name: 'forecast', run: () => this.refreshForecast(), interval: (s) => s.forecast_refresh_minutes * MINUTE },
+            { name: 'forecast', run: () => this.refreshForecast(), interval: (s) => s.forecast_condition_refresh_minutes * MINUTE },
             { name: 'calendars', run: () => this.refreshCalendars(), interval: (s) => s.calendar_refresh_minutes * MINUTE },
             { name: 'holidays', run: () => this.refreshHolidays(), interval: () => DAY },
             { name: 'notifications', run: () => this.sendNotifications(), interval: () => HOUR },

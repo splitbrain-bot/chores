@@ -6,7 +6,8 @@ export const conditionSchema = z.object({
     name: z.string().trim().min(1).max(100),
     template: z.string().trim().min(1).describe('Home Assistant template that renders to true or false for now'),
     forecastTemplate: z.string().trim().min(1).nullish().describe('Home Assistant template that renders to true or '
-        + 'false for one forecast day, with the forecast of the day as the variable day. For the look-ahead'),
+        + 'false for one of the next days, with the entry of the day as the variable day. It makes the condition a '
+        + 'forecast condition for the look-ahead'),
     icon: iconSchema,
 });
 

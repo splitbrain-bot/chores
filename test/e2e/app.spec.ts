@@ -202,7 +202,7 @@ test('creates a condition and uses it in a chore', async ({ page }) => {
     const form = page.locator('form.condition').last();
     await form.getByLabel('Name').fill('Trocken');
     await form.getByLabel('Template', { exact: true }).fill('{{ is_state("sensor.rain", "off") }}');
-    await expect(form.getByLabel('Forecast template')).toHaveValue('');
+    await expect(form.getByLabel('Forecast condition')).toHaveValue('');
     await form.getByRole('button', { name: 'Select icon' }).click();
     await form.getByLabel('Search icon').fill('weather-sunny');
     await form.getByLabel('Search icon').press('Enter');

@@ -252,7 +252,7 @@ export interface Settings {
     holiday_calendar: string;
     holiday_state: string;
     weather_entity: string;
-    forecast_refresh_minutes: number;
+    forecast_condition_refresh_minutes: number;
     calendar_refresh_minutes: number;
     ha_frame_ancestors: string[];
 }
@@ -286,7 +286,7 @@ export const DEFAULT_SETTINGS: Settings = {
     holiday_calendar: 'calendar.holidays_in_germany',
     holiday_state: 'Berlin',
     weather_entity: 'weather.home',
-    forecast_refresh_minutes: 60,
+    forecast_condition_refresh_minutes: 60,
     calendar_refresh_minutes: 15,
     ha_frame_ancestors: [],
 };

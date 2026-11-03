@@ -353,3 +353,20 @@ describe('migration urgent-min-need', () => {
         await db.destroy();
     });
 });
+
+describe('migration forecast-condition-refresh', () => {
+    it('renames the stored setting and back', async () => {
+        const { openDatabase, migrate } = await import('../../src/db/database.ts');
+        const renamed = await import('../../src/db/migrations/2026-11-03-forecast-condition-refresh.ts');
+        const db = openDatabase(':memory:');
+        await migrate(db);
+        await db.insertInto('setting').values({ key: 'forecast_refresh_minutes', value: '30' }).execute();
+
+        await renamed.up(db as never);
+        expect(await db.selectFrom('setting').selectAll().execute())
+            .toEqual([{ key: 'forecast_condition_refresh_minutes', value: '30' }]);
+        await renamed.down(db as never);
+        expect(await db.selectFrom('setting').selectAll().execute()).toEqual([{ key: 'forecast_refresh_minutes', value: '30' }]);
+        await db.destroy();
+    });
+});

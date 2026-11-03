@@ -93,14 +93,14 @@ export function createMcpServer(deps: Deps, version: string, identity: Identity)
 
     server.registerTool('list_conditions', {
         description: 'Lists the conditions with their status: the current result 1 or 0, or null with an error, the '
-            + 'time since the result is true, and the result per day of the look-ahead for a condition with a '
-            + 'forecast template. choreIds names the chores that use the condition.',
+            + 'time since the result is true, and the result per day of the look-ahead for a forecast condition. '
+            + 'choreIds names the chores that use the condition.',
     }, async () => result({ conditions: await listConditions(deps) }));
 
     server.registerTool('create_condition', {
         description: 'Creates a condition. A chore uses a condition as requiresId, then the chore is possible only '
             + 'while the condition is true, or as triggerId, then the chore is urgent from the time the condition '
-            + 'becomes true until the chore is done. The look-ahead uses the forecast template of the required '
+            + 'becomes true until the chore is done. The look-ahead uses the required condition when it is a forecast '
             + 'condition.',
         inputSchema: conditionSchema,
     }, async (args) => result({ condition: await createCondition(deps, args) }));

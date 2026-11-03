@@ -62,9 +62,9 @@ export const settingsSchema = z.object({
     holiday_state: z.string()
         .describe('State for the regional public holidays, for example Berlin'),
     weather_entity: z.string()
-        .describe('Home Assistant weather entity for the daily forecast'),
-    forecast_refresh_minutes: z.number().int().min(5)
-        .describe('Minutes between two reads of the forecast'),
+        .describe('Home Assistant weather entity. Its daily entries are the input of the forecast conditions'),
+    forecast_condition_refresh_minutes: z.number().int().min(5)
+        .describe('Minutes between two updates of the forecast conditions'),
     calendar_refresh_minutes: z.number().int().min(1)
         .describe('Minutes between two reads of the calendars of the persons'),
     ha_frame_ancestors: z.array(z.url())

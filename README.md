@@ -18,7 +18,7 @@ A chore has a name, rooms, an interval in days, a duration and an effort. All ot
 | season            | Months of the chore. No month means the whole year.                                        |
 | noisy             | Not on Sundays and public holidays.                                                        |
 | deadline          | MM-DD for a recurring chore, a date for a one-time task. The chore is urgent before it.     |
-| only when         | A condition that must be true. Its forecast template gives the hints of the outlook.       |
+| only when         | A condition that must be true. A forecast condition gives the hints of the outlook.        |
 | urgent when       | A condition that makes the chore urgent when it becomes true, until the chore is done.     |
 
 The need level of a chore is the elapsed time divided by the interval. A chore with a need level of 0.9 or more is a
@@ -31,7 +31,7 @@ A deadline or a trigger makes a chore urgent. A trigger applies when its conditi
 event and at least half of the interval has passed since the last known done event. A yearly deadline does not apply
 when the chore was done in its lead period or less than half of the interval before it. A done tap ends the urgency.
 
-The outlook shows the first day that fits for chores that cannot be done now: chores that depend on a forecast,
+The outlook shows the first day that fits for chores that cannot be done now: chores with a forecast condition,
 noisy chores, chores for more persons, chores that a deadline makes urgent in the next days, and chores that do not
 fit the time or the energy of the current slot. A day fits when the slots of the day, minus the calendar events, have
 enough minutes and energy. The rest of the current day counts too.

@@ -13,6 +13,7 @@ import * as withoutSeasonRange from './migrations/2026-10-27-without-season-rang
 import * as simplerChores from './migrations/2026-10-28-simpler-chores.ts';
 import * as unknownLastDone from './migrations/2026-10-28-unknown-last-done.ts';
 import * as urgentMinNeed from './migrations/2026-11-02-urgent-min-need.ts';
+import * as forecastConditionRefresh from './migrations/2026-11-03-forecast-condition-refresh.ts';
 import type { DB } from './types.ts';
 
 /** The database handle of the application. */
@@ -30,6 +31,7 @@ const migrations: Record<string, Migration> = {
     '2026-10-28-simpler-chores': simplerChores,
     '2026-10-28-unknown-last-done': unknownLastDone,
     '2026-11-02-urgent-min-need': urgentMinNeed,
+    '2026-11-03-forecast-condition-refresh': forecastConditionRefresh,
 };
 
 /**
