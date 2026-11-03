@@ -1,4 +1,4 @@
-import { isLookaheadCandidate, lookahead } from '../core/lookahead.ts';
+import { lookahead } from '../core/lookahead.ts';
 import { addDays, localDate } from '../core/time.ts';
 import type { ChoreWithNeed, Condition, ForecastDay, Hint, Settings } from '../core/types.ts';
 import { getCache, setCache } from '../db/cache.ts';
@@ -87,19 +87,18 @@ export async function getLookahead(deps: Deps): Promise<LookaheadResult> {
     const withForecast = new Set((await listConditions(deps.db)).filter((c) => c.forecastTemplate !== null)
         .map((c) => c.id));
     const hasForecast = (c: ChoreWithNeed) => c.requiresId !== null && withForecast.has(c.requiresId);
-    const candidates = chores.filter((c) => isLookaheadCandidate(c, hasForecast(c)));
     const forecast = await loadForecast(deps, state.settings.time_zone);
-    const used = new Set(candidates.filter(hasForecast).map((c) => c.requiresId));
+    const used = new Set(chores.filter(hasForecast).map((c) => c.requiresId));
     const conditions = (await listConditions(deps.db)).filter((c) => used.has(c.id));
     const results = await forecastResults(deps, conditions, forecast.days, state.now, state.settings);
-    const hints = lookahead(candidates, {
+    const hints = lookahead(chores, {
         now: state.now,
         settings: state.settings,
         personIds,
         holidays: state.holidays,
         calendars: state.calendars,
         forecast: forecast.days,
-        forecastResults: new Map(candidates.filter(hasForecast).map((c) => [c.id, results.get(c.requiresId!) ?? new Map()])),
+        forecastResults: new Map(chores.filter(hasForecast).map((c) => [c.id, results.get(c.requiresId!) ?? new Map()])),
     });
     return { hints, forecastAge: forecast.fetchedAt === null ? null : state.now - forecast.fetchedAt };
 }

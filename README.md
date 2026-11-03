@@ -31,6 +31,11 @@ A deadline or a trigger makes a chore urgent. A trigger applies when its conditi
 event and at least half of the interval has passed since the last known done event. A yearly deadline does not apply
 when the chore was done in its lead period or less than half of the interval before it. A done tap ends the urgency.
 
+The outlook shows the first day that fits for chores that cannot be done now: chores that depend on a forecast,
+noisy chores, chores for more persons, chores that a deadline makes urgent in the next days, and chores that do not
+fit the time or the energy of the current slot. A day fits when the slots of the day, minus the calendar events, have
+enough minutes and energy. The rest of the current day counts too.
+
 Two taps correct the interval. "Was necessary earlier" after a done tap moves the interval toward the elapsed time
 minus the margin. "Not necessary yet" in the dialog Later moves it toward the elapsed time plus the margin. One tap
 applies half of the change, a second tap in the same direction applies the whole change. Both taps need a known last

@@ -214,7 +214,8 @@ export type HintReason =
     | { code: 'weather'; condition: string | null; temperature: number | null; precipitation: number | null }
     | { code: 'quiet_day' }
     | { code: 'all_free' }
-    | { code: 'free_time'; minutes: number };
+    | { code: 'free_time'; minutes: number }
+    | { code: 'deadline'; deadline: number };
 
 /** A hint for a good day for a chore. */
 export interface Hint {

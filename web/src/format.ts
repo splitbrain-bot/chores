@@ -47,6 +47,8 @@ export function hintText(hint: Hint): string {
                     temperature: r.temperature !== null ? `${num(r.temperature)} °C` : '' }).trim();
             case 'free_time':
                 return t('hint.free_time', { minutes: r.minutes });
+            case 'deadline':
+                return t('reason.deadline', { date: dayMonth(r.deadline - 1) });
             default:
                 return t(`hint.${r.code}`);
         }
