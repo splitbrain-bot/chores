@@ -163,6 +163,18 @@ describe('HTTP API', () => {
         expect(await (await t.call('GET', '/api/overview', t.mcp)).json()).toHaveProperty('counts');
     });
 
+    it('returns the statistics of the person', async () => {
+        const { chore: created } = await (await t.call('POST', '/api/chores', t.person, chore)).json() as
+            { chore: { id: number } };
+        await t.call('POST', `/api/chores/${created.id}/done`, t.person, {});
+        await t.call('POST', `/api/chores/${created.id}/done`, t.shared, {});
+        const { weeks } = await (await t.call('GET', '/api/stats')).json() as
+            { weeks: { start: string; tasks: number; effort: number }[] };
+        expect(weeks).toHaveLength(52);
+        expect(weeks.at(-1)).toEqual({ start: '2026-10-26', tasks: 1, effort: 2 });
+        expect((await t.call('GET', '/api/stats', t.shared)).status).toBe(403);
+    });
+
     it('enforces the rights of the shared token', async () => {
         const created = await (await t.call('POST', '/api/chores', t.mcp, chore)).json() as { chore: { id: number } };
         const forbidden: [string, string, unknown?][] = [

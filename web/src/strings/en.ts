@@ -4,6 +4,7 @@ export const en = {
     'nav.suggestions': 'Now',
     'nav.chores': 'Chores',
     'nav.lookahead': 'Outlook',
+    'nav.stats': 'Stats',
     'nav.settings': 'Settings',
     'nav.logout': 'Log out',
 
@@ -115,6 +116,14 @@ export const en = {
     'lookahead.title': 'Outlook',
     'lookahead.empty': 'No hints for the next days.',
     'lookahead.forecastAge': 'Forecast conditions updated {time}',
+
+    'stats.title': 'Stats',
+    'stats.thisWeek': 'This week',
+    'stats.lastWeek': 'Last week',
+    'stats.tasks': 'chores done',
+    'stats.effort': 'effort points',
+    'stats.perWeek': 'Per week',
+    'stats.week': 'Week of {date}',
 
     'settings.capacity': 'Capacity',
     'settings.parameters': 'Parameters',

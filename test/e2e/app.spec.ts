@@ -269,7 +269,7 @@ test.describe('German browser', () => {
         await page.getByLabel('Name').fill('Andi');
         await page.getByLabel('Passwort').fill('andi-pw');
         await page.getByRole('button', { name: 'Anmelden' }).click();
-        await expect(page.locator('.nav a')).toHaveText(['Jetzt', 'Aufgaben', 'Ausblick', 'Einstellungen']);
+        await expect(page.locator('.nav a')).toHaveText(['Jetzt', 'Aufgaben', 'Ausblick', 'Statistik', 'Einstellungen']);
         await expect(page.getByRole('button', { name: 'Erledigt' }).first()).toBeVisible();
         await expect(page.locator('html')).toHaveAttribute('lang', 'de');
         await expect(page).toHaveTitle('Chores');

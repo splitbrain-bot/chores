@@ -7,6 +7,8 @@
     --accent-text: #ffffff;
     --line: #dcdcd6;
     --danger: #b3261e;
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
     --radius: 12px;
     --gap: 12px;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -22,6 +24,8 @@
         --text: #e8ebe8;
         --muted: #9aa29c;
         --line: #343a36;
+        --series-1: #3987e5;
+        --series-2: #d95926;
     }
 }
 
@@ -893,4 +897,152 @@ tr.revoked {
 
 .message {
     color: var(--accent);
+}
+
+.week-tiles {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--gap);
+    margin-bottom: 1.5rem;
+}
+
+.week-tile {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: var(--gap);
+}
+
+.week-tile p {
+    margin: 0.2rem 0;
+    color: var(--muted);
+}
+
+.week-tile strong {
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.week-chart {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: var(--gap) var(--gap) 1.8rem;
+}
+
+.week-chart .legend {
+    display: flex;
+    gap: 1.2em;
+    margin-bottom: 0.6rem;
+    font-size: 0.9rem;
+    color: var(--muted);
+}
+
+.line-key {
+    display: inline-block;
+    width: 14px;
+    height: 2px;
+    border-radius: 1px;
+    margin-right: 0.4em;
+    vertical-align: middle;
+}
+
+.line-key.tasks, .week-chart .dot.tasks {
+    background: var(--series-1);
+}
+
+.line-key.effort, .week-chart .dot.effort {
+    background: var(--series-2);
+}
+
+.week-chart .plot {
+    position: relative;
+    height: 160px;
+    margin-top: 1.2rem;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    touch-action: pan-y;
+}
+
+.week-chart svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.week-chart polyline {
+    fill: none;
+    stroke-width: 2px;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.week-chart polyline.tasks {
+    stroke: var(--series-1);
+}
+
+.week-chart polyline.effort {
+    stroke: var(--series-2);
+}
+
+.week-chart .max {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    font-size: 0.75rem;
+    color: var(--muted);
+}
+
+.week-chart .crosshair {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--muted);
+    pointer-events: none;
+}
+
+.week-chart .dot {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 2px solid var(--card);
+    transform: translate(-50%, 50%);
+    pointer-events: none;
+}
+
+.week-chart .tooltip {
+    position: absolute;
+    top: 0;
+    padding: 0.4em 0.6em;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.week-chart .tooltip p {
+    margin: 0;
+    color: var(--muted);
+}
+
+.week-chart .tooltip strong {
+    color: var(--text);
+}
+
+.week-chart .months {
+    position: relative;
+    font-size: 0.75rem;
+    color: var(--muted);
+}
+
+.week-chart .months span {
+    position: absolute;
+    top: 0.3rem;
+    white-space: nowrap;
 }

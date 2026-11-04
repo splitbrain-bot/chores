@@ -1,9 +1,12 @@
 import type {
     Capacity, Category, ChoreEvent, ChoreWithNeed, Hint, Person, PresenceState, Settings, Suggestion,
 } from '../../src/core/types.ts';
+import type { WeekStats } from '../../src/core/stats.ts';
 import type { ConditionStatus } from '../../src/service/conditions.ts';
 
-export type { Capacity, Category, ChoreEvent, ChoreWithNeed, ConditionStatus, Hint, Person, Settings, Suggestion };
+export type {
+    Capacity, Category, ChoreEvent, ChoreWithNeed, ConditionStatus, Hint, Person, Settings, Suggestion, WeekStats,
+};
 
 /** Presence of a person with the name. */
 export interface PersonPresence extends PresenceState {

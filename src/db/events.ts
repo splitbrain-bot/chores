@@ -100,3 +100,16 @@ export async function lastLearnEvent(db: Database, choreId: number): Promise<Cho
         .orderBy('at', 'desc').orderBy('id', 'desc').executeTakeFirst();
     return row && toEvent(row);
 }
+
+/**
+ * Lists the done events of a person since a moment.
+ *
+ * @param db the database
+ * @param personId the person
+ * @param since milliseconds since the epoch
+ */
+export async function listDoneEvents(db: Database, personId: number, since: number):
+    Promise<Pick<ChoreEvent, 'at' | 'effort'>[]> {
+    return db.selectFrom('event').select(['at', 'effort']).where('type', '=', 'done').where('personId', '=', personId)
+        .where('at', '>=', since).execute();
+}

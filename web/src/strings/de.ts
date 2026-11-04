@@ -6,6 +6,7 @@ export const de: Record<StringKey, string> = {
     'nav.suggestions': 'Jetzt',
     'nav.chores': 'Aufgaben',
     'nav.lookahead': 'Ausblick',
+    'nav.stats': 'Statistik',
     'nav.settings': 'Einstellungen',
     'nav.logout': 'Abmelden',
 
@@ -117,6 +118,14 @@ export const de: Record<StringKey, string> = {
     'lookahead.title': 'Ausblick',
     'lookahead.empty': 'Keine Hinweise für die nächsten Tage.',
     'lookahead.forecastAge': 'Vorhersage-Bedingungen aktualisiert {time}',
+
+    'stats.title': 'Statistik',
+    'stats.thisWeek': 'Diese Woche',
+    'stats.lastWeek': 'Letzte Woche',
+    'stats.tasks': 'Aufgaben erledigt',
+    'stats.effort': 'Aufwandspunkte',
+    'stats.perWeek': 'Pro Woche',
+    'stats.week': 'Woche ab {date}',
 
     'settings.capacity': 'Kapazität',
     'settings.parameters': 'Parameter',

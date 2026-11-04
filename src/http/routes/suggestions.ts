@@ -2,12 +2,13 @@ import { Hono } from 'hono';
 import type { Deps } from '../../service/deps.ts';
 import { getLookahead } from '../../service/lookahead.ts';
 import { getOverview } from '../../service/overview.ts';
+import { getStats } from '../../service/stats.ts';
 import { getSuggestions } from '../../service/suggestions.ts';
 import { requires } from '../auth.ts';
 import type { AppEnv } from '../env.ts';
 
 /**
- * Creates the routes of the suggestions, the look-ahead and the overview.
+ * Creates the routes of the suggestions, the look-ahead, the overview and the statistics.
  *
  * @param deps the dependencies
  */
@@ -16,5 +17,6 @@ export function suggestionRoutes(deps: Deps): Hono<AppEnv> {
     app.get('/suggestions', requires('read'), async (c) => c.json(await getSuggestions(deps, c.var.identity.viewer)));
     app.get('/lookahead', requires('read'), async (c) => c.json(await getLookahead(deps)));
     app.get('/overview', requires('manage'), async (c) => c.json(await getOverview(deps)));
+    app.get('/stats', requires('read'), async (c) => c.json(await getStats(deps, c.var.identity.viewer)));
     return app;
 }

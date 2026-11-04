@@ -8,6 +8,7 @@ import { Chores } from './screens/chores.tsx';
 import { Login } from './screens/login.tsx';
 import { Lookahead } from './screens/lookahead.tsx';
 import { SettingsScreen } from './screens/settings.tsx';
+import { Stats } from './screens/stats.tsx';
 import { Suggestions } from './screens/suggestions.tsx';
 import type { Category, ConditionStatus, Me, Person } from './types.ts';
 
@@ -83,13 +84,14 @@ export function App() {
     else if (!tablet && path === '/chores/new') screen = <ChoreForm id={null} />;
     else if (!tablet && (params = match('/chores/:id', path))) screen = <ChoreForm key={params.id} id={Number(params.id)} />;
     else if (!tablet && path === '/lookahead') screen = <Lookahead />;
+    else if (!tablet && path === '/stats') screen = <Stats />;
     else if (!tablet && path === '/settings') screen = <SettingsScreen />;
     else screen = <Suggestions />;
 
     const links: [string, string][] = tablet
         ? [['/', t('nav.suggestions')], ['/chores', t('nav.chores')]]
         : [['/', t('nav.suggestions')], ['/chores', t('nav.chores')], ['/lookahead', t('nav.lookahead')],
-            ['/settings', t('nav.settings')]];
+            ['/stats', t('nav.stats')], ['/settings', t('nav.settings')]];
 
     return (
         <AppContext.Provider value={{ me, tablet, categories, reloadCategories, persons, reloadPersons, conditions,
