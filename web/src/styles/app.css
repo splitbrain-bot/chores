@@ -173,7 +173,7 @@ input[type="checkbox"] {
     color: var(--text);
 }
 
-.capacity, .meta, .reason, .categories {
+.capacity, .meta, .categories {
     color: var(--muted);
 }
 
@@ -651,7 +651,7 @@ html.tablet .actions button, html.tablet .reasons button {
     padding: 0.8em 1.4em;
 }
 
-.outlook ul, .lookahead ul, .history ul {
+.history ul {
     padding-left: 1.2em;
 }
 

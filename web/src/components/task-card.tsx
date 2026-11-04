@@ -77,11 +77,12 @@ function deadlineText(chore: ChoreWithNeed): string | null {
  *
  * @param props.chore the chore
  * @param props.related the chores of the same group
+ * @param props.hint the reasons why a day of the outlook fits the chore
  * @param props.onDone called when the user taps Done
  * @param props.onLater called when the user taps Later
  */
-export function TaskCard({ chore, related, onDone, onLater }:
-    { chore: ChoreWithNeed; related: ChoreWithNeed[]; onDone: () => void; onLater: () => void }) {
+export function TaskCard({ chore, related, hint, onDone, onLater }:
+    { chore: ChoreWithNeed; related: ChoreWithNeed[]; hint?: string; onDone: () => void; onLater: () => void }) {
     const { tablet, categories, persons, conditions } = useApp();
     const rooms = (cs: ChoreWithNeed) => categories.filter((c) => cs.categoryIds.includes(c.id));
 
@@ -143,6 +144,7 @@ export function TaskCard({ chore, related, onDone, onLater }:
                 <span className={chore.need >= 1 ? 'bar due' : 'bar'} style={{ width: `${Math.min(chore.need, 2) * 50}%` }} />
             </div>
             <div className="sub">
+                {hint && <span className="hint">{hint}</span>}
                 {status.length > 0 && <span className="blocked-by">{status.map((s) => <span key={s}>{s}</span>)}</span>}
                 {related.length > 0 && (
                     <div className="related" title={related.map(relatedText).join(', ')}>

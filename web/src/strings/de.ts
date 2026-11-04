@@ -41,7 +41,6 @@ export const de: Record<StringKey, string> = {
     'suggestions.nothingNow': 'Gerade gibt es nichts zu tun.',
     'suggestions.nextSlot': 'Nächstes Zeitfenster: {time}',
     'suggestions.allDone': 'Alles erledigt.',
-    'suggestions.outlook': 'Ausblick',
     'suggestions.effort': 'Aufwand {n} von 5',
     'suggestions.edit': 'Aufgabe bearbeiten',
     'suggestions.alsoDone': 'Hast du auch eine dieser Aufgaben erledigt?',

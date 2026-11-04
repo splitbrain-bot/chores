@@ -39,7 +39,6 @@ export const en = {
     'suggestions.nothingNow': 'Nothing to do right now.',
     'suggestions.nextSlot': 'Next slot: {time}',
     'suggestions.allDone': 'All done.',
-    'suggestions.outlook': 'Outlook',
     'suggestions.effort': 'Effort {n} of 5',
     'suggestions.edit': 'Edit chore',
     'suggestions.alsoDone': 'Did you also do one of these?',

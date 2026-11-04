@@ -1,12 +1,8 @@
 import { selectSuggestions } from '../core/select.ts';
-import type { Capacity, Hint, Suggestion, Viewer } from '../core/types.ts';
+import type { Capacity, Suggestion, Viewer } from '../core/types.ts';
 import type { Deps } from './deps.ts';
 import { evaluate } from './evaluate.ts';
-import { getLookahead } from './lookahead.ts';
 import { listPresence, type PersonPresence } from './presence.ts';
-
-/** Number of look-ahead hints on the suggestions screen. */
-const HINT_COUNT = 3;
 
 /** The data of the suggestions screen. */
 export interface SuggestionsResult {
@@ -16,7 +12,6 @@ export interface SuggestionsResult {
     /** Start of the next capacity slot when the viewer has no capacity now. */
     nextSlotAt: number | null;
     presence: PersonPresence[];
-    hints: Hint[];
 }
 
 /**
@@ -42,12 +37,10 @@ export async function getSuggestions(deps: Deps, viewer: Viewer): Promise<Sugges
         }
     }
 
-    const { hints } = await getLookahead(deps);
     return {
         suggestions,
         capacity,
         nextSlotAt: capacity.minutes === 0 ? state.nextSlotAt : null,
         presence: await listPresence(deps),
-        hints: hints.slice(0, HINT_COUNT),
     };
 }

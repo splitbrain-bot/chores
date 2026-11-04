@@ -3,8 +3,8 @@ import { api } from '../api.ts';
 import { TaskDialog, type TaskAction } from '../components/done-flow.tsx';
 import { TaskCard } from '../components/task-card.tsx';
 import { useApp } from '../context.ts';
-import { hintText, textColorOn } from '../format.ts';
-import { t, time, weekdayDate } from '../i18n.ts';
+import { textColorOn } from '../format.ts';
+import { t, time } from '../i18n.ts';
 import type { SuggestionsResponse } from '../types.ts';
 import { useInterval } from '../use-interval.ts';
 
@@ -67,19 +67,6 @@ export function Suggestions() {
                         </>
                         : <p>{t('suggestions.allDone')}</p>}
                 </div>
-            )}
-
-            {data.hints.length > 0 && (
-                <section className="outlook">
-                    <h2>{t('suggestions.outlook')}</h2>
-                    <ul>
-                        {data.hints.map((h) => (
-                            <li key={`${h.choreId}-${h.date}`}>
-                                <strong>{weekdayDate(h.date)}</strong>: {h.choreName} <span className="reason">({hintText(h)})</span>
-                            </li>
-                        ))}
-                    </ul>
-                </section>
             )}
         </section>
     );

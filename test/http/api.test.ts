@@ -80,7 +80,7 @@ describe('HTTP API', () => {
         expect(patched).toMatchObject({ chore: { durationMin: 20 } });
 
         const suggestions = await (await t.call('GET', '/api/suggestions', t.shared)).json() as {
-            suggestions: unknown[]; capacity: unknown; presence: unknown[]; hints: unknown[] };
+            suggestions: unknown[]; capacity: unknown; presence: unknown[] };
         expect(suggestions).toHaveProperty('capacity');
         expect(suggestions.presence).toHaveLength(1);
 

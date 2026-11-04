@@ -22,7 +22,6 @@ export interface SuggestionsResponse {
     capacity: Capacity;
     nextSlotAt: number | null;
     presence: PersonPresence[];
-    hints: Hint[];
 }
 
 /** A token without its hash. */
